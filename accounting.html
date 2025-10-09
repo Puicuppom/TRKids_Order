@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TR Kids - ระบบบัญชี</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary-color: #0071e3;
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --muted-color: #6c757d;
+            --border-color: #dee2e6;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .container {
+            max-width: 1600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .filter-group input, .filter-group select {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .filter-group .select2-container {
+            width: 300px !important;
+        }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: #fff;
+            align-self: flex-end;
+        }
+        .btn:disabled {
+            background-color: #a0cff7;
+            cursor: not-allowed;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+        .summary-card {
+            background-color: var(--bg-color);
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .summary-card h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: var(--muted-color);
+        }
+        .summary-card .value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        #loading-message {
+            text-align: center;
+            font-size: 1.2em;
+            color: var(--muted-color);
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>สรุปยอดขาย</h1>
+
+        <div class="card filters">
+            <div class="filter-group">
+                <label for="start-date">จากวันที่</label>
+                <input type="date" id="start-date">
+            </div>
+            <div class="filter-group">
+                <label for="end-date">ถึงวันที่</label>
+                <input type="date" id="end-date">
+            </div>
+            <div class="filter-group">
+                <label for="channel-filter">ช่องทาง (เลือกได้หลายช่องทาง)</label>
+                <select id="channel-filter" multiple="multiple"></select>
+            </div>
+            <button id="generate-report-btn" class="btn">สร้างรายงาน</button>
+        </div>
+
+        <div class="card summary-cards" id="summary-container">
+            <!-- Summary cards will be injected here -->
+        </div>
+
+        <div class="card">
+            <h2>รายการออร์เดอร์</h2>
+            <div id="results-container" class="table-container">
+                <p id="loading-message">กรุณาเลือกช่วงวันที่และช่องทาง แล้วกด "สร้างรายงาน"</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const SUPABASE_URL = 'https://scxcuwjhjbkxvqmpywqs.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjeGN1d2poamJreHZxbXB5d3FzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyODM4NTMsImV4cCI6MjA3NDg1OTg1M30.UqcmQUxCkOxgDxjtUa8Sbb0cLHT26qOuHfdbtdilkI8';
+            const { createClient } = supabase;
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            const channelFilterSelect = $('#channel-filter');
+            const generateBtn = document.getElementById('generate-report-btn');
+            const resultsContainer = document.getElementById('results-container');
+            const summaryContainer = document.getElementById('summary-container');
+            const loadingMessage = document.getElementById('loading-message');
+
+            // Initialize Select2 for multi-select
+            channelFilterSelect.select2({
+                placeholder: "เลือกช่องทางทั้งหมด",
+                allowClear: true
+            });
+
+            // Set default date range to today
+            const today = new Date().toISOString().slice(0, 10);
+            startDateInput.value = today;
+            endDateInput.value = today;
+
+            async function loadChannels() {
+                const { data, error } = await supabaseClient.from('channels').select('channel_code, channel_name');
+                if (error) {
+                    console.error('Error loading channels:', error);
+                    return;
+                }
+                data.forEach(ch => {
+                    const option = new Option(ch.channel_name, ch.channel_code, false, false);
+                    channelFilterSelect.append(option);
+                });
+                channelFilterSelect.trigger('change');
+            }
+
+            async function generateReport() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                const selectedChannels = channelFilterSelect.val();
+
+                if (!startDate || !endDate) {
+                    alert('กรุณาเลือกช่วงวันที่ให้ครบถ้วน');
+                    return;
+                }
+                
+                generateBtn.disabled = true;
+                resultsContainer.innerHTML = '<p id="loading-message">กำลังดึงข้อมูล...</p>';
+                summaryContainer.innerHTML = '';
+
+                try {
+                    let query = supabaseClient
+                        .from('orders')
+                        .select('*')
+                        .gte('created_at', `${startDate}T00:00:00`)
+                        .lte('created_at', `${endDate}T23:59:59`)
+                        .not('status', 'eq', 'ยกเลิก'); // Exclude cancelled orders
+
+                    if (selectedChannels && selectedChannels.length > 0) {
+                        query = query.in('channel_code', selectedChannels);
+                    }
+                    
+                    const { data: orders, error } = await query.order('created_at', { ascending: false });
+
+                    if (error) throw error;
+                    
+                    renderResults(orders);
+
+                } catch (error) {
+                    console.error('Error generating report:', error);
+                    resultsContainer.innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
+                } finally {
+                    generateBtn.disabled = false;
+                }
+            }
+            
+            function renderResults(orders) {
+                if (orders.length === 0) {
+                    resultsContainer.innerHTML = '<p id="loading-message">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
+                    summaryContainer.innerHTML = '';
+                    return;
+                }
+                
+                // Calculate summaries
+                const totalSales = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+                const totalOrders = orders.length;
+                const totalCOD = orders.filter(o => o.payment_method === 'COD').reduce((sum, order) => sum + (order.total_amount || 0), 0);
+                const totalTransfer = orders.filter(o => o.payment_method === 'โอน').reduce((sum, order) => sum + (order.total_amount || 0), 0);
+                
+                // Render summary cards
+                summaryContainer.innerHTML = `
+                    <div class="summary-card">
+                        <h3>ยอดขายรวม</h3>
+                        <div class="value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>จำนวนออร์เดอร์</h3>
+                        <div class="value">${totalOrders.toLocaleString('th-TH')}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>ยอด COD</h3>
+                        <div class="value">${totalCOD.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>ยอดโอน</h3>
+                        <div class="value">${totalTransfer.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                `;
+
+                // Render table
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วันที่</th>
+                                <th>เลขบิล</th>
+                                <th>ช่องทาง</th>
+                                <th>ชื่อลูกค้า</th>
+                                <th>ยอดสุทธิ</th>
+                                <th>วิธีการชำระ</th>
+                                <th>สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                orders.forEach(order => {
+                    tableHTML += `
+                        <tr>
+                            <td>${new Date(order.created_at).toLocaleDateString('th-TH')}</td>
+                            <td>${order.bill_no || ''}</td>
+                            <td>${order.channel_code || ''}</td>
+                            <td>${order.customer_name || ''}</td>
+                            <td>${(order.total_amount || 0).toFixed(2)}</td>
+                            <td>${order.payment_method || ''}</td>
+                            <td>${order.status || ''}</td>
+                        </tr>
+                    `;
+                });
+                tableHTML += `</tbody></table>`;
+                resultsContainer.innerHTML = tableHTML;
+            }
+
+            generateBtn.addEventListener('click', generateReport);
+            
+            // Initial load
+            loadChannels();
+        });
+    </script>
+</body>
+</html>
