@@ -13,7 +13,16 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
     <style>
-        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 30px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:0;height:calc(100vh - var(--top-bar-height))}.system-content{display:none}.system-content.active{display:block}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{position:absolute;top:15px;right:-25px;width:50px;height:50px;background-color:var(--sidebar-bg);border:2px solid #fff;border-radius:50%;color:#fff;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;z-index:1002;box-shadow:0 0 10px rgba(0,0,0,.5);transition:transform .3s ease}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}.full-page-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:#f4f7f9;z-index:2000;display:flex;justify-content:center;align-items:center}#main-app-container{display:none}#order-system-container .view{display:none}#order-system-container .view.active{display:block}#order-system-container #app-view{padding:20px}#order-system-container .container{max-width:1400px;margin:auto;background:#fff;padding:25px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,.1)}#order-system-container h1,#order-system-container h2,#order-system-container h3{color:#333}#order-system-container h1{text-align:center;color:#0071e3}#order-system-container .btn{padding:12px 20px;border:none;border-radius:4px;font-size:16px;cursor:pointer}#order-system-container .btn.btn-sm{padding:5px 10px;font-size:12px}#order-system-container .btn-primary{background-color:#0071e3;color:#fff}#order-system-container .btn-secondary{background-color:#6c757d;color:#fff}#order-system-container .btn-success{background-color:#28a745;color:#fff}#order-system-container .btn-warning{background-color:#ffc107;color:#000}#order-system-container .btn-danger{background-color:#dc3545;color:#fff}#order-system-container .btn-info{background-color:#17a2b8;color:#fff}#loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);color:#fff;display:none;justify-content:center;align-items:center;z-index:1500;font-size:2em}#order-system-container .batch-actions{margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}#order-system-container .order-list-item{display:flex;align-items:center;gap:15px;padding:15px;border:1px solid #ddd;margin-bottom:10px;border-radius:4px;flex-wrap:wrap}#order-system-container .order-info{flex-grow:1;cursor:pointer}#order-system-container .order-info:hover{text-decoration:underline}#order-system-container .order-info strong{font-size:1.1em;color:#0071e3;display:block;margin-bottom:4px}#order-system-container .order-info .order-tracking{font-size:.9em;color:#28a745;font-weight:700}#order-system-container .order-list-item-details{display:flex;justify-content:flex-end;flex-grow:1;align-items:center;gap:15px;color:#6c757d;font-size:.9em}#order-system-container .work-order-group{border:1px solid #0071e3;border-radius:4px;margin-bottom:15px}#order-system-container .work-order-header{background-color:#e0effc;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;font-weight:700;cursor:pointer}#order-system-container .wo-name{flex-grow:1}#order-system-container .wo-header-actions{display:flex;align-items:center;gap:15px}#order-system-container .work-order-header:hover{background-color:#cce4fa}#order-system-container .work-order-bills{background-color:#fff;padding:0 15px;max-height:0;overflow:hidden;transition:max-height .3s ease-out,padding .3s ease-out;border-top:1px solid transparent}#order-system-container .work-order-bills.show{max-height:1500px;padding:15px;transition:max-height .5s ease-in,padding .5s ease-in;border-top:1px solid #ddd}#order-system-container .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}#order-system-container .form-group{display:flex;flex-direction:column}#order-system-container label{margin-bottom:5px;font-weight:600}#order-system-container input,#order-system-container select,#order-system-container textarea{padding:10px;border:1px solid #ccc;border-radius:4px;font-size:16px;box-sizing:border-box}#order-system-container hr{border:0;height:1px;background:#e0e0e0;margin:25px 0}#order-system-container .tabs{border-bottom:2px solid #dee2e6;display:flex;flex-wrap:wrap;margin-bottom:20px}#order-system-container .tab-link{padding:10px 15px;cursor:pointer;background:0 0;border:none;font-size:16px;border-bottom:3px solid transparent}#order-system-container .tab-link.active{border-bottom-color:#0071e3;font-weight:600;color:#0071e3}#order-system-container .tab-content{display:none}#order-system-container .tab-content.active{display:block}#order-system-container .tab-filter{margin-bottom:15px;display:flex;align-items:center;gap:10px}#order-system-container .order-list{list-style:none;padding:0;max-height:60vh;overflow-y:auto}#order-system-container .items-table-container{overflow-x:auto}#order-system-container #items-table{width:100%;border-collapse:collapse;margin-bottom:10px}#order-system-container #items-table th,#order-system-container #items-table td{border:1px solid #ddd;padding:2px;text-align:left;vertical-align:top}#order-system-container #items-table th{background-color:#f8f9fa;font-size:14px;padding:8px;white-space:nowrap}#order-system-container #items-table input,#order-system-container #items-table select{width:100%;font-size:14px;padding:6px;border:none;background:0 0;box-sizing:border-box}#order-system-container #items-table input:focus{outline:2px solid #0071e3;background:#fff}#order-system-container #items-table .select2-container{width:100%!important}#order-system-container #items-table .select2-selection--single{height:32px!important;border:none!important}#order-system-container #items-table .select2-selection__rendered{line-height:30px!important}#order-system-container #items-table .select2-selection__arrow{height:30px!important}#order-system-container #items-table .quantity-input{width:70px;text-align:center}#order-system-container #items-table .action-cell{width:50px;text-align:center}#order-system-container #items-table .remove-item-btn{font-size:12px;padding:4px 8px}#order-system-container .work-order-bills .order-list-item{padding:10px;border-left:3px solid #6c757d}#packing-system-container{--primary-color:#0071e3;--success-color:#28a745;--danger-color:#dc3545;padding:20px}#packing-system-container .header{text-align:center;padding-bottom:20px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:20px}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn{padding:8px 15px;border:none;border-radius:6px;cursor:pointer;font-size:14px}#packing-system-container .btn-export{background-color:var(--success-color);color:#fff}#packing-system-container .btn-export:disabled{background-color:#a5d6a7;cursor:not-allowed}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 180px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:var(--success-color)}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:var(--primary-color)}#packing-main-view #confirmation-input{border-color:var(--success-color)}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:var(--success-color)}#packing-main-view .status-error{color:var(--danger-color)}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
+        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 30px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:0;height:calc(100vh - var(--top-bar-height))}.system-content{display:none}.system-content.active{display:block}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{position:absolute;top:15px;right:-25px;width:50px;height:50px;background-color:var(--sidebar-bg);border:2px solid #fff;border-radius:50%;color:#fff;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;z-index:1002;box-shadow:0 0 10px rgba(0,0,0,.5);transition:transform .3s ease}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}.full-page-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:#f4f7f9;z-index:2000;display:flex;justify-content:center;align-items:center}#main-app-container{display:none}#order-system-container .view{display:none}#order-system-container .view.active{display:block}#order-system-container #app-view{padding:20px}#order-system-container .container{max-width:1400px;margin:auto;background:#fff;padding:25px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,.1)}#order-system-container h1,#order-system-container h2,#order-system-container h3{color:#333}#order-system-container h1{text-align:center;color:#0071e3}#order-system-container .btn{padding:12px 20px;border:none;border-radius:4px;font-size:16px;cursor:pointer}#order-system-container .btn.btn-sm{padding:5px 10px;font-size:12px}#order-system-container .btn-primary{background-color:#0071e3;color:#fff}#order-system-container .btn-secondary{background-color:#6c757d;color:#fff}#order-system-container .btn-success{background-color:#28a745;color:#fff}#order-system-container .btn-warning{background-color:#ffc107;color:#000}#order-system-container .btn-danger{background-color:#dc3545;color:#fff}#order-system-container .btn-info{background-color:#17a2b8;color:#fff}#loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);color:#fff;display:none;justify-content:center;align-items:center;z-index:1500;font-size:2em}#order-system-container .batch-actions{margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}#order-system-container .order-list-item{display:flex;align-items:center;gap:15px;padding:15px;border:1px solid #ddd;margin-bottom:10px;border-radius:4px;flex-wrap:wrap}#order-system-container .order-info{flex-grow:1;cursor:pointer}#order-system-container .order-info:hover{text-decoration:underline}#order-system-container .order-info strong{font-size:1.1em;color:#0071e3;display:block;margin-bottom:4px}#order-system-container .order-info .order-tracking{font-size:.9em;color:#28a745;font-weight:700}#order-system-container .order-list-item-details{display:flex;justify-content:flex-end;flex-grow:1;align-items:center;gap:15px;color:#6c757d;font-size:.9em}#order-system-container .work-order-group{border:1px solid #0071e3;border-radius:4px;margin-bottom:15px}#order-system-container .work-order-header{background-color:#e0effc;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;font-weight:700;cursor:pointer}#order-system-container .wo-name{flex-grow:1}#order-system-container .wo-header-actions{display:flex;align-items:center;gap:15px}#order-system-container .work-order-header:hover{background-color:#cce4fa}#order-system-container .work-order-bills{background-color:#fff;padding:0 15px;max-height:0;overflow:hidden;transition:max-height .3s ease-out,padding .3s ease-out;border-top:1px solid transparent}#order-system-container .work-order-bills.show{max-height:1500px;padding:15px;transition:max-height .5s ease-in,padding .5s ease-in;border-top:1px solid #ddd}#order-system-container .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}#order-system-container .form-group{display:flex;flex-direction:column}
+        #order-system-container .form-grid.form-grid-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2.5fr; 
+            gap: 20px;
+        }
+        #order-system-container .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        #order-system-container label{margin-bottom:5px;font-weight:600}#order-system-container input,#order-system-container select,#order-system-container textarea{padding:10px;border:1px solid #ccc;border-radius:4px;font-size:16px;box-sizing:border-box}#order-system-container hr{border:0;height:1px;background:#e0e0e0;margin:25px 0}#order-system-container .tabs{border-bottom:2px solid #dee2e6;display:flex;flex-wrap:wrap;margin-bottom:20px}#order-system-container .tab-link{padding:10px 15px;cursor:pointer;background:0 0;border:none;font-size:16px;border-bottom:3px solid transparent}#order-system-container .tab-link.active{border-bottom-color:#0071e3;font-weight:600;color:#0071e3}#order-system-container .tab-content{display:none}#order-system-container .tab-content.active{display:block}#order-system-container .tab-filter{margin-bottom:15px;display:flex;align-items:center;gap:10px}#order-system-container .order-list{list-style:none;padding:0;max-height:60vh;overflow-y:auto}#order-system-container .items-table-container{overflow-x:auto}#order-system-container #items-table{width:100%;border-collapse:collapse;margin-bottom:10px}#order-system-container #items-table th,#order-system-container #items-table td{border:1px solid #ddd;padding:2px;text-align:left;vertical-align:top}#order-system-container #items-table th{background-color:#f8f9fa;font-size:14px;padding:8px;white-space:nowrap}#order-system-container #items-table input,#order-system-container #items-table select{width:100%;font-size:14px;padding:6px;border:none;background:0 0;box-sizing:border-box}#order-system-container #items-table input:focus{outline:2px solid #0071e3;background:#fff}#order-system-container #items-table .select2-container{width:100%!important}#order-system-container #items-table .select2-selection--single{height:32px!important;border:none!important}#order-system-container #items-table .select2-selection__rendered{line-height:30px!important}#order-system-container #items-table .select2-selection__arrow{height:30px!important}#order-system-container #items-table .quantity-input{width:70px;text-align:center}#order-system-container #items-table .action-cell{width:50px;text-align:center}#order-system-container #items-table .remove-item-btn{font-size:12px;padding:4px 8px}#order-system-container .work-order-bills .order-list-item{padding:10px;border-left:3px solid #6c757d}#packing-system-container{--primary-color:#0071e3;--success-color:#28a745;--danger-color:#dc3545;padding:20px}#packing-system-container .header{text-align:center;padding-bottom:20px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:20px}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn{padding:8px 15px;border:none;border-radius:6px;cursor:pointer;font-size:14px}#packing-system-container .btn-export{background-color:var(--success-color);color:#fff}#packing-system-container .btn-export:disabled{background-color:#a5d6a7;cursor:not-allowed}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 180px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:var(--success-color)}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:var(--primary-color)}#packing-main-view #confirmation-input{border-color:var(--success-color)}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:var(--success-color)}#packing-main-view .status-error{color:var(--danger-color)}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
     </style>
 </head>
 <body class="sidebar-collapsed">
@@ -57,6 +66,8 @@
                 <div id="order-system-container" class="system-content active">
                     <div id="app-view" class="view active">
                         <input type="file" id="tracking-file-input" style="display: none;" accept=".csv, text/csv">
+                        <input type="file" id="import-excel-input" style="display: none;" accept=".xlsx, .xls">
+                        
                         <div class="container">
                             <h1>ระบบจัดการออร์เดอร์</h1>
                             <div class="tabs">
@@ -70,16 +81,43 @@
                                 <h2 id="form-title">สร้างออร์เดอร์ใหม่</h2>
                                 <form id="order-form">
                                     <h3>ข้อมูลหลัก</h3>
-                                    <div class="form-grid"><div class="form-group"><label for="channel_code">ช่องทาง</label><select id="channel_code" required><option value="">-- เลือกช่องทาง --</option></select></div><div class="form-group"><label for="admin_user">แอดมิน</label><input type="text" id="admin_user" required readonly></div><div class="form-group"><label for="customer_name">ชื่อลูกค้า</label><input type="text" id="customer_name" required></div><div class="form-group full-width"><label for="customer_address">ที่อยู่ลูกค้า</label><textarea id="customer_address" rows="3" required></textarea></div></div><hr>
-                                    <h3>รายการสินค้า (สามารถ Copy & Paste จาก Excel ได้)</h3>
+                                    <div class="form-grid form-grid-main">
+                                        <div class="form-group"><label for="channel_code">ช่องทาง</label><select id="channel_code" required><option value="">-- เลือกช่องทาง --</option></select></div>
+                                        <div class="form-group"><label for="admin_user">แอดมิน</label><input type="text" id="admin_user" required readonly></div>
+                                        <div class="form-group"><label for="customer_name">ชื่อลูกค้า</label><input type="text" id="customer_name" required></div>
+                                        <div class="form-group full-width"><label for="customer_address">ที่อยู่ลูกค้า</label><textarea id="customer_address" rows="3" required></textarea></div>
+                                    </div>
+                                    <hr>
+                                    <h3>รายการสินค้า</h3>
+                                    
+                                    <div class="batch-actions">
+                                        <button type="button" id="download-template-btn" class="btn btn-info">📥 Download Template</button>
+                                        <button type="button" id="import-excel-btn" class="btn btn-success">📤 Import Multiple Orders</button>
+                                    </div>
+
                                     <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
                                     <h3>ข้อมูลการชำระเงิน</h3>
                                     <div class="form-grid"><div class="form-group"><label for="price">ราคา</label><input type="number" id="price" value="0" step="0.01"></div><div class="form-group"><label for="shipping_cost">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01"></div><div class="form-group"><label for="discount">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01"></div><div class="form-group"><label for="total_amount">ยอดสุทธิ</label><input type="number" id="total_amount" readonly></div><div class="form-group"><label for="payment_method">วิธีการชำระ</label><input type="text" id="payment_method"></div><div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><input type="text" id="promotion"></div></div>
                                     <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                                 </form>
                             </div>
-                            <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select></div><div class="batch-actions"><button class="btn btn-secondary" onclick="orderSystem.selectAll('waiting')">เลือกทั้งหมด</button><button class="btn btn-danger" onclick="orderSystem.cancelSelectedOrders('waiting')">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
-                            <div id="tab-complete" class="tab-content"><div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select></div><div class="batch-actions"><button class="btn btn-secondary" onclick="orderSystem.selectAll('complete')">เลือกทั้งหมด</button><button class="btn btn-success" onclick="orderSystem.createWorkOrder()">สร้างใบงานจากที่เลือก</button><button class="btn btn-danger" onclick="orderSystem.cancelSelectedOrders('complete')">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+                            <div id="tab-waiting" class="tab-content">
+                                <div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select></div>
+                                <div class="batch-actions">
+                                    <button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
+                                    <button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button>
+                                </div>
+                                <ul class="order-list"></ul>
+                            </div>
+                            <div id="tab-complete" class="tab-content">
+                                <div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select></div>
+                                <div class="batch-actions">
+                                    <button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
+                                    <button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button>
+                                    <button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button>
+                                </div>
+                                <ul class="order-list"></ul>
+                            </div>
                             
                             <div id="tab-work-orders" class="tab-content">
                                 <!-- Content is generated by JavaScript -->
@@ -92,7 +130,7 @@
 
                 <div id="packing-system-container" class="system-content">
                     <div id="work-order-selection-view"><h2>เลือกใบงานที่ต้องการจัดของ</h2><p>ระบบจะดึงข้อมูลใบงานที่อยู่ในสถานะ "กำลังผลิต" มาแสดงที่นี่</p><ul id="work-order-list"></ul></div>
-                    <div id="packing-main-view"><header class="header"><h1 id="packing-header-title">ระบบจัดของ</h1><div class="action-buttons"><button id="back-to-wo-selection" class="btn btn-back">❮ กลับไปเลือกใบงาน</button><button id="export-all-button" class="btn btn-export" disabled>📥 Export ข้อมูล</button></div></header><div class="main-container"><nav id="order-nav-panel"><div id="nav-header"><span id="order-counter">ยังไม่มีข้อมูล</span><input type="text" id="search-input" placeholder="ค้นหาเลขพัสดุ..."></div><ul id="order-list"></ul></nav><main id="content-panel"><div id="action-panel" style="display: none;"><div class="action-step"><h3>ขั้นตอนที่ 1: สแกนสินค้า</h3><input type="text" id="item-scan-input" placeholder="ยิงบาร์โค้ดสินค้า (ชิ้นไหนก่อนก็ได้)"></div><div class="action-step"><h3>ขั้นตอนที่ 2: ยืนยันการจัดส่ง</h3><input type="text" id="confirmation-input" placeholder="ยิงบาร์โค้ดเลขพัสดุที่กล่อง" disabled></div><p id="status-message"></p></div><div id="result-container"></div></main></div></div>
+                    <div id="packing-main-view"><header class="header"><h1 id="packing-header-title">ระบบจัดของ</h1><div class="action-buttons"><button id="back-to-wo-selection" class="btn btn-back">❮ กลับไปเลือกใบงาน</button><button id="export-all-button" class="btn btn-export" disabled>📥 Export ข้อมูล</button></div></header><div class="main-container"><nav id="order-nav-panel"><div id="nav-header"><span id="order-counter">ยังไม่มีข้อมูล</span><input type="text" id="search-input" placeholder="ค้นหาเลขพัสดุ..."></div><ul id="order-list"></ul></nav><main id="content-panel"><div id="action-panel" style="display: none;"><div class="action-step"><h3>ขั้นตอนที่ 1: สแกนสินค้า</h3><input type="text" id="item-scan-input" placeholder="ยิงบาร์โค้ด Item UID"></div><div class="action-step"><h3>ขั้นตอนที่ 2: ยืนยันการจัดส่ง</h3><input type="text" id="confirmation-input" placeholder="ยิงบาร์โค้ดเลขพัสดุที่กล่อง" disabled></div><p id="status-message"></p></div><div id="result-container"></div></main></div></div>
                     <audio id="success-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio><audio id="error-sound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
                 </div>
             </main>
@@ -130,7 +168,6 @@
                 link.classList.add('active');
                 const targetId = link.getAttribute('data-target');
                 systemContents.forEach(content => content.classList.toggle('active', content.id === targetId));
-                // If switching to packing system, refresh its work order list
                 if (targetId === 'packing-system-container') {
                     window.packingSystem.loadWorkOrdersForPacking();
                 }
@@ -149,7 +186,6 @@
                 loginOverlay.style.display = 'none';
                 mainAppContainer.style.display = 'flex';
                 
-                // Initialize the order system with the logged-in user's name
                 await window.orderSystem.initializeApp(loggedInUsername);
 
             } catch (err) {
@@ -197,12 +233,16 @@
             const addItemBtn = container.querySelector('#add-item-btn');
             const trackingFileInput = document.getElementById('tracking-file-input');
             const workOrdersTab = container.querySelector('#tab-work-orders');
+            const downloadTemplateBtn = document.getElementById('download-template-btn');
+            const importExcelBtn = document.getElementById('import-excel-btn');
+            const importExcelInput = document.getElementById('import-excel-input');
             let productList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], currentEditingOrderId = null;
 
             async function initializeApp(username) {
                 adminUserInput.value = username;
                 await loadInitialData();
                 setFormMode('create');
+                initializeEventListeners(); // Attach event listeners
             }
 
             async function loadInitialData() {
@@ -266,17 +306,18 @@
                         <div class="work-order-header"> 
                             <span class="wo-name">${wo.work_order_name} (จำนวน: ${billsInWorkOrder.length} บิล)</span>
                             <div class="wo-header-actions">
+                                <button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export เพื่อผลิต</button>
                                 <button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">เตรียมทำใบปะหน้า</button>
                                 <button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>
                             </div>
                         </div>
                         <div class="work-order-bills">
                             <div class="batch-actions">
-                                <button class="btn btn-secondary" onclick="window.orderSystem.selectAllInWorkOrder(this)">เลือกทั้งหมด</button>
-                                <button class="btn btn-warning" onclick="window.orderSystem.revertSelectedBills('${wo.work_order_name}', 'รอลงข้อมูล')">คืนไป "รอลงข้อมูล"</button>
-                                <button class="btn btn-info" onclick="window.orderSystem.revertSelectedBills('${wo.work_order_name}', 'ลงข้อมูลเสร็จสิ้น')">คืนไป "ลงข้อมูลเสร็จสิ้น"</button>
-                                <button class="btn btn-danger" onclick="window.orderSystem.cancelSelectedBillsFromWorkOrder('${wo.work_order_name}')">ยกเลิกบิลที่เลือก</button>
-                                <button class="btn btn-danger" onclick="window.orderSystem.cancelWorkOrder('${wo.work_order_name}')" style="margin-left: auto;">ยกเลิกทั้งใบงาน</button>
+                                <button class="btn btn-secondary select-all-in-wo-btn">เลือกทั้งหมด</button>
+                                <button class="btn btn-warning revert-to-waiting-btn" data-work-order-name="${wo.work_order_name}">คืนไป "รอลงข้อมูล"</button>
+                                <button class="btn btn-info revert-to-complete-btn" data-work-order-name="${wo.work_order_name}">คืนไป "ลงข้อมูลเสร็จสิ้น"</button>
+                                <button class="btn btn-danger cancel-bills-from-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกบิลที่เลือก</button>
+                                <button class="btn btn-danger cancel-wo-btn" data-work-order-name="${wo.work_order_name}" style="margin-left: auto;">ยกเลิกทั้งใบงาน</button>
                             </div>
                             ${billsHTML}
                         </div>`;
@@ -284,11 +325,9 @@
                 });
             }
 
-            // --- MODIFIED FUNCTION ---
             function prepareForWaybill(workOrderName) {
                 const ordersToProcess = allOrdersData.filter(order => order.work_order_name === workOrderName);
                 if (ordersToProcess.length === 0) { alert("ไม่พบออร์เดอร์ในใบงานนี้"); return; }
-                
                 const headers = ['bill_no', 'customer_address', 'payment_method', 'total_amount'];
                 const rows = ordersToProcess.map(order => {
                     const escapeCsvField = (field) => {
@@ -301,17 +340,11 @@
                         escapeCsvField(order.payment_method), escapeCsvField(order.total_amount)
                     ].join(',');
                 });
-
                 const csvContent = [headers.join(','), ...rows].join('\n');
-
                 try {
-                    // Save the data to localStorage to be accessed by the new tab
                     localStorage.setItem('waybillDataForFlash', csvContent);
                     localStorage.setItem('workOrderNameForFlash', workOrderName);
-                    
-                    // Open flash_express_tool.html in a new tab
                     window.open('flash_express_tool.html', '_blank');
-
                 } catch (e) {
                     console.error("Error accessing localStorage or opening new window:", e);
                     alert("เกิดข้อผิดพลาดในการส่งข้อมูลไปยังแท็บใหม่ อาจเกิดจากข้อจำกัดของเบราว์เซอร์");
@@ -355,8 +388,165 @@
                 };
                 reader.readAsText(file, 'UTF-8');
             }
+
+            function downloadOrderTemplate() {
+                const headers = [
+                    "ช่องทาง", "ชื่อลูกค้า", "ที่อยู่ลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "วิธีการชำระ", "ชื่อโปรโมชั่น",
+                    "ชื่อสินค้า", "สีหมึก", "ชั้นที่", "ลายการ์ตูน", "ลายเส้น", "ฟอนต์", "บรรทัด 1", "บรรทัด 2", "บรรทัด 3", "จำนวน", "หมายเหตุ", "ไฟล์แนบ"
+                ];
+                
+                const sampleData = [
+                    [
+                        "SP", "สมชาย ใจดี", "123/45 ถ.สุขุมวิท พระโขนง คลองเตย กทม. 10110", 300, 30, 0, "โอนเงิน", "โปร 9.9",
+                        "ป้ายชื่อรีดติด", "ดำ", "A1", "กระต่าย", "เส้นปกติ", "TH-Sarabun", "ด.ช. รักเรียน", "ชั้น ป.1", "", 2, "ไม่มี", ""
+                    ],
+                    [
+                        "", "", "", "", "", "", "", "",
+                        "สติกเกอร์กันน้ำ", "สี", "B2", "ไดโนเสาร์", "เส้นหนา", "TH-Mali", "น้องพอใจ", "", "", 1, "ของานด่วน", ""
+                    ],
+                    [
+                        "LAZ", "สมศรี มีสุข", "456 หมู่ 7 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200", 159, 25, 10, "COD", "",
+                        "ป้ายชื่อรีดติด", "น้ำเงิน", "A5", "จรวด", "เส้นปกติ", "TH-Sarabun", "ด.ช. มานะ", "อนุบาล 3", "", 1, "", ""
+                    ]
+                ];
+                
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "OrderTemplate");
+                XLSX.writeFile(workbook, "TRKids_Multi_Order_Template_Simple.xlsx");
+            }
             
-            trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
+            async function processAndSaveImportedOrders(ordersToImport) {
+                loadingOverlay.style.display = 'flex';
+                let successCount = 0;
+                let totalItemsCount = 0;
+                let failedOrders = [];
+
+                for (const order of ordersToImport) {
+                    try {
+                        const billNo = await generateNextBillNo(order.channel_code);
+                        const orderData = { ...order };
+                        delete orderData.items; 
+
+                        const { data: insertedOrder, error: orderError } = await supabaseClient
+                            .from('orders').insert({ ...orderData, bill_no: billNo }).select().single();
+                        if (orderError) throw orderError;
+                        
+                        const allItemsToInsert = [];
+                        let itemSequence = 1;
+                        for (const item of order.items) {
+                            const quantity = item.quantity || 1;
+                            const baseItemData = { ...item };
+                            delete baseItemData.quantity;
+
+                            for (let i = 0; i < quantity; i++) {
+                                allItemsToInsert.push({
+                                    ...baseItemData,
+                                    order_id: insertedOrder.id,
+                                    bill_no: billNo,
+                                    item_uid: `${billNo}-${itemSequence++}`
+                                });
+                            }
+                        }
+
+                        if (allItemsToInsert.length > 0) {
+                            const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
+                            if (itemsError) throw itemsError;
+                            totalItemsCount += allItemsToInsert.length;
+                        }
+                        successCount++;
+                    } catch (err) {
+                        console.error(`Error processing order for ${order.customer_name}:`, err);
+                        failedOrders.push(order.customer_name || 'N/A');
+                    }
+                }
+                
+                loadingOverlay.style.display = 'none';
+                let alertMessage = `นำเข้าสำเร็จ ${successCount} ออร์เดอร์ (รวม ${totalItemsCount} รายการสินค้า)`;
+                if (failedOrders.length > 0) {
+                    alertMessage += `\n\nเกิดข้อผิดพลาดกับออร์เดอร์ของ: ${failedOrders.join(', ')}.`;
+                }
+                alert(alertMessage);
+                await loadInitialData();
+            }
+
+            function handleExcelImport(file) {
+                if (!file) return;
+                const reader = new FileReader();
+
+                reader.onload = async (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+                        if (rowsData.length <= 1) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+
+                        const processedOrders = [];
+                        let currentOrder = null;
+
+                        for (let i = 1; i < rowsData.length; i++) {
+                            const row = rowsData[i];
+                             if (row.every(cell => String(cell).trim() === '')) continue;
+                            
+                            const channelCode = String(row[0]).trim();
+                            const customerName = String(row[1]).trim();
+                            const productName = String(row[8]).trim();
+
+                            if (channelCode && customerName) {
+                                const price = parseFloat(row[3]) || 0;
+                                const shippingCost = parseFloat(row[4]) || 0;
+                                const discount = parseFloat(row[5]) || 0;
+                                
+                                currentOrder = {
+                                    channel_code: channelCode, customer_name: customerName, customer_address: String(row[2]),
+                                    price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
+                                    payment_method: String(row[6]), promotion: String(row[7]),
+                                    admin_user: loggedInUsername, status: 'รอลงข้อมูล', entry_date: new Date().toISOString().slice(0, 10),
+                                    items: []
+                                };
+                                processedOrders.push(currentOrder);
+                            }
+
+                            if (productName) {
+                                if (!currentOrder) throw new Error(`พบสินค้า '${productName}' ที่แถว ${i + 1} แต่ไม่พบข้อมูลหลักของออร์เดอร์`);
+                                
+                                const product = productList.find(p => p.text.toLowerCase().includes(productName.toLowerCase()));
+                                if (!product) {
+                                    console.warn(`ไม่พบสินค้า '${productName}' ที่แถว ${i+1} - จะถูกข้ามไป`);
+                                    continue;
+                                }
+
+                                const itemData = {
+                                    product_id: product.id, product_name: product.text,
+                                    ink_color: String(row[9]), product_type: String(row[10]), cartoon_pattern: String(row[11]),
+                                    line_pattern: String(row[12]), font: String(row[13]), line_1: String(row[14]),
+                                    line_2: String(row[15]), line_3: String(row[16]), 
+                                    quantity: parseInt(row[17]) || 1, 
+                                    notes: String(row[18]), file_attachment: String(row[19])
+                                };
+                                currentOrder.items.push(itemData);
+                            }
+                        }
+
+                        if (processedOrders.length === 0) throw new Error("ไม่พบข้อมูลออร์เดอร์ที่สมบูรณ์ในไฟล์");
+
+                        if (confirm(`พบ ${processedOrders.length} ออร์เดอร์ในไฟล์นี้ คุณต้องการดำเนินการนำเข้าใช่หรือไม่?`)) {
+                             await processAndSaveImportedOrders(processedOrders);
+                        }
+                        
+                    } catch (err) {
+                        console.error('Error importing Excel file:', err);
+                        alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
+                    } finally {
+                        importExcelInput.value = '';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
             
             function toggleWorkOrder(headerElement) { 
                 const content = headerElement.nextElementSibling; 
@@ -373,7 +563,7 @@
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
                     addItemRow();
-                    formActions.innerHTML = `<button type="button" class="btn btn-secondary" onclick="window.orderSystem.saveOrUpdateOrder('รอลงข้อมูล')">บันทึก (รอลงข้อมูล)</button> <button type="button" class="btn btn-success" onclick="window.orderSystem.saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น')">บันทึก (ข้อมูลครบถ้วน)</button>`;
+                    formActions.innerHTML = `<button type="button" class="btn btn-secondary" id="save-waiting-btn">บันทึก (รอลงข้อมูล)</button> <button type="button" class="btn btn-success" id="save-complete-btn">บันทึก (ข้อมูลครบถ้วน)</button>`;
                 } else if (mode === 'edit' && order) {
                     container.querySelector('#form-title').textContent = `แก้ไขออร์เดอร์: ${order.bill_no}`;
                     currentEditingOrderId = order.id;
@@ -400,13 +590,14 @@
                     });
 
                     if (order.status === 'รอลงข้อมูล') {
-                        formActions.innerHTML = `<button type="button" class="btn btn-primary" onclick="window.orderSystem.saveOrUpdateOrder('รอลงข้อมูล')">อัปเดต (ยังรอลงข้อมูล)</button> <button type="button" class="btn btn-success" onclick="window.orderSystem.saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น')">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button> <button type="button" class="btn btn-danger" onclick="window.orderSystem.moveOrder(${order.id}, 'ยกเลิก')">ยกเลิกบิล</button>`;
+                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-waiting-btn">อัปเดต (ยังรอลงข้อมูล)</button> <button type="button" class="btn btn-success" id="move-to-complete-btn">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
                     } else if (order.status === 'ลงข้อมูลเสร็จสิ้น') {
-                        formActions.innerHTML = `<button type="button" class="btn btn-primary" onclick="window.orderSystem.saveOrUpdateOrder(null)">อัปเดตข้อมูล</button> <button type="button" class="btn btn-danger" onclick="window.orderSystem.moveOrder(${order.id}, 'ยกเลิก')">ยกเลิกบิล</button>`;
+                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-complete-btn">อัปเดตข้อมูล</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
                     } else {
                         formActions.innerHTML = ``;
                     }
                 }
+                attachFormActionListeners(order);
                 calculateTotal();
             }
 
@@ -426,7 +617,7 @@
                     currentRow = itemsTbody.rows[currentRowIndex]; if (!currentRow) return;
                     cellsData.forEach((cellData, cellIndex) => {
                         const targetCellIndex = startCellIndex + cellIndex;
-                        if (targetCellIndex < currentRow.cells.length - 1) { // -1 to avoid action cell
+                        if (targetCellIndex < currentRow.cells.length - 1) { 
                             const input = currentRow.cells[targetCellIndex].querySelector('input, select');
                             if (input) {
                                 if (input.tagName === 'SELECT') {
@@ -487,13 +678,24 @@
                         upsertedOrderId = insertedOrder.id;
                     }
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
+                    
                     let allItemsToInsert = [];
+                    let itemSequence = 1;
                     for (const row of itemsTbody.rows) {
                         const selectedData = $(row).find('.item-product').select2('data')[0];
                         if (!selectedData || !selectedData.id) continue;
                         const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
-                        const baseItemData = { order_id: upsertedOrderId, bill_no: billNo, product_id: selectedData.id, product_name: selectedData.text, ink_color: row.querySelector('.item-ink_color').value, product_type: row.querySelector('.item-shelf_location').value, cartoon_pattern: row.querySelector('.item-cartoon_pattern').value, line_pattern: row.querySelector('.item-line_pattern').value, font: row.querySelector('.item-font').value, line_1: row.querySelector('.item-line_1').value, line_2: row.querySelector('.item-line_2').value, line_3: row.querySelector('.item-line_3').value, notes: row.querySelector('.item-notes').value, file_attachment: row.querySelector('.item-file_attachment').value };
-                        for (let i = 0; i < quantity; i++) { allItemsToInsert.push({ ...baseItemData }); }
+                        const baseItemData = { 
+                            order_id: upsertedOrderId, bill_no: billNo, product_id: selectedData.id, product_name: selectedData.text, 
+                            ink_color: row.querySelector('.item-ink_color').value, product_type: row.querySelector('.item-shelf_location').value, 
+                            cartoon_pattern: row.querySelector('.item-cartoon_pattern').value, line_pattern: row.querySelector('.item-line_pattern').value, 
+                            font: row.querySelector('.item-font').value, line_1: row.querySelector('.item-line_1').value, 
+                            line_2: row.querySelector('.item-line_2').value, line_3: row.querySelector('.item-line_3').value, 
+                            notes: row.querySelector('.item-notes').value, file_attachment: row.querySelector('.item-file_attachment').value 
+                        };
+                        for (let i = 0; i < quantity; i++) {
+                            allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` }); 
+                        }
                     }
                     if (allItemsToInsert.length > 0) { const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert); if (itemsError) throw itemsError; }
                     alert(isUpdate ? 'อัปเดตข้อมูลสำเร็จ!' : `บันทึกออร์เดอร์สำเร็จ! เลขบิล: ${billNo}`);
@@ -504,22 +706,116 @@
             async function generateNextBillNo(channelCode) { const { data, error } = await supabaseClient.rpc('increment_bill_no', { p_channel_code: channelCode }); if (error) { throw new Error(`ไม่สามารถสร้างเลขบิลได้: ${error.message}`); } const today = new Date(); const year = String(today.getFullYear() + 543).slice(-2); const month = String(today.getMonth() + 1).padStart(2, '0'); const prefix = `${channelCode}${year}${month}`; const nextSequence = String(data).padStart(5, '0'); return `${prefix}${nextSequence}`; }
             function calculateTotal() { const price = parseFloat(container.querySelector('#price').value) || 0; const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0; const discount = parseFloat(container.querySelector('#discount').value) || 0; container.querySelector('#total_amount').value = (price + shipping - discount).toFixed(2); }
             
-            workOrdersTab.addEventListener('click', (event) => {
-                const header = event.target.closest('.work-order-header');
-                const prepareBtn = event.target.closest('.prepare-waybill-btn');
-                const importBtn = event.target.closest('.import-wo-csv-btn');
-                if (prepareBtn) { event.stopPropagation(); prepareForWaybill(prepareBtn.dataset.workOrderName); } 
-                else if (importBtn) { event.stopPropagation(); trackingFileInput.click(); } 
-                else if (header) { toggleWorkOrder(header); }
-            });
+            function exportForProduction(workOrderName) {
+                const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName);
+                if (ordersInWorkOrder.length === 0) {
+                    alert("ไม่พบข้อมูลออร์เดอร์ในใบงานนี้");
+                    return;
+                }
 
-            addItemBtn.addEventListener('click', () => addItemRow());
-            itemsTbody.addEventListener('click', (e) => { if (e.target.classList.contains('remove-item-btn')) { $(e.target).closest('tr').find('.item-product').select2('destroy'); e.target.closest('tr').remove(); }});
-            [container.querySelector('#price'), container.querySelector('#shipping_cost'), container.querySelector('#discount')].forEach(input => input.addEventListener('input', calculateTotal));
-            tabLinks.forEach(link => { link.addEventListener('click', (e) => openTab(e, e.target.dataset.tab)); });
-            ['filter-waiting', 'filter-complete', 'filter-cancelled'].forEach(id => container.querySelector(`#${id}`).addEventListener('change', renderAllTabs));
+                const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'ชั้นที่', 'สีหมึก', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
+                const dataToExport = [];
 
-            return { initializeApp, saveOrUpdateOrder, moveOrder, loadOrderForEditing, selectAll, createWorkOrder, cancelSelectedOrders, selectAllInWorkOrder, revertSelectedBills, cancelSelectedBillsFromWorkOrder, cancelWorkOrder };
+                ordersInWorkOrder.forEach(order => {
+                    if (order.order_items && order.order_items.length > 0) {
+                        order.order_items.forEach(item => {
+                            dataToExport.push([
+                                workOrderName,
+                                item.bill_no,
+                                item.item_uid,
+                                item.product_name,
+                                item.product_type, //ชั้นที่
+                                item.ink_color,
+                                item.cartoon_pattern,
+                                item.line_pattern,
+                                item.font,
+                                item.line_1,
+                                item.line_2,
+                                item.line_3,
+                                1, // จำนวน always 1 for production line
+                                item.notes,
+                                item.file_attachment
+                            ]);
+                        });
+                    }
+                });
+                
+                if (dataToExport.length === 0) {
+                    alert("ไม่พบรายการสินค้าสำหรับ Export ในใบงานนี้");
+                    return;
+                }
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData");
+                XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`);
+            }
+            
+            function attachFormActionListeners(order) {
+                const idMap = {
+                    'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'),
+                    'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'),
+                    'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'),
+                    'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'),
+                    'update-complete-btn': () => saveOrUpdateOrder(null),
+                    'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก')
+                };
+                for(const id in idMap) {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.addEventListener('click', idMap[id]);
+                }
+            }
+            
+            function initializeEventListeners() {
+                workOrdersTab.addEventListener('click', (event) => {
+                    const target = event.target;
+                    const header = target.closest('.work-order-header');
+                    
+                    const classToAction = {
+                        'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName),
+                        'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName),
+                        'import-wo-csv-btn': () => trackingFileInput.click(),
+                        'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn),
+                        'revert-to-waiting-btn': (btn) => revertSelectedBills(btn.dataset.workOrderName, 'รอลงข้อมูล'),
+                        'revert-to-complete-btn': (btn) => revertSelectedBills(btn.dataset.workOrderName, 'ลงข้อมูลเสร็จสิ้น'),
+                        'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn.dataset.workOrderName),
+                        'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName)
+                    };
+
+                    let actionFound = false;
+                    for (const className in classToAction) {
+                        const btn = target.closest(`.${className}`);
+                        if (btn) {
+                            event.stopPropagation();
+                            classToAction[className](btn);
+                            actionFound = true;
+                            break;
+                        }
+                    }
+                    if (!actionFound && header) {
+                        toggleWorkOrder(header);
+                    }
+                });
+
+                addItemBtn.addEventListener('click', () => addItemRow());
+                itemsTbody.addEventListener('click', (e) => { if (e.target.classList.contains('remove-item-btn')) { $(e.target).closest('tr').find('.item-product').select2('destroy'); e.target.closest('tr').remove(); }});
+                [container.querySelector('#price'), container.querySelector('#shipping_cost'), container.querySelector('#discount')].forEach(input => input.addEventListener('input', calculateTotal));
+                tabLinks.forEach(link => { link.addEventListener('click', (e) => openTab(e, e.target.dataset.tab)); });
+                ['filter-waiting', 'filter-complete', 'filter-cancelled'].forEach(id => container.querySelector(`#${id}`).addEventListener('change', renderAllTabs));
+                
+                downloadTemplateBtn.addEventListener('click', downloadOrderTemplate);
+                importExcelBtn.addEventListener('click', () => importExcelInput.click());
+                importExcelInput.addEventListener('change', (e) => handleExcelImport(e.target.files[0]));
+                
+                // Static tab buttons
+                document.getElementById('select-all-waiting-btn').addEventListener('click', () => selectAll('waiting'));
+                document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting'));
+                document.getElementById('select-all-complete-btn').addEventListener('click', () => selectAll('complete'));
+                document.getElementById('create-work-order-btn').addEventListener('click', createWorkOrder);
+                document.getElementById('cancel-selected-complete-btn').addEventListener('click', () => cancelSelectedOrders('complete'));
+            }
+
+            return { initializeApp, saveOrUpdateOrder, moveOrder, loadOrderForEditing };
         })();
 
         // --- PACKING SYSTEM MODULE ---
@@ -546,7 +842,12 @@
             let aggregatedData = [];
             let completedIndices = new Set();
             let currentIndex = -1;
-            const columnHeaders = { tracking: "เลขพัสดุ", customerName: "ชื่อลูกค้า", productName: "ชื่อสินค้า", details: "รายละเอียด", font: "ฟอนต์", inkColor: "สีหมึก", notes: "หมายเหตุ", shipped: "จัดส่งแล้ว", shippedTime: "เวลาที่จัดส่ง", itemScanTime: "เวลาสแกนสินค้า"};
+            const columnHeaders = { 
+                tracking: "เลขพัสดุ", customerName: "ชื่อลูกค้า", productName: "ชื่อสินค้า", 
+                details: "รายละเอียด", font: "ฟอนต์", inkColor: "สีหมึก", notes: "หมายเหตุ", 
+                item_uid: "Item UID", shipped: "จัดส่งแล้ว", shippedTime: "เวลาที่จัดส่ง", 
+                itemScanTime: "เวลาสแกนสินค้า"
+            };
 
             async function loadWorkOrdersForPacking() {
                 showPackingView("selection");
@@ -576,8 +877,7 @@
                 const ordersWithTracking = data.filter(order => order.tracking_number && order.tracking_number.trim() !== "");
                 
                 if (data.length > 0 && ordersWithTracking.length === 0) {
-                    alert("ใบงานนี้ยังไม่มีการนำเข้าเลขพัสดุ กรุณานำเข้าเลขพัสดุก่อน");
-                    return;
+                    alert("ใบงานนี้ยังไม่มีการนำเข้าเลขพัสดุ กรุณานำเข้าเลขพัสดุก่อน"); return;
                 }
                 if (data.length > ordersWithTracking.length) {
                     alert(`มี ${data.length - ordersWithTracking.length} ออร์เดอร์ในใบงานนี้ยังไม่มีเลขพัสดุ จะไม่ถูกนำมาแสดงในรายการแพ็ค`);
@@ -600,21 +900,22 @@
                 let flatData = []; aggregatedData = [];
                 orders.forEach(order => {
                     if (order.order_items && order.order_items.length > 0) {
-                        const itemGroups = {};
                         order.order_items.forEach(item => {
-                            const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes].join('||');
-                            if (!itemGroups[key]) { itemGroups[key] = { ...item, quantity: 1 }; } 
-                            else { itemGroups[key].quantity++; }
-                        });
-
-                        Object.values(itemGroups).forEach(item => {
                             const details = [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // ");
                             flatData.push({
                                 [columnHeaders.tracking]: order.tracking_number, [columnHeaders.customerName]: order.customer_name,
-                                [columnHeaders.productName]: item.product_name, quantity: item.quantity,
-                                [columnHeaders.details]: details, [columnHeaders.font]: item.font,
-                                [columnHeaders.inkColor]: item.ink_color, [columnHeaders.notes]: item.notes,
-                                scanned: false, [columnHeaders.itemScanTime]: "",
+                                [columnHeaders.productName]: item.product_name, 
+                                [columnHeaders.details]: details, 
+                                [columnHeaders.font]: item.font,
+                                [columnHeaders.inkColor]: item.ink_color, 
+                                [columnHeaders.notes]: item.notes,
+                                'shelf_location': item.product_type,
+                                'cartoon_pattern': item.cartoon_pattern,
+                                'line_pattern': item.line_pattern,
+                                'file_attachment': item.file_attachment,
+                                'item_uid': item.item_uid,
+                                scanned: false, 
+                                [columnHeaders.itemScanTime]: "",
                             });
                         });
                     }
@@ -655,12 +956,23 @@
                 const orderGroup = aggregatedData[index];
                 
                 let headerHTML = `<h2>เลขพัสดุ: ${orderGroup[0][columnHeaders.tracking]}</h2><p><strong>ลูกค้า:</strong> ${orderGroup[0][columnHeaders.customerName]}</p>`;
-                let tableHTML = `<table><thead><tr><th>ชื่อสินค้า</th><th>จำนวน</th><th>รายละเอียด</th><th>ฟอนต์</th><th>สีหมึก</th><th>หมายเหตุ</th></tr></thead><tbody>`;
+                let tableHTML = `<table><thead><tr>
+                        <th>Item UID</th><th>ชื่อสินค้า</th><th>รายละเอียด</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th>
+                        <th>ลายเส้น</th><th>ฟอนต์</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th>
+                    </tr></thead><tbody>`;
+                
                 orderGroup.forEach(item => {
-                    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-product-name="${item[columnHeaders.productName]}">
-                        <td>${item[columnHeaders.productName] || ''}</td><td>${item.quantity || 1}</td>
-                        <td>${item[columnHeaders.details] || ''}</td><td>${item[columnHeaders.font] || ''}</td>
-                        <td>${item[columnHeaders.inkColor] || ''}</td><td>${item[columnHeaders.notes] || ''}</td>
+                    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
+                        <td><strong>${item.item_uid || ''}</strong></td>
+                        <td>${item[columnHeaders.productName] || ''}</td>
+                        <td>${item[columnHeaders.details] || ''}</td>
+                        <td>${item[columnHeaders.inkColor] || ''}</td>
+                        <td>${item.shelf_location || ''}</td>
+                        <td>${item.cartoon_pattern || ''}</td>
+                        <td>${item.line_pattern || ''}</td>
+                        <td>${item[columnHeaders.font] || ''}</td>
+                        <td>${item[columnHeaders.notes] || ''}</td>
+                        <td>${item.file_attachment || ''}</td>
                     </tr>`;
                 });
                 tableHTML += "</tbody></table>";
@@ -703,20 +1015,20 @@
                 if (!scanValue || currentIndex < 0) return;
                 
                 const currentOrderGroup = aggregatedData[currentIndex];
-                const itemToScan = currentOrderGroup.find(item => !item.scanned && String(item[columnHeaders.productName]).trim() === scanValue);
+                const itemToScan = currentOrderGroup.find(item => !item.scanned && item.item_uid === scanValue);
 
                 if (itemToScan) {
                     successSound.play();
                     itemToScan.scanned = true;
                     itemToScan[columnHeaders.itemScanTime] = getTimestamp();
                     itemScanInput.value = "";
-                    const row = resultContainer.querySelector(`tr[data-product-name="${itemToScan[columnHeaders.productName]}"]`);
+                    const row = resultContainer.querySelector(`tr[data-item-uid="${itemToScan.item_uid}"]`);
                     if(row) row.classList.add('item-scanned');
                     updateInputStates();
                 } else {
                     errorSound.play();
-                    const alreadyScanned = currentOrderGroup.find(item => item.scanned && String(item[columnHeaders.productName]).trim() === scanValue);
-                    updateStatus(alreadyScanned ? "❌ สินค้านี้ถูกสแกนไปแล้ว!" : "❌ สินค้าไม่ถูกต้อง!", "error");
+                    const alreadyScanned = currentOrderGroup.find(item => item.scanned && item.item_uid === scanValue);
+                    updateStatus(alreadyScanned ? "❌ Item UID นี้ถูกสแกนไปแล้ว!" : "❌ Item UID ไม่ถูกต้อง!", "error");
                     itemScanInput.select();
                 }
             };
