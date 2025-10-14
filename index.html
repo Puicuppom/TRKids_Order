@@ -1009,10 +1009,10 @@
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
                         
                         const headers = Object.keys(jsonData[0]);
-                        const orderNumberHeader = findHeader(headers, ['เลขที่ออเดอร์', 'Order Number', 'Order No']);
+                        const orderNumberHeader = findHeader(headers, ['เลขออเดอร์', 'Order Number', 'Order No']);
 
                         if(!orderNumberHeader){
-                            throw new Error("ไม่พบคอลัมน์ 'เลขที่ออเดอร์' ในไฟล์");
+                            throw new Error("ไม่พบคอลัมน์ 'เลขออเดอร์' ในไฟล์");
                         }
                         
                         const ordersMap = new Map();
@@ -2477,3 +2477,4 @@
     </script>
 </body>
 </html>
+
