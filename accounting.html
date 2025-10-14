@@ -9,155 +9,112 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     
     <style>
-        :root {
-            --primary-color: #0071e3;
-            --bg-color: #f4f7f9;
-            --card-bg: #ffffff;
-            --text-color: #333;
-            --muted-color: #6c757d;
-            --border-color: #dee2e6;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
+        /* --- General Layout Styles (Copied from index.html) --- */
+        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease, transform .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:20px;height:calc(100vh - var(--top-bar-height))}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{display: none;}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+        
+        /* --- Accounting Page Specific Styles --- */
+        :root { --card-bg: #ffffff; --text-color: #333; --muted-color: #6c757d; --border-color: #dee2e6; --success-color: #28a745; --danger-color: #dc3545; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 0; }
+        .card { background-color: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; }
+        h1, h2 { color: var(--primary-color); text-align: center; }
+        .filters { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center;}
+        .filter-group { display: flex; flex-direction: column; }
+        .filter-group label { font-weight: 600; margin-bottom: 5px; font-size: 14px; }
+        .filter-group input, .filter-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 16px; }
+        .filter-group .select2-container { width: 300px !important; }
+        .btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; color: #fff; align-self: flex-end; }
+        .btn-primary { background-color: var(--primary-color); }
+        .btn-success { background-color: var(--success-color); }
+        .btn:disabled { background-color: #a0cff7; cursor: not-allowed; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; text-align: center; }
+        .summary-card { background-color: #f8f9fa; padding: 20px; border-radius: 8px; }
+        .summary-card h3 { margin: 0 0 10px; font-size: 16px; color: var(--muted-color); }
+        .summary-card .value { font-size: 2em; font-weight: 700; color: var(--primary-color); }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; white-space: nowrap; }
+        th { background-color: #f8f9fa; }
+        #loading-message { text-align: center; font-size: 1.2em; color: var(--muted-color); padding: 40px; }
+
+        /* --- Responsive Design --- */
+        #mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+        @media (max-width: 992px) {
+            body.sidebar-collapsed .page-wrapper { margin-left: var(--sidebar-width-collapsed); }
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-        .container {
-            max-width: 1600px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        h1, h2 {
-            color: var(--primary-color);
-            text-align: center;
-        }
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .filter-group label {
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-        .filter-group input, .filter-group select {
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        .filter-group .select2-container {
-            width: 300px !important;
-        }
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: var(--primary-color);
-            color: #fff;
-            align-self: flex-end;
-        }
-        .btn:disabled {
-            background-color: #a0cff7;
-            cursor: not-allowed;
-        }
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            text-align: center;
-        }
-        .summary-card {
-            background-color: var(--bg-color);
-            padding: 20px;
-            border-radius: 8px;
-        }
-        .summary-card h3 {
-            margin: 0 0 10px;
-            font-size: 16px;
-            color: var(--muted-color);
-        }
-        .summary-card .value {
-            font-size: 2em;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            text-align: left;
-            white-space: nowrap;
-        }
-        th {
-            background-color: #f8f9fa;
-        }
-        #loading-message {
-            text-align: center;
-            font-size: 1.2em;
-            color: var(--muted-color);
-            padding: 40px;
+        @media (max-width: 768px) {
+            .main-content { padding: 10px; }
+            #mobile-menu-toggle { display: block; }
+            .sidebar { transform: translateX(-100%); z-index: 1100; }
+            body:not(.sidebar-collapsed) .sidebar { transform: translateX(0); }
+            .page-wrapper, body.sidebar-collapsed .page-wrapper { margin-left: 0; }
+            .sidebar .sidebar-header .toggle-btn { display: none; }
+            .filters { flex-direction: column; align-items: stretch;}
+            .btn { align-self: auto; }
+            .filter-group .select2-container { width: 100% !important; }
+            #user-info-bar #welcome-message { display: none; }
         }
     </style>
 </head>
-<body>
+<body class="sidebar-collapsed">
 
-    <div class="container">
-        <h1>สรุปยอดขาย</h1>
-
-        <div class="card filters">
-            <div class="filter-group">
-                <label for="start-date">จากวันที่</label>
-                <input type="date" id="start-date">
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>TR Kids</h2>
             </div>
-            <div class="filter-group">
-                <label for="end-date">ถึงวันที่</label>
-                <input type="date" id="end-date">
-            </div>
-            <div class="filter-group">
-                <label for="channel-filter">ช่องทาง (เลือกได้หลายช่องทาง)</label>
-                <select id="channel-filter" multiple="multiple"></select>
-            </div>
-            <button id="generate-report-btn" class="btn">สร้างรายงาน</button>
+            <nav>
+                <ul>
+                    <li><a href="index.html" class="nav-link"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
+                    <li><a href="#" class="nav-link" onclick="handlePackingNav(event)"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
+                    <li><a href="#" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
+                </ul>
+            </nav>
         </div>
 
-        <div class="card summary-cards" id="summary-container">
-            <!-- Summary cards will be injected here -->
-        </div>
+        <div class="page-wrapper">
+            <header class="top-bar">
+                <button id="mobile-menu-toggle">☰</button>
+                <div id="user-info-bar">
+                    <span id="welcome-message"></span>
+                    <button type="button" id="logout-btn">ออกจากระบบ</button>
+                </div>
+            </header>
+            <main class="main-content">
+                <div class="container">
+                    <h1>สรุปยอดขาย</h1>
 
-        <div class="card">
-            <h2>รายการออร์เดอร์</h2>
-            <div id="results-container" class="table-container">
-                <p id="loading-message">กรุณาเลือกช่วงวันที่และช่องทาง แล้วกด "สร้างรายงาน"</p>
-            </div>
+                    <div class="card filters">
+                        <div class="filter-group">
+                            <label for="start-date">จากวันที่</label>
+                            <input type="date" id="start-date">
+                        </div>
+                        <div class="filter-group">
+                            <label for="end-date">ถึงวันที่</label>
+                            <input type="date" id="end-date">
+                        </div>
+                        <div class="filter-group">
+                            <label for="channel-filter">ช่องทาง (เลือกได้หลายช่องทาง)</label>
+                            <select id="channel-filter" multiple="multiple"></select>
+                        </div>
+                        <button id="generate-report-btn" class="btn btn-primary">สร้างรายงาน</button>
+                        <button id="export-xlsx-btn" class="btn btn-success" disabled>Export to XLSX</button>
+                    </div>
+
+                    <div class="card summary-cards" id="summary-container">
+                        <!-- Summary cards will be injected here -->
+                    </div>
+
+                    <div class="card">
+                        <h2>รายการออร์เดอร์</h2>
+                        <div id="results-container" class="table-container">
+                            <p id="loading-message">กรุณาเลือกช่วงวันที่และช่องทาง แล้วกด "สร้างรายงาน"</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -168,31 +125,63 @@
             const { createClient } = supabase;
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+            let currentReportData = []; // To store data for export
+
+            // --- UI Elements ---
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
             const channelFilterSelect = $('#channel-filter');
             const generateBtn = document.getElementById('generate-report-btn');
+            const exportBtn = document.getElementById('export-xlsx-btn');
             const resultsContainer = document.getElementById('results-container');
             const summaryContainer = document.getElementById('summary-container');
-            const loadingMessage = document.getElementById('loading-message');
+            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const logoutBtn = document.getElementById('logout-btn');
 
-            // Initialize Select2 for multi-select
+            // --- Sidebar and Auth Logic (from index) ---
+            mobileMenuToggle.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
+            
+            async function logout() {
+                await supabaseClient.auth.signOut();
+                window.location.href = 'index.html'; // Redirect to login
+            }
+            logoutBtn.addEventListener('click', logout);
+
+            async function checkAuth() {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    window.location.href = 'index.html'; // No session, redirect to login
+                } else {
+                    const { data: userData } = await supabaseClient.from('users').select('username').eq('id', session.user.id).single();
+                    if (userData) {
+                        document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${userData.username}`;
+                    }
+                }
+            }
+
+            // --- Navigation Helper ---
+            function handlePackingNav(event) {
+                event.preventDefault();
+                localStorage.setItem('navigateTo', 'packing');
+                window.location.href = 'index.html';
+            }
+            // Add event listener to the packing link
+             document.querySelector('a[onclick="handlePackingNav(event)"]').addEventListener('click', handlePackingNav);
+
+
+            // --- Page Specific Logic ---
             channelFilterSelect.select2({
                 placeholder: "เลือกช่องทางทั้งหมด",
                 allowClear: true
             });
 
-            // Set default date range to today
             const today = new Date().toISOString().slice(0, 10);
             startDateInput.value = today;
             endDateInput.value = today;
 
             async function loadChannels() {
                 const { data, error } = await supabaseClient.from('channels').select('channel_code, channel_name');
-                if (error) {
-                    console.error('Error loading channels:', error);
-                    return;
-                }
+                if (error) { console.error('Error loading channels:', error); return; }
                 data.forEach(ch => {
                     const option = new Option(ch.channel_name, ch.channel_code, false, false);
                     channelFilterSelect.append(option);
@@ -211,26 +200,29 @@
                 }
                 
                 generateBtn.disabled = true;
+                exportBtn.disabled = true;
+                currentReportData = [];
                 resultsContainer.innerHTML = '<p id="loading-message">กำลังดึงข้อมูล...</p>';
                 summaryContainer.innerHTML = '';
 
                 try {
-                    let query = supabaseClient
-                        .from('orders')
-                        .select('*')
+                    let query = supabaseClient.from('orders').select('*')
                         .gte('created_at', `${startDate}T00:00:00`)
                         .lte('created_at', `${endDate}T23:59:59`)
-                        .not('status', 'eq', 'ยกเลิก'); // Exclude cancelled orders
+                        .not('status', 'eq', 'ยกเลิก');
 
                     if (selectedChannels && selectedChannels.length > 0) {
                         query = query.in('channel_code', selectedChannels);
                     }
                     
                     const { data: orders, error } = await query.order('created_at', { ascending: false });
-
                     if (error) throw error;
                     
+                    currentReportData = orders; // Store data for export
                     renderResults(orders);
+                    if (orders.length > 0) {
+                        exportBtn.disabled = false; // Enable export button
+                    }
 
                 } catch (error) {
                     console.error('Error generating report:', error);
@@ -247,68 +239,86 @@
                     return;
                 }
                 
-                // Calculate summaries
                 const totalSales = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 const totalOrders = orders.length;
                 const totalCOD = orders.filter(o => o.payment_method === 'COD').reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 const totalTransfer = orders.filter(o => o.payment_method === 'โอน').reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 
-                // Render summary cards
                 summaryContainer.innerHTML = `
-                    <div class="summary-card">
-                        <h3>ยอดขายรวม</h3>
-                        <div class="value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>จำนวนออร์เดอร์</h3>
-                        <div class="value">${totalOrders.toLocaleString('th-TH')}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>ยอด COD</h3>
-                        <div class="value">${totalCOD.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>ยอดโอน</h3>
-                        <div class="value">${totalTransfer.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    </div>
-                `;
+                    <div class="summary-card"><h3>ยอดขายรวม</h3><div class="value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+                    <div class="summary-card"><h3>จำนวนออร์เดอร์</h3><div class="value">${totalOrders.toLocaleString('th-TH')}</div></div>
+                    <div class="summary-card"><h3>ยอด COD</h3><div class="value">${totalCOD.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+                    <div class="summary-card"><h3>ยอดโอน</h3><div class="value">${totalTransfer.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>`;
 
-                // Render table
-                let tableHTML = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>วันที่</th>
+                let tableHTML = `<table><thead><tr>
+                                <th>วันที่สร้าง</th>
                                 <th>เลขบิล</th>
                                 <th>ช่องทาง</th>
                                 <th>ชื่อลูกค้า</th>
                                 <th>ยอดสุทธิ</th>
                                 <th>วิธีการชำระ</th>
+                                <th>วันที่ชำระ</th>
+                                <th>เวลาที่ชำระ</th>
                                 <th>สถานะ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                            </tr></thead><tbody>`;
                 orders.forEach(order => {
-                    tableHTML += `
-                        <tr>
-                            <td>${new Date(order.created_at).toLocaleDateString('th-TH')}</td>
-                            <td>${order.bill_no || ''}</td>
-                            <td>${order.channel_code || ''}</td>
-                            <td>${order.customer_name || ''}</td>
-                            <td>${(order.total_amount || 0).toFixed(2)}</td>
-                            <td>${order.payment_method || ''}</td>
-                            <td>${order.status || ''}</td>
-                        </tr>
-                    `;
+                    const paymentDate = order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : '';
+                    const paymentTime = order.payment_time ? order.payment_time.substring(0, 5) : '';
+                    tableHTML += `<tr>
+                        <td>${new Date(order.created_at).toLocaleDateString('th-TH')}</td>
+                        <td>${order.bill_no || ''}</td>
+                        <td>${order.channel_code || ''}</td>
+                        <td>${order.customer_name || ''}</td>
+                        <td>${(order.total_amount || 0).toFixed(2)}</td>
+                        <td>${order.payment_method || ''}</td>
+                        <td>${paymentDate}</td>
+                        <td>${paymentTime}</td>
+                        <td>${order.status || ''}</td>
+                    </tr>`;
                 });
                 tableHTML += `</tbody></table>`;
                 resultsContainer.innerHTML = tableHTML;
             }
 
+            function exportReportToXLSX() {
+                if (currentReportData.length === 0) {
+                    alert("ไม่มีข้อมูลสำหรับ Export กรุณาสร้างรายงานก่อน");
+                    return;
+                }
+
+                const headers = ["วันที่สร้าง", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "ยอดสุทธิ", "วิธีการชำระ", "วันที่ชำระ", "เวลาที่ชำระ", "สถานะ"];
+                const dataToExport = currentReportData.map(order => [
+                    new Date(order.created_at).toLocaleDateString('th-TH'),
+                    order.bill_no || '',
+                    order.channel_code || '',
+                    order.customer_name || '',
+                    order.price || 0,
+                    order.shipping_cost || 0,
+                    order.discount || 0,
+                    order.total_amount || 0,
+                    order.payment_method || '',
+                    order.payment_date || '',
+                    order.payment_time ? order.payment_time.substring(0, 5) : '',
+                    order.status || ''
+                ]);
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "SalesReport");
+
+                // Generate filename with date range
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                const fileName = `SalesReport_${startDate}_to_${endDate}.xlsx`;
+                
+                XLSX.writeFile(workbook, fileName);
+            }
+
             generateBtn.addEventListener('click', generateReport);
+            exportBtn.addEventListener('click', exportReportToXLSX);
             
             // Initial load
+            checkAuth();
             loadChannels();
         });
     </script>
