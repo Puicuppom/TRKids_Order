@@ -148,30 +148,27 @@
             position: absolute;
             left: -9999px;
             top: 0;
-            width: 850px;
-            padding: 20px;
+            width: 800px; 
+            height: 1135px; /* A5 Portrait aspect ratio for 800px width */
+            padding: 30px;
             background: white;
             font-family: 'Tahoma', sans-serif;
             color: black;
             display: flex;
-            gap: 20px;
-        }
-        .png-left-column { flex: 2.5; }
-        .png-right-column {
-            flex: 1;
-            display: flex;
             flex-direction: column;
-            gap: 15px;
+        }
+        .png-body {
+            flex-grow: 1;
         }
         #picking-slip-png-container table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 25px;
-            font-size: 13px;
+            font-size: 14px;
         }
         #picking-slip-png-container th, #picking-slip-png-container td {
             border: 1px solid black;
-            padding: 6px;
+            padding: 8px;
             text-align: left;
             word-wrap: break-word;
         }
@@ -181,29 +178,48 @@
             font-weight: bold;
             text-align: center;
         }
+        .png-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 15px;
+        }
         .png-header-box {
             border: 1px solid black;
-            padding: 8px;
+            padding: 10px;
             text-align: center;
+            flex-grow: 1;
         }
         .png-signature-boxes {
             display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: auto; /* Pushes to the bottom */
+            justify-content: space-around;
+            margin-top: auto; /* Push to the bottom of the container */
+            padding-top: 25px;
+            gap: 20px;
         }
         .png-signature-box {
             border: 1px solid black;
-            padding: 5px;
+            width: 220px;
+            padding: 8px;
         }
         .png-signature-box .title {
             font-weight: bold;
             text-align: center;
+            margin-bottom: 5px;
         }
         .png-signature-box .space {
             height: 60px;
-            padding-top: 5px;
+            border-bottom: 1px dotted black;
+            margin-bottom: 5px;
             text-align: center;
+            padding-top: 5px;
+        }
+        .png-footer {
+            text-align: right;
+            padding-top: 15px;
+            font-size: 12px;
+            color: #555;
         }
         
         /* --- Responsive Design --- */
@@ -884,6 +900,17 @@
                 alert(alertMessage);
                 await loadInitialData();
             }
+            
+            // Helper function to find a header from multiple possible names
+            const findHeader = (headers, possibleNames) => {
+                const lowerCaseNames = possibleNames.map(name => name.toLowerCase());
+                for (const header of headers) {
+                    if (lowerCaseNames.includes(header.toLowerCase())) {
+                        return header;
+                    }
+                }
+                return null;
+            };
 
             function handleExcelImport(file) {
                 if (!file) return;
@@ -977,16 +1004,23 @@
                         const workbook = XLSX.read(data, { type: 'array' });
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
-                        const originalDataArray = XLSX.utils.sheet_to_json(worksheet);
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-                        if (originalDataArray.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+                        if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+                        
+                        const headers = Object.keys(jsonData[0]);
+                        const orderNumberHeader = findHeader(headers, ['เลขที่ออเดอร์', 'Order Number', 'Order No']);
 
+                        if(!orderNumberHeader){
+                            throw new Error("ไม่พบคอลัมน์ 'เลขที่ออเดอร์' ในไฟล์");
+                        }
+                        
                         const ordersMap = new Map();
 
-                        for (const row of originalDataArray) {
-                            const orderNumber = String(row["เลขที่ออเดอร์"] || '').trim();
+                        for (const row of jsonData) {
+                            const orderNumber = String(row[orderNumberHeader] || '').trim();
                             if (!orderNumber) {
-                                console.warn("Skipping row with no 'เลขที่ออเดอร์':", row);
+                                console.warn("Skipping row with no order number:", row);
                                 continue;
                             }
 
@@ -1000,26 +1034,21 @@
                                     channel_code: 'PGTR',
                                     customer_name: row["ชื่อสกุลผู้รับ"],
                                     customer_address: `${row["ชื่อสกุลผู้รับ"] || ''},${row["ที่อยู่เต็ม"] || ''},${row["โทรศัพท์"] || ''}`,
-                                    price: price,
-                                    shipping_cost: shippingCost,
-                                    discount: discount,
-                                    total_amount: price + shippingCost - discount,
-                                    payment_method: "โอน",
-                                    promotion: "",
-                                    admin_user: loggedInUsername,
-                                    status: 'ลงข้อมูลเสร็จสิ้น',
-                                    entry_date: new Date().toISOString().slice(0, 10),
+                                    price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
+                                    payment_method: "โอน", promotion: "",
+                                    admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
                                 ordersMap.set(orderNumber, orderData);
                             }
 
                             const currentOrder = ordersMap.get(orderNumber);
-                            const searchTerm = String(row["ชื่อสินค้า"]).toLowerCase();
+                            const productName = row["ชื่อสินค้า"] || '';
+                            const searchTerm = productName.toLowerCase();
                             const product = fullProductList.find(p => p.product_code.toLowerCase() === searchTerm || p.product_name.toLowerCase().includes(searchTerm));
 
                             if (!product) {
-                                console.warn(`ไม่พบสินค้า '${row["ชื่อสินค้า"]}' สำหรับออร์เดอร์ ${orderNumber} - จะถูกข้ามไป`);
+                                console.warn(`ไม่พบสินค้า '${productName}' สำหรับออร์เดอร์ ${orderNumber} - จะถูกข้ามไป`);
                                 continue;
                             }
                             
@@ -1027,16 +1056,10 @@
                             const remark = row["remark"] || "";
 
                             const itemData = {
-                                product_id: product.id,
-                                product_name: product.product_name,
-                                ink_color: `${row["Ink"] || ''}${row["สี"] || ''}`,
-                                product_type: "",
-                                cartoon_pattern: row["รหัสรูปแบบ"],
-                                line_pattern: row["Underline"],
-                                font: row["ฟอนต์"],
-                                line_1: row["Label1"],
-                                line_2: row["Label2"],
-                                line_3: row["Label3"],
+                                product_id: product.id, product_name: product.product_name,
+                                ink_color: `${row["Ink"] || ''}${row["สี"] || ''}`, product_type: "",
+                                cartoon_pattern: row["รหัสรูปแบบ"], line_pattern: row["Underline"], font: row["ฟอนต์"],
+                                line_1: row["Label1"], line_2: row["Label2"], line_3: row["Label3"],
                                 quantity: parseInt(row["จำนวน"]) || 1,
                                 notes: comment && remark ? `${comment},${remark}` : (comment || remark),
                                 file_attachment: ""
@@ -1045,7 +1068,6 @@
                         }
                         
                         const processedOrders = Array.from(ordersMap.values());
-
                         if (processedOrders.length === 0) throw new Error("ไม่พบข้อมูลออร์เดอร์ที่สามารถประมวลผลได้ในไฟล์");
 
                         if (confirm(`พบ ${processedOrders.length} ออร์เดอร์ในไฟล์ PGTR นี้ คุณต้องการดำเนินการนำเข้าใช่หรือไม่?`)) {
@@ -1072,15 +1094,21 @@
                         const workbook = XLSX.read(data, { type: 'array' });
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
-                        
-                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-                        if (rowsData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์");
+                        if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์");
+                        
+                        const headers = Object.keys(jsonData[0]);
+                        const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'Order Number']);
+
+                        if(!billNoHeader){
+                             throw new Error("ไม่พบคอลัมน์ 'เลขบิล' ในไฟล์");
+                        }
 
                         const ordersMap = new Map();
 
-                        for (const row of rowsData) {
-                            const billNo = String(row['เลขบิล']).trim();
+                        for (const row of jsonData) {
+                            const billNo = String(row[billNoHeader]).trim();
                             if (!billNo) continue;
 
                             if (!ordersMap.has(billNo)) {
@@ -1090,28 +1118,19 @@
 
                                 const customerAddress = [
                                     `${row['ชื่อ'] || ''} ${row['นามสกุล'] || ''}`,
-                                    `${row['เบอร์โทร'] || ''}`,
-                                    `${row['ที่อยู่'] || ''}`,
-                                    `ต.${row['แขวง/ตำบล'] || ''}`,
-                                    `อ.${row['เขต/อำเภอ'] || ''}`,
-                                    `จ.${row['จังหวัด'] || ''}`,
-                                    `${row['เลขไปรษณีย์'] || ''}`
+                                    `${row['เบอร์โทร'] || ''}`, `${row['ที่อยู่'] || ''}`,
+                                    `ต.${row['แขวง/ตำบล'] || ''}`, `อ.${row['เขต/อำเภอ'] || ''}`,
+                                    `จ.${row['จังหวัด'] || ''}`, `${row['เลขไปรษณีย์'] || ''}`
                                 ].filter(Boolean).join(', ');
 
                                 const orderData = {
-                                    bill_no: billNo,
-                                    channel_code: 'WY',
+                                    bill_no: billNo, channel_code: 'WY',
                                     customer_name: `${row['ชื่อ'] || ''} ${row['นามสกุล'] || ''}`,
                                     customer_address: customerAddress,
-                                    price: price,
-                                    shipping_cost: shippingCost,
-                                    discount: discount,
+                                    price: price, shipping_cost: shippingCost, discount: discount,
                                     total_amount: parseFloat(row['ยอดสุทธิ']) || (price + shippingCost - discount),
-                                    payment_method: 'โอน',
-                                    promotion: row['โค้ดส่วนลด'] || '',
-                                    admin_user: loggedInUsername,
-                                    status: 'ลงข้อมูลเสร็จสิ้น',
-                                    entry_date: new Date().toISOString().slice(0, 10),
+                                    payment_method: 'โอน', promotion: row['โค้ดส่วนลด'] || '',
+                                    admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
                                 ordersMap.set(billNo, orderData);
@@ -1123,19 +1142,11 @@
                             
                             if (product) {
                                 const itemData = {
-                                    product_id: product.id,
-                                    product_name: product.product_name,
-                                    ink_color: "",
-                                    product_type: "",
-                                    cartoon_pattern: "",
-                                    line_pattern: "",
-                                    font: row['font'] || '',
-                                    line_1: row['บรรทัด1'] || '',
-                                    line_2: row['บรรทัด2'] || '',
-                                    line_3: "",
+                                    product_id: product.id, product_name: product.product_name,
+                                    ink_color: "", product_type: "", cartoon_pattern: "", line_pattern: "",
+                                    font: row['font'] || '', line_1: row['บรรทัด1'] || '', line_2: row['บรรทัด2'] || '', line_3: "",
                                     quantity: parseInt(row['จำนวน']) || 1,
-                                    notes: row['หมายเหตุ'] || '',
-                                    file_attachment: ""
+                                    notes: row['หมายเหตุ'] || '', file_attachment: ""
                                 };
                                 currentOrder.items.push(itemData);
                             } else {
@@ -1144,7 +1155,6 @@
                         }
                         
                         const processedOrders = Array.from(ordersMap.values());
-
                         if (processedOrders.length === 0) throw new Error("ไม่พบข้อมูลออร์เดอร์ที่สมบูรณ์ในไฟล์");
 
                         if (confirm(`พบ ${processedOrders.length} ออร์เดอร์ในไฟล์นี้ คุณต้องการดำเนินการนำเข้าใช่หรือไม่?`)) {
@@ -1575,15 +1585,16 @@
                 itemsInWorkOrder
                     .filter(item => item.product_category && !excludedCategories.some(cat => item.product_category.toUpperCase().includes(cat)))
                     .forEach(item => {
-                        if (!mainItemsAggregated[item.product_id]) {
-                            mainItemsAggregated[item.product_id] = {
+                        const key = item.product_id;
+                        if (!mainItemsAggregated[key]) {
+                            mainItemsAggregated[key] = {
                                 name: item.product_name,
                                 code: item.product_code,
                                 location: item.storage_location || 'N/A',
                                 qty: 0
                             };
                         }
-                        mainItemsAggregated[item.product_id].qty += 1;
+                        mainItemsAggregated[key].qty += 1;
                     });
                 
                 const mainItems = Object.values(mainItemsAggregated).sort((a, b) => a.location.localeCompare(b.location));
@@ -1592,13 +1603,14 @@
                 itemsInWorkOrder
                     .filter(item => item.rubber_code)
                     .forEach(item => {
-                        if (!sparePartsAggregated[item.rubber_code]) {
-                            sparePartsAggregated[item.rubber_code] = {
+                        const key = item.rubber_code;
+                        if (!sparePartsAggregated[key]) {
+                            sparePartsAggregated[key] = {
                                 name: `หน้ายาง+โฟม ${item.rubber_code}`,
                                 qty: 0
                             };
                         }
-                        sparePartsAggregated[item.rubber_code].qty += 1;
+                        sparePartsAggregated[key].qty += 1;
                     });
 
                 const spareParts = Object.values(sparePartsAggregated);
@@ -1610,12 +1622,20 @@
                 mainItems.forEach(item => { mainItemsHtml += `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td>${item.qty}</td></tr>`; });
                 mainItemsHtml += '</tbody></table>';
 
-                let sparePartsHtml = '<h3>รายการอะไหล่</h3><table><thead><tr><th>รายการอะไหล่</th><th>จำนวนอะไหล่</th></tr></thead><tbody>';
-                spareParts.forEach(part => { sparePartsHtml += `<tr><td>${part.name}</td><td>${part.qty}</td></tr>`; });
-                sparePartsHtml += '</tbody></table>';
+                let sparePartsHtml = spareParts.length > 0 ? '<h3>รายการอะไหล่</h3><table><thead><tr><th>รายการอะไหล่</th><th>จำนวนอะไหล่</th></tr></thead><tbody>' : '';
+                if(spareParts.length > 0) {
+                    spareParts.forEach(part => { sparePartsHtml += `<tr><td>${part.name}</td><td>${part.qty}</td></tr>`; });
+                    sparePartsHtml += '</tbody></table>';
+                }
                 
                 previewContainer.innerHTML = mainItemsHtml + sparePartsHtml;
                 
+                const pngHeaderHtml = `
+                    <div class="png-header">
+                        <div class="png-header-box"><b>เพจ:</b> ${workOrderName.split('-')[0]} <b>รอบ:</b> ${workOrderName.split('-')[2].replace('R','')}</div>
+                        <div class="png-header-box"><b>วันที่เบิก:</b> ${today}</div>
+                    </div>`;
+
                 const pngMainTable = `<table>
                                         <thead><tr><th>จุดจัดเก็บ</th><th>รหัสสินค้า</th><th>รายการสินค้า</th><th>จำนวนเบิก</th></tr></thead>
                                         <tbody>${mainItems.map(item => `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td style="text-align:center;">${item.qty}</td></tr>`).join('')}</tbody>
@@ -1624,22 +1644,17 @@
                                         <thead><tr><th>รายการอะไหล่</th><th>จำนวนอะไหล่</th></tr></thead>
                                         <tbody>${spareParts.map(part => `<tr><td>${part.name}</td><td style="text-align:center;">${part.qty}</td></tr>`).join('')}</tbody>
                                        </table>` : '';
-
-                const pngLeftColumn = `<div class="png-left-column">${pngMainTable}${pngSpareTable}</div>`;
-
-                const pngRightColumn = `
-                    <div class="png-right-column">
-                        <div class="png-header-box"><b>เพจ:</b> ${workOrderName.split('-')[0]} <b>รอบ:</b> ${workOrderName.split('-')[2].replace('R','')}</div>
-                        <div class="png-header-box"><b>วันที่เบิก:</b> ${today}</div>
-                        
-                        <div class="png-signature-boxes">
-                            <div class="png-signature-box"><div class="title">ผู้เบิก</div><div class="space">${picker}</div></div>
-                            <div class="png-signature-box"><div class="title">ผู้จ่าย</div><div class="space"></div></div>
-                            <div class="png-signature-box"><div class="title">ผู้รับ</div><div class="space"></div></div>
-                        </div>
+                
+                const pngSignatureHtml = `
+                    <div class="png-signature-boxes">
+                        <div class="png-signature-box"><div class="title">ผู้เบิก</div><div class="space">${picker}</div></div>
+                        <div class="png-signature-box"><div class="title">ผู้จ่าย</div><div class="space"></div></div>
+                        <div class="png-signature-box"><div class="title">ผู้รับ</div><div class="space"></div></div>
                     </div>`;
 
-                pngContainer.innerHTML = pngLeftColumn + pngRightColumn;
+                const pngFooterHtml = `<div class="png-footer">Page 1 of 1</div>`;
+
+                pngContainer.innerHTML = `<div class="png-body">${pngHeaderHtml}${pngMainTable}${pngSpareTable}</div>${pngSignatureHtml}${pngFooterHtml}`;
                 
                 document.getElementById('export-picking-slip-png-btn').onclick = () => exportPickingSlipAsPNG(workOrderName);
                 document.getElementById('export-picking-slip-csv-btn').onclick = () => exportPickingSlipAsCSV(workOrderName);
@@ -1669,14 +1684,14 @@
 
             function exportPickingSlipAsCSV(workOrderName) {
                 const headers = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จำนวนเบิก'];
-                const rows = [];
-
+                
+                const itemsInWorkOrder = [];
                 allOrdersData.forEach(order => {
                     if (order.work_order_name === workOrderName && order.order_items) {
                         order.order_items.forEach(item => {
                             const fullProduct = fullProductList.find(p => p.id === item.product_id);
-                            rows.push({
-                                transactionCode: workOrderName, // MODIFIED: Use work order name
+                            itemsInWorkOrder.push({
+                                transactionCode: workOrderName, 
                                 productCode: fullProduct ? fullProduct.product_code : 'N/A',
                                 productName: item.product_name,
                                 quantity: 1
@@ -1685,21 +1700,21 @@
                     }
                 });
 
-                if (rows.length === 0) {
+                if (itemsInWorkOrder.length === 0) {
                     alert('ไม่พบข้อมูลสำหรับ Export');
                     return;
                 }
                 
-                const aggregatedRows = {};
-                rows.forEach(row => {
-                    const key = row.productCode;
-                    if(!aggregatedRows[key]){
-                       aggregatedRows[key] = { ...row, quantity: 0 };
+                const aggregatedItems = {};
+                itemsInWorkOrder.forEach(item => {
+                    const key = item.productCode; // Aggregate by product code
+                    if (!aggregatedItems[key]) {
+                       aggregatedItems[key] = { ...item, quantity: 0 };
                     }
-                    aggregatedRows[key].quantity += row.quantity;
+                    aggregatedItems[key].quantity += 1;
                 });
 
-                const finalRows = Object.values(aggregatedRows);
+                const finalRows = Object.values(aggregatedItems);
 
                 const escapeCsv = (field) => {
                     const str = String(field || '');
@@ -2448,6 +2463,16 @@
         
         // --- INITIAL LOAD ---
         checkAuth();
+
+        // --- SIDEBAR BUG FIX ---
+        window.addEventListener('pageshow', function (event) {
+            // The persisted property is true if the page is from the bfcache
+            if (event.persisted) {
+                // If it's from the cache, re-run the auth check to re-initialize the app state
+                console.log("Page loaded from bfcache. Re-initializing app.");
+                checkAuth();
+            }
+        });
     });
     </script>
 </body>
