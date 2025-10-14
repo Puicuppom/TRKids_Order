@@ -901,11 +901,11 @@
                 await loadInitialData();
             }
             
-            // Helper function to find a header from multiple possible names
+            // Helper function to find a header from multiple possible names (case-insensitive and trimmed)
             const findHeader = (headers, possibleNames) => {
-                const lowerCaseNames = possibleNames.map(name => name.toLowerCase());
+                const lowerCaseNames = possibleNames.map(name => name.toLowerCase().trim());
                 for (const header of headers) {
-                    if (lowerCaseNames.includes(header.toLowerCase())) {
+                    if (lowerCaseNames.includes(header.toLowerCase().trim())) {
                         return header;
                     }
                 }
@@ -1009,20 +1009,32 @@
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
                         
                         const headers = Object.keys(jsonData[0]);
-                        const orderNumberHeader = findHeader(headers, ['เลขออเดอร์', 'Order Number', 'Order No']);
+                        // **MODIFICATION**: Using the exact confirmed header name for PGTR
+                        const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']);
 
                         if(!orderNumberHeader){
-                            throw new Error("ไม่พบคอลัมน์ 'เลขออเดอร์' ในไฟล์");
+                            throw new Error("ไม่พบคอลัมน์ 'เลขออร์เดอร์' ในไฟล์");
                         }
                         
                         const ordersMap = new Map();
 
                         for (const row of jsonData) {
-                            const orderNumber = String(row[orderNumberHeader] || '').trim();
-                            if (!orderNumber) {
+                            const orderNumberRaw = String(row[orderNumberHeader] || '').trim();
+                            if (!orderNumberRaw) {
                                 console.warn("Skipping row with no order number:", row);
                                 continue;
                             }
+                            
+                            // --- MODIFICATION: Trim the trailing item number ---
+                            let orderNumber = orderNumberRaw;
+                            const lastHyphenIndex = orderNumber.lastIndexOf('-');
+                            if (lastHyphenIndex > 0) {
+                                const lastSegment = orderNumber.substring(lastHyphenIndex + 1);
+                                if (!isNaN(parseInt(lastSegment)) && /^\d{1,2}$/.test(lastSegment)) {
+                                    orderNumber = orderNumber.substring(0, lastHyphenIndex);
+                                }
+                            }
+                            // --- END MODIFICATION ---
 
                             if (!ordersMap.has(orderNumber)) {
                                 const price = parseFloat(row["ราคาก่อนส่วนลด"]) || 0;
@@ -1099,7 +1111,8 @@
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์");
                         
                         const headers = Object.keys(jsonData[0]);
-                        const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'Order Number']);
+                         // **MODIFICATION**: Using the exact confirmed header name for WY
+                        const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']);
 
                         if(!billNoHeader){
                              throw new Error("ไม่พบคอลัมน์ 'เลขบิล' ในไฟล์");
@@ -1707,7 +1720,7 @@
                 
                 const aggregatedItems = {};
                 itemsInWorkOrder.forEach(item => {
-                    const key = item.productCode; // Aggregate by product code
+                    const key = item.productCode; 
                     if (!aggregatedItems[key]) {
                        aggregatedItems[key] = { ...item, quantity: 0 };
                     }
@@ -2466,9 +2479,7 @@
 
         // --- SIDEBAR BUG FIX ---
         window.addEventListener('pageshow', function (event) {
-            // The persisted property is true if the page is from the bfcache
             if (event.persisted) {
-                // If it's from the cache, re-run the auth check to re-initialize the app state
                 console.log("Page loaded from bfcache. Re-initializing app.");
                 checkAuth();
             }
@@ -2477,4 +2488,3 @@
     </script>
 </body>
 </html>
-
