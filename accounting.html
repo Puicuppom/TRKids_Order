@@ -69,6 +69,8 @@
                 <ul>
                     <li><a href="index.html" class="nav-link"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
                     <li><a href="#" class="nav-link" onclick="handlePackingNav(event)"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
+                    <!-- ===== MODIFICATION: Added Product System Link ===== -->
+                    <li><a href="#" class="nav-link" onclick="handleProductNav(event)"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
                     <li><a href="#" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
             </nav>
@@ -147,26 +149,47 @@
             }
             logoutBtn.addEventListener('click', logout);
 
+            // ===== MODIFICATION: Role-based access control =====
             async function checkAuth() {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) {
                     window.location.href = 'index.html'; // No session, redirect to login
                 } else {
-                    const { data: userData } = await supabaseClient.from('users').select('username').eq('id', session.user.id).single();
-                    if (userData) {
+                    // Fetch user's role along with username
+                    const { data: userData } = await supabaseClient.from('users').select('username, role').eq('id', session.user.id).single();
+                    
+                    if (!userData) {
+                        alert('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
+                        await logout();
+                        return;
+                    }
+
+                    if (userData.username) {
                         document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${userData.username}`;
+                    }
+
+                    // If the user's role is not 'superadmin', they shouldn't be on this page.
+                    if (userData.role !== 'superadmin') {
+                        alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+                        window.location.href = 'index.html';
                     }
                 }
             }
 
-            // --- Navigation Helper ---
+            // ===== MODIFICATION: Added Navigation Helpers =====
             function handlePackingNav(event) {
                 event.preventDefault();
                 localStorage.setItem('navigateTo', 'packing');
                 window.location.href = 'index.html';
             }
-            // Add event listener to the packing link
+            function handleProductNav(event) {
+                event.preventDefault();
+                localStorage.setItem('navigateTo', 'product');
+                window.location.href = 'index.html';
+            }
+            // Add event listeners to the navigation links
              document.querySelector('a[onclick="handlePackingNav(event)"]').addEventListener('click', handlePackingNav);
+             document.querySelector('a[onclick="handleProductNav(event)"]').addEventListener('click', handleProductNav);
 
 
             // --- Page Specific Logic ---
