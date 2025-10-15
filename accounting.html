@@ -10,67 +10,74 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Library for creating PNG from HTML -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        /* --- General Layout Styles (Copied from index.html) --- */
-        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease, transform .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:20px;height:calc(100vh - var(--top-bar-height))}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{display: none;}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+        /* --- General Layout Styles --- */
+        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease, transform .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:20px;height:calc(100vh - var(--top-bar-height))}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}#loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);color:#fff;display:none;justify-content:center;align-items:center;z-index:9999;font-size:2em}
         
         /* --- Accounting Page Specific Styles --- */
-        :root { --card-bg: #ffffff; --text-color: #333; --muted-color: #6c757d; --border-color: #dee2e6; --success-color: #28a745; --danger-color: #dc3545; }
+        :root { --card-bg: #ffffff; --text-color: #333; --muted-color: #6c757d; --border-color: #dee2e6; --success-color: #28a745; --danger-color: #dc3545; --info-color: #17a2b8; }
         .container { max-width: 1600px; margin: 0 auto; padding: 0; }
         .card { background-color: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; }
         h1, h2 { color: var(--primary-color); text-align: center; }
-        .filters { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center;}
+        .filters { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; justify-content: center;}
         .filter-group { display: flex; flex-direction: column; }
         .filter-group label { font-weight: 600; margin-bottom: 5px; font-size: 14px; }
         .filter-group input, .filter-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 16px; }
         .filter-group .select2-container { width: 300px !important; }
-        .btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; color: #fff; align-self: flex-end; }
+        .btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; color: #fff; }
         .btn-primary { background-color: var(--primary-color); }
         .btn-success { background-color: var(--success-color); }
-        .btn:disabled { background-color: #a0cff7; cursor: not-allowed; }
-        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; text-align: center; }
-        .summary-card { background-color: #f8f9fa; padding: 20px; border-radius: 8px; }
-        .summary-card h3 { margin: 0 0 10px; font-size: 16px; color: var(--muted-color); }
-        .summary-card .value { font-size: 2em; font-weight: 700; color: var(--primary-color); }
+        .btn-info { background-color: var(--info-color); }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        #summary-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
+        .summary-box { background-color: #f8f9fa; padding: 20px; border-radius: 8px; }
+        .summary-box h3 { margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; }
+        .summary-table { width: 100%; text-align: left; }
+        .summary-table th, .summary-table td { padding: 8px 4px; border-bottom: 1px solid var(--border-color); }
+        .summary-table tr:last-child td { border-bottom: none; }
+        .summary-table .total-row { font-weight: bold; background-color: #e9ecef; }
+        .summary-value { font-weight: 700; text-align: right; }
+        .overall-summary { text-align: center; }
+        .overall-summary .metric { margin-bottom: 15px; }
+        .overall-summary .metric h4 { margin: 0 0 5px; color: var(--muted-color); font-size: 16px;}
+        .overall-summary .metric .value { font-size: 2.2em; font-weight: 700; color: var(--primary-color); }
+
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; white-space: nowrap; }
         th { background-color: #f8f9fa; }
+        td.currency { text-align: right; }
         #loading-message { text-align: center; font-size: 1.2em; color: var(--muted-color); padding: 40px; }
 
-        /* --- Responsive Design --- */
+        /* Styles for the hidden table used for styled XLSX export */
+        #xlsx-export-container { display: none; }
+        #xlsx-export-table { border-collapse: collapse; width: 800px; font-family: sans-serif; }
+        #xlsx-export-table th, #xlsx-export-table td { border: 1px solid #888; padding: 8px; text-align: left; }
+        #xlsx-export-table .header-row { font-weight: bold; font-size: 1.2em; }
+        #xlsx-export-table .sub-header { font-weight: bold; background-color: #f2f2f2; }
+        #xlsx-export-table .data-cell { text-align: right; }
+
         #mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        @media (max-width: 992px) {
-            body.sidebar-collapsed .page-wrapper { margin-left: var(--sidebar-width-collapsed); }
-        }
         @media (max-width: 768px) {
-            .main-content { padding: 10px; }
-            #mobile-menu-toggle { display: block; }
-            .sidebar { transform: translateX(-100%); z-index: 1100; }
-            body:not(.sidebar-collapsed) .sidebar { transform: translateX(0); }
-            .page-wrapper, body.sidebar-collapsed .page-wrapper { margin-left: 0; }
-            .sidebar .sidebar-header .toggle-btn { display: none; }
-            .filters { flex-direction: column; align-items: stretch;}
-            .btn { align-self: auto; }
-            .filter-group .select2-container { width: 100% !important; }
-            #user-info-bar #welcome-message { display: none; }
+            .main-content { padding: 10px; } #mobile-menu-toggle { display: block; } .sidebar { transform: translateX(-100%); z-index: 1100; } body:not(.sidebar-collapsed) .sidebar { transform: translateX(0); } .page-wrapper, body.sidebar-collapsed .page-wrapper { margin-left: 0; } .filters { flex-direction: column; align-items: stretch;} .btn { align-self: auto; width: 100%; margin-top: 10px; } .filter-group .select2-container { width: 100% !important; } #summary-section { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body class="sidebar-collapsed">
+    <div id="loading-overlay">กำลังโหลด...</div>
 
     <div class="app-container">
         <div class="sidebar">
-            <div class="sidebar-header">
-                <h2>TR Kids</h2>
-            </div>
+            <div class="sidebar-header"> <h2>TR Kids</h2> </div>
             <nav>
                 <ul>
                     <li><a href="index.html" class="nav-link"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
-                    <li><a href="#" class="nav-link" onclick="handlePackingNav(event)"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
-                    <!-- ===== MODIFICATION: Added Product System Link ===== -->
-                    <li><a href="#" class="nav-link" onclick="handleProductNav(event)"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
+                    <li><a href="#" class="nav-link" id="nav-packing"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
+                    <li><a href="#" class="nav-link" id="nav-product"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
                     <li><a href="#" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
             </nav>
@@ -86,31 +93,32 @@
             </header>
             <main class="main-content">
                 <div class="container">
-                    <h1>สรุปยอดขาย</h1>
+                    <h1>สรุปยอดขาย (ตามวันที่ชำระเงิน)</h1>
 
                     <div class="card filters">
                         <div class="filter-group">
-                            <label for="start-date">จากวันที่</label>
+                            <label for="start-date">จากวันที่ชำระ</label>
                             <input type="date" id="start-date">
                         </div>
                         <div class="filter-group">
-                            <label for="end-date">ถึงวันที่</label>
+                            <label for="end-date">ถึงวันที่ชำระ</label>
                             <input type="date" id="end-date">
                         </div>
                         <div class="filter-group">
-                            <label for="channel-filter">ช่องทาง (เลือกได้หลายช่องทาง)</label>
+                            <label for="channel-filter">ช่องทาง</label>
                             <select id="channel-filter" multiple="multiple"></select>
                         </div>
                         <button id="generate-report-btn" class="btn btn-primary">สร้างรายงาน</button>
                         <button id="export-xlsx-btn" class="btn btn-success" disabled>Export to XLSX</button>
+                        <button id="export-png-btn" class="btn btn-info" disabled>Export to PNG</button>
                     </div>
 
-                    <div class="card summary-cards" id="summary-container">
-                        <!-- Summary cards will be injected here -->
+                    <div class="card" id="summary-container">
+                         <p id="initial-summary-message">กรุณาสร้างรายงานเพื่อดูสรุปยอด</p>
                     </div>
 
                     <div class="card">
-                        <h2>รายการออร์เดอร์</h2>
+                        <h2>รายการออร์เดอร์ (ข้อมูลดิบ)</h2>
                         <div id="results-container" class="table-container">
                             <p id="loading-message">กรุณาเลือกช่วงวันที่และช่องทาง แล้วกด "สร้างรายงาน"</p>
                         </div>
@@ -119,6 +127,10 @@
             </main>
         </div>
     </div>
+    
+    <!-- Hidden container for the styled XLSX export -->
+    <div id="xlsx-export-container"></div>
+
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -127,86 +139,62 @@
             const { createClient } = supabase;
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            let currentReportData = []; // To store data for export
+            let currentReportData = [];
+            let channelMap = {}; 
 
-            // --- UI Elements ---
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
             const channelFilterSelect = $('#channel-filter');
             const generateBtn = document.getElementById('generate-report-btn');
-            const exportBtn = document.getElementById('export-xlsx-btn');
+            const exportXlsxBtn = document.getElementById('export-xlsx-btn');
+            const exportPngBtn = document.getElementById('export-png-btn');
             const resultsContainer = document.getElementById('results-container');
             const summaryContainer = document.getElementById('summary-container');
-            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const xlsxExportContainer = document.getElementById('xlsx-export-container');
+            const loadingOverlay = document.getElementById('loading-overlay');
             const logoutBtn = document.getElementById('logout-btn');
 
-            // --- Sidebar and Auth Logic (from index) ---
-            mobileMenuToggle.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
-            
-            async function logout() {
+            document.getElementById('mobile-menu-toggle').addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
+            logoutBtn.addEventListener('click', async () => {
                 await supabaseClient.auth.signOut();
-                window.location.href = 'index.html'; // Redirect to login
-            }
-            logoutBtn.addEventListener('click', logout);
-
-            // ===== MODIFICATION: Role-based access control =====
+                window.location.href = 'index.html';
+            });
+            
             async function checkAuth() {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) {
-                    window.location.href = 'index.html'; // No session, redirect to login
+                    window.location.href = 'index.html';
                 } else {
-                    // Fetch user's role along with username
                     const { data: userData } = await supabaseClient.from('users').select('username, role').eq('id', session.user.id).single();
-                    
-                    if (!userData) {
-                        alert('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
-                        await logout();
-                        return;
-                    }
-
-                    if (userData.username) {
-                        document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${userData.username}`;
-                    }
-
-                    // If the user's role is not 'superadmin', they shouldn't be on this page.
-                    if (userData.role !== 'superadmin') {
+                    if (!userData || userData.role !== 'superadmin') {
                         alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
                         window.location.href = 'index.html';
+                    } else {
+                         document.getElementById('welcome-message').textContent = `ยินดีต้อนรับ, ${userData.username}`;
                     }
                 }
             }
 
-            // ===== MODIFICATION: Added Navigation Helpers =====
-            function handlePackingNav(event) {
-                event.preventDefault();
-                localStorage.setItem('navigateTo', 'packing');
+            function navigateTo(target) {
+                localStorage.setItem('navigateTo', target);
                 window.location.href = 'index.html';
             }
-            function handleProductNav(event) {
-                event.preventDefault();
-                localStorage.setItem('navigateTo', 'product');
-                window.location.href = 'index.html';
-            }
-            // Add event listeners to the navigation links
-             document.querySelector('a[onclick="handlePackingNav(event)"]').addEventListener('click', handlePackingNav);
-             document.querySelector('a[onclick="handleProductNav(event)"]').addEventListener('click', handleProductNav);
+            document.getElementById('nav-packing').addEventListener('click', (e) => { e.preventDefault(); navigateTo('packing-system-container'); });
+            document.getElementById('nav-product').addEventListener('click', (e) => { e.preventDefault(); navigateTo('product-system-container'); });
 
-
-            // --- Page Specific Logic ---
-            channelFilterSelect.select2({
-                placeholder: "เลือกช่องทางทั้งหมด",
-                allowClear: true
-            });
-
+            channelFilterSelect.select2({ placeholder: "เลือกช่องทางทั้งหมด", allowClear: true });
             const today = new Date().toISOString().slice(0, 10);
             startDateInput.value = today;
             endDateInput.value = today;
 
             async function loadChannels() {
-                const { data, error } = await supabaseClient.from('channels').select('channel_code, channel_name');
+                const { data, error } = await supabaseClient.from('channels').select('channel_code, channel_name, bank_account');
                 if (error) { console.error('Error loading channels:', error); return; }
+                
+                channelMap = {};
                 data.forEach(ch => {
-                    const option = new Option(ch.channel_name, ch.channel_code, false, false);
+                    channelMap[ch.channel_code] = { name: ch.channel_name, account: ch.bank_account || 'ไม่ระบุ' };
+                    const option = new Option(`${ch.channel_name} (${ch.channel_code})`, ch.channel_code, false, false);
                     channelFilterSelect.append(option);
                 });
                 channelFilterSelect.trigger('change');
@@ -215,36 +203,36 @@
             async function generateReport() {
                 const startDate = startDateInput.value;
                 const endDate = endDateInput.value;
-                const selectedChannels = channelFilterSelect.val();
-
-                if (!startDate || !endDate) {
-                    alert('กรุณาเลือกช่วงวันที่ให้ครบถ้วน');
-                    return;
-                }
+                if (!startDate || !endDate) { alert('กรุณาเลือกช่วงวันที่ให้ครบถ้วน'); return; }
                 
                 generateBtn.disabled = true;
-                exportBtn.disabled = true;
+                exportXlsxBtn.disabled = true;
+                exportPngBtn.disabled = true;
                 currentReportData = [];
                 resultsContainer.innerHTML = '<p id="loading-message">กำลังดึงข้อมูล...</p>';
                 summaryContainer.innerHTML = '';
+                xlsxExportContainer.innerHTML = '';
 
                 try {
+                    const selectedChannels = channelFilterSelect.val();
                     let query = supabaseClient.from('orders').select('*')
-                        .gte('created_at', `${startDate}T00:00:00`)
-                        .lte('created_at', `${endDate}T23:59:59`)
-                        .not('status', 'eq', 'ยกเลิก');
+                        .gte('payment_date', startDate)
+                        .lte('payment_date', endDate)
+                        .not('status', 'eq', 'ยกเลิก')
+                        .not('payment_date', 'is', null);
 
                     if (selectedChannels && selectedChannels.length > 0) {
                         query = query.in('channel_code', selectedChannels);
                     }
                     
-                    const { data: orders, error } = await query.order('created_at', { ascending: false });
+                    const { data: orders, error } = await query.order('payment_date', { ascending: false });
                     if (error) throw error;
                     
-                    currentReportData = orders; // Store data for export
+                    currentReportData = orders;
                     renderResults(orders);
                     if (orders.length > 0) {
-                        exportBtn.disabled = false; // Enable export button
+                        exportXlsxBtn.disabled = false;
+                        exportPngBtn.disabled = false;
                     }
 
                 } catch (error) {
@@ -258,44 +246,67 @@
             function renderResults(orders) {
                 if (orders.length === 0) {
                     resultsContainer.innerHTML = '<p id="loading-message">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
-                    summaryContainer.innerHTML = '';
+                    summaryContainer.innerHTML = '<p id="initial-summary-message">ไม่พบข้อมูลสำหรับสรุปยอด</p>';
                     return;
                 }
                 
+                // --- Calculations ---
                 const totalSales = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
-                const totalOrders = orders.length;
-                const totalCOD = orders.filter(o => o.payment_method === 'COD').reduce((sum, order) => sum + (order.total_amount || 0), 0);
-                const totalTransfer = orders.filter(o => o.payment_method === 'โอน').reduce((sum, order) => sum + (order.total_amount || 0), 0);
-                
-                summaryContainer.innerHTML = `
-                    <div class="summary-card"><h3>ยอดขายรวม</h3><div class="value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
-                    <div class="summary-card"><h3>จำนวนออร์เดอร์</h3><div class="value">${totalOrders.toLocaleString('th-TH')}</div></div>
-                    <div class="summary-card"><h3>ยอด COD</h3><div class="value">${totalCOD.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
-                    <div class="summary-card"><h3>ยอดโอน</h3><div class="value">${totalTransfer.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>`;
+                const salesByChannel = {};
+                const salesByAccount = {};
 
-                let tableHTML = `<table><thead><tr>
-                                <th>วันที่สร้าง</th>
-                                <th>เลขบิล</th>
-                                <th>ช่องทาง</th>
-                                <th>ชื่อลูกค้า</th>
-                                <th>ยอดสุทธิ</th>
-                                <th>วิธีการชำระ</th>
-                                <th>วันที่ชำระ</th>
-                                <th>เวลาที่ชำระ</th>
-                                <th>สถานะ</th>
-                            </tr></thead><tbody>`;
                 orders.forEach(order => {
-                    const paymentDate = order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : '';
-                    const paymentTime = order.payment_time ? order.payment_time.substring(0, 5) : '';
+                    const channelCode = order.channel_code;
+                    const channelInfo = channelMap[channelCode] || { name: channelCode, account: 'ไม่ระบุ' };
+                    const amount = order.total_amount || 0;
+                    
+                    salesByChannel[channelCode] = (salesByChannel[channelCode] || 0) + amount;
+                    salesByAccount[channelInfo.account] = (salesByAccount[channelInfo.account] || 0) + amount;
+                });
+                
+                // --- Render On-Screen Summaries ---
+                summaryContainer.innerHTML = `
+                <div id="summary-section">
+                    <div class="summary-box overall-summary"> <h3>สรุปภาพรวม</h3> <div class="metric"> <h4>ยอดขายรวม</h4> <div class="value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div> </div> <div class="metric"> <h4>จำนวนออร์เดอร์</h4> <div class="value">${orders.length.toLocaleString('th-TH')}</div> </div> </div>
+                    <div class="summary-box"> <h3>สรุปตามช่องทาง</h3> <table class="summary-table"> ${Object.entries(salesByChannel).map(([code, total]) => `<tr><td>${channelMap[code]?.name || code} (${code})</td><td class="summary-value">${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('')} <tr class="total-row"><td>รวม</td><td class="summary-value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr> </table> </div>
+                    <div class="summary-box"> <h3>สรุปตามบัญชี</h3> <table class="summary-table"> ${Object.entries(salesByAccount).map(([account, total]) => `<tr><td>${account}</td><td class="summary-value">${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('')} <tr class="total-row"><td>รวม</td><td class="summary-value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr> </table> </div>
+                </div>`;
+
+                // --- Prepare Hidden Table for Styled XLSX Export ---
+                const channelHeaders = Object.keys(salesByChannel).map(code => code);
+                const channelTotals = channelHeaders.map(code => salesByChannel[code]);
+                const accountHeaders = Object.keys(salesByAccount);
+                const accountTotals = accountHeaders.map(acc => salesByAccount[acc]);
+
+                xlsxExportContainer.innerHTML = `
+                    <table id="xlsx-export-table">
+                        <tr><td colspan="2" class="header-row">สรุปยอดขายตามวันที่ชำระเงิน</td></tr>
+                        <tr><td>จากวันที่:</td><td>${startDateInput.value}</td></tr>
+                        <tr><td>ถึงวันที่:</td><td>${endDateInput.value}</td></tr>
+                        <tr><td colspan="2"></td></tr>
+                        <tr><td colspan="2" class="sub-header">สรุปภาพรวม</td></tr>
+                        <tr><td>ยอดขายรวม</td><td class="data-cell">${totalSales}</td></tr>
+                        <tr><td>จำนวนออร์เดอร์</td><td class="data-cell">${orders.length}</td></tr>
+                        <tr><td colspan="2"></td></tr>
+                        <tr><td class="sub-header">ช่องทาง</td>${channelHeaders.map(h => `<td class="sub-header">${h}</td>`).join('')}</tr>
+                        <tr><td>ยอดขาย</td>${channelTotals.map(t => `<td class="data-cell">${t}</td>`).join('')}</tr>
+                        <tr><td colspan="${1 + channelHeaders.length}"></td></tr>
+                        <tr><td class="sub-header">บัญชี</td>${accountHeaders.map(h => `<td class="sub-header">${h}</td>`).join('')}</tr>
+                        <tr><td>ยอดขาย</td>${accountTotals.map(t => `<td class="data-cell">${t}</td>`).join('')}</tr>
+                    </table>`;
+
+                // --- Render Raw Data Table ---
+                const rawDataTableHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ลูกค้า", "ยอดสุทธิ", "วิธีชำระ", "สถานะ"];
+                let tableHTML = `<table><thead><tr>${rawDataTableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+                orders.forEach(order => {
                     tableHTML += `<tr>
-                        <td>${new Date(order.created_at).toLocaleDateString('th-TH')}</td>
+                        <td>${order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : ''}</td>
+                        <td>${order.payment_time ? order.payment_time.substring(0, 5) : ''}</td>
                         <td>${order.bill_no || ''}</td>
                         <td>${order.channel_code || ''}</td>
                         <td>${order.customer_name || ''}</td>
-                        <td>${(order.total_amount || 0).toFixed(2)}</td>
+                        <td class="currency">${(order.total_amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>${order.payment_method || ''}</td>
-                        <td>${paymentDate}</td>
-                        <td>${paymentTime}</td>
                         <td>${order.status || ''}</td>
                     </tr>`;
                 });
@@ -304,41 +315,54 @@
             }
 
             function exportReportToXLSX() {
-                if (currentReportData.length === 0) {
-                    alert("ไม่มีข้อมูลสำหรับ Export กรุณาสร้างรายงานก่อน");
-                    return;
-                }
+                if (currentReportData.length === 0) { alert("ไม่มีข้อมูลสำหรับ Export"); return; }
 
-                const headers = ["วันที่สร้าง", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "ยอดสุทธิ", "วิธีการชำระ", "วันที่ชำระ", "เวลาที่ชำระ", "สถานะ"];
-                const dataToExport = currentReportData.map(order => [
-                    new Date(order.created_at).toLocaleDateString('th-TH'),
-                    order.bill_no || '',
-                    order.channel_code || '',
-                    order.customer_name || '',
-                    order.price || 0,
-                    order.shipping_cost || 0,
-                    order.discount || 0,
-                    order.total_amount || 0,
-                    order.payment_method || '',
-                    order.payment_date || '',
-                    order.payment_time ? order.payment_time.substring(0, 5) : '',
-                    order.status || ''
-                ]);
-
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "SalesReport");
-
-                // Generate filename with date range
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-                const fileName = `SalesReport_${startDate}_to_${endDate}.xlsx`;
+                const table = document.getElementById('xlsx-export-table');
+                const workbook = XLSX.utils.table_to_book(table, { sheet: "สรุปยอด" });
                 
+                const rawDataHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "ยอดสุทธิ", "วิธีชำระ", "โปรโมชั่น", "สถานะ"];
+                const selectedChannels = channelFilterSelect.val().length > 0 ? channelFilterSelect.val() : Object.keys(channelMap);
+
+                selectedChannels.forEach(channelCode => {
+                    const channelData = currentReportData.filter(order => order.channel_code === channelCode);
+                    if (channelData.length > 0) {
+                        const channelRows = channelData.map(order => [
+                            order.payment_date || '', order.payment_time ? order.payment_time.substring(0, 5) : '',
+                            order.bill_no || '', order.channel_code || '', order.customer_name || '',
+                            order.price || 0, order.shipping_cost || 0, order.discount || 0, order.total_amount || 0,
+                            order.payment_method || '', order.promotion || '', order.status || ''
+                        ]);
+                        const channelWs = XLSX.utils.aoa_to_sheet([rawDataHeaders, ...channelRows]);
+                        const sheetName = (channelMap[channelCode]?.name || channelCode).replace(/[\*\:\/\\ \?\[\]]/g, "").substring(0, 31);
+                        XLSX.utils.book_append_sheet(workbook, channelWs, sheetName);
+                    }
+                });
+                
+                const fileName = `SalesReport_ByPaymentDate_${startDateInput.value}_to_${endDateInput.value}.xlsx`;
                 XLSX.writeFile(workbook, fileName);
             }
 
+            function exportReportToPNG() {
+                const summaryElement = document.getElementById('summary-container');
+                if (!summaryElement || currentReportData.length === 0) { alert("ไม่มีข้อมูลสำหรับ Export"); return; }
+                
+                loadingOverlay.style.display = 'flex';
+                html2canvas(summaryElement, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `SummaryReport_${startDateInput.value}_to_${endDateInput.value}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    loadingOverlay.style.display = 'none';
+                }).catch(err => {
+                    console.error('Error generating PNG:', err);
+                    alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PNG');
+                    loadingOverlay.style.display = 'none';
+                });
+            }
+
             generateBtn.addEventListener('click', generateReport);
-            exportBtn.addEventListener('click', exportReportToXLSX);
+            exportXlsxBtn.addEventListener('click', exportReportToXLSX);
+            exportPngBtn.addEventListener('click', exportReportToPNG);
             
             // Initial load
             checkAuth();
