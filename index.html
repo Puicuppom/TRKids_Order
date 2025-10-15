@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TR Kids - Integrated System</title>
+    <title>TR Kids - Order Management System</title>
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -42,9 +42,10 @@
             border: 1px solid #e0e0e0;
             border-radius: 8px;
         }
+        /* MODIFICATION: Checkbox moved to front */
         #order-system-container .order-list-item {
             display: grid;
-            grid-template-columns: 1fr 280px 40px;
+            grid-template-columns: 40px 1fr 280px; /* Checkbox, main info, tracking */
             align-items: center;
             gap: 20px;
             padding: 12px 15px;
@@ -91,7 +92,7 @@
             text-align: right;
         }
         #order-system-container .order-checkbox {
-            justify-self: end;
+            justify-self: center; /* MODIFICATION */
         }
 
         #order-system-container .work-order-group{border:1px solid #ccc;border-radius:4px;margin-bottom:15px; background: #f8f9fa;}
@@ -131,7 +132,9 @@
 
         #order-system-container #items-table .quantity-input{width:70px;text-align:center}#order-system-container #items-table .action-cell{width:50px;text-align:center}#order-system-container #items-table .remove-item-btn{font-size:12px;padding:4px 8px}
         .btn-edit-tracking { background: transparent; border: none; cursor: pointer; padding: 0 5px; font-size: 14px; }
-        .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; width: 160px; }
+        /* MODIFICATION: Styles for tracking edit mode */
+        .tracking-edit-container { display: flex; gap: 5px; align-items: center; }
+        .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 1; min-width: 100px; }
 
         /* Packing System Specific */
         #packing-system-container{padding:0}#packing-system-container .header{text-align:center;padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:0}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 100px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:#28a745}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:#0071e3}#packing-main-view #confirmation-input{border-color:#28a745}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:#28a745}#packing-main-view .status-error{color:#dc3545}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
@@ -354,8 +357,10 @@
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
                         </div>
-                        <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
-                        <div id="tab-complete" class="tab-content"><div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select><input type="text" id="search-complete" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button><button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+                        <!-- MODIFICATION: Added "move-to-complete" button -->
+                        <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+                        <!-- MODIFICATION: Added "move-to-waiting" button -->
+                        <div id="tab-complete" class="tab-content"><div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select><input type="text" id="search-complete" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button><button id="move-to-waiting-btn" class="btn btn-warning">ย้ายไป "รอลงข้อมูล"</button><button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
                         <div id="tab-work-orders" class="tab-content"></div>
                         <div id="tab-shipped" class="tab-content"><div class="tab-filter"><label for="filter-shipped">กรองตามช่องทาง:</label><select id="filter-shipped"></select><input type="text" id="search-shipped" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button></div><ul class="order-list"></ul></div>
                         <div id="tab-cancelled" class="tab-content"><div class="tab-filter"><label for="filter-cancelled">กรองตามช่องทาง:</label><select id="filter-cancelled"></select><input type="text" id="search-cancelled" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-cancelled-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="restore-to-waiting-btn" class="btn btn-warning">คืนไป "รอลงข้อมูล"</button><button id="restore-to-complete-btn" class="btn btn-info">คืนไป "ลงข้อมูลเสร็จสิ้น"</button></div><ul class="order-list"></ul></div>
@@ -708,13 +713,14 @@
                                 ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>`
                                 : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
                             
+                            // MODIFICATION: Checkbox moved to front in the template literal
                             list.innerHTML += `<li class="order-list-item" data-order-id="${order.id}">
+                                <input type="checkbox" class="order-checkbox">
                                 <div class="order-info">
                                     <strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong>
                                     <span class="customer-info">${order.customer_name || 'N/A'}</span>
                                 </div>
                                 ${trackingHTML}
-                                <input type="checkbox" class="order-checkbox">
                             </li>`;
                         }
                     }
@@ -733,13 +739,14 @@
                             ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>`
                             : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
                         
+                        // MODIFICATION: Checkbox moved to front in the template literal for work orders
                         billsHTML += `<li class="order-list-item" data-order-id="${bill.id}">
+                             <input type="checkbox" class="order-checkbox">
                              <div class="order-info">
                                 <strong data-order-id="${bill.id}">${bill.bill_no}</strong>
                                 <span class="customer-info">${bill.customer_name || 'N/A'}</span>
                             </div>
                             ${trackingHTML}
-                            <input type="checkbox" class="order-checkbox">
                         </li>`;
                     });
                     billsHTML += '</ul>';
@@ -1408,6 +1415,29 @@
             async function createWorkOrder() { const selectedIds = getSelectedOrderIds(container.querySelector('#tab-complete .order-list')); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์อย่างน้อย 1 รายการ'); const firstOrder = allOrdersData.find(o => o.id == selectedIds[0]); const channelCode = firstOrder.channel_code; const today = new Date().toISOString().slice(0, 10); if (!selectedIds.every(id => allOrdersData.find(o => o.id == id).channel_code === channelCode)) { return alert('กรุณาเลือกออร์เดอร์จากช่องทางเดียวกันเท่านั้น'); } loadingOverlay.style.display = 'flex'; try { const { data: batchNumber, error: rpcError } = await supabaseClient.rpc('get_next_batch_number', { p_channel_code: channelCode, p_date: today }); if (rpcError) throw rpcError; const datePart = new Date().toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, ''); const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`; const { error: woError } = await supabaseClient.from('work_orders').insert({ work_order_name: workOrderName, channel_code: channelCode, production_date: today, batch_number: batchNumber, order_count: selectedIds.length, created_by: loggedInUsername }); if (woError) throw woError; const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', selectedIds); if (updateError) throw updateError; alert(`สร้างใบงาน "${workOrderName}" สำเร็จ!`); await loadInitialData(); } catch (error) { console.error('Error creating work order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการยกเลิก'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกออร์เดอร์สำเร็จ!'); await loadInitialData(); } catch (error) { alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
+            // MODIFICATION: New function to move orders between statuses
+            async function moveSelectedOrders(tabKey, newStatus) {
+                const listContainer = container.querySelector(`#tab-${tabKey} .order-list`);
+                const selectedIds = getSelectedOrderIds(listContainer);
+                if (selectedIds.length === 0) {
+                    return alert('กรุณาเลือกออร์เดอร์ที่ต้องการย้าย');
+                }
+                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการย้าย ${selectedIds.length} ออร์เดอร์ ไปที่สถานะ "${newStatus}"?`)) {
+                    return;
+                }
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { error } = await supabaseClient.from('orders').update({ status: newStatus }).in('id', selectedIds);
+                    if (error) throw error;
+                    alert('ย้ายสถานะออร์เดอร์สำเร็จ!');
+                    await loadInitialData();
+                } catch (error) {
+                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+            
             async function restoreSelectedOrders(newStatus) {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-cancelled .order-list'));
                 if (selectedIds.length === 0) {
@@ -1531,25 +1561,39 @@
                 } catch (error) { console.error('Error saving/updating order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; }
             }
             
+            // MODIFICATION: Reworked tracking edit mode UI
             function enterTrackingEditMode(trackingSpan) {
                 const trackingTextEl = trackingSpan.querySelector('.tracking-text');
-                const currentTracking = trackingTextEl.textContent;
-                trackingSpan.dataset.originalTracking = currentTracking;
+                const currentTracking = trackingTextEl ? trackingTextEl.textContent : '';
+                trackingSpan.dataset.originalHtml = trackingSpan.innerHTML;
 
                 trackingSpan.innerHTML = `
-                    <input type="text" class="tracking-input" value="${currentTracking}">
-                    <button class="btn btn-sm btn-success btn-save-tracking-confirm">บันทึก</button>
-                    <button class="btn btn-sm btn-secondary btn-cancel-tracking-edit">ยกเลิก</button>
+                    <div class="tracking-edit-container">
+                        <input type="text" class="tracking-input" value="${currentTracking}">
+                        <button class="btn btn-sm btn-success btn-save-tracking-confirm">✓</button>
+                        <button class="btn btn-sm btn-secondary btn-cancel-tracking-edit">X</button>
+                    </div>
                 `;
                 trackingSpan.querySelector('.tracking-input').focus();
             }
 
-            function exitTrackingEditMode(trackingSpan) {
-                const originalTracking = trackingSpan.dataset.originalTracking;
-                trackingSpan.innerHTML = `<span class="tracking-text">${originalTracking}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>`;
+            function exitTrackingEditMode(trackingSpan, newTrackingNumber = null) {
+                const orderItem = trackingSpan.closest('.order-list-item');
+                const originalTrackingNumber = allOrdersData.find(o => o.id == orderItem.dataset.orderId).tracking_number;
+                
+                let finalTrackingNumber = originalTrackingNumber;
+                if (newTrackingNumber !== null) {
+                     finalTrackingNumber = newTrackingNumber;
+                }
+               
+                trackingSpan.innerHTML = `<span class="tracking-text">${finalTrackingNumber}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>`;
             }
 
-            async function saveTrackingNumber(orderId, newTrackingNumber) {
+            async function saveTrackingNumber(trackingSpan) {
+                const orderItem = trackingSpan.closest('.order-list-item');
+                const orderId = orderItem.dataset.orderId;
+                const newTrackingNumber = trackingSpan.querySelector('.tracking-input').value.trim();
+
                 if (!newTrackingNumber) {
                     alert('เลขพัสดุไม่สามารถเป็นค่าว่างได้');
                     return;
@@ -1563,12 +1607,16 @@
                     
                     if (error) throw error;
 
-                    console.log(`Successfully updated tracking for order ID ${orderId} to ${newTrackingNumber}`);
+                    // Update local data to reflect change immediately
+                    const orderToUpdate = allOrdersData.find(o => o.id == orderId);
+                    if(orderToUpdate) orderToUpdate.tracking_number = newTrackingNumber;
+                    
+                    exitTrackingEditMode(trackingSpan, newTrackingNumber);
                     alert('อัปเดตเลขพัสดุสำเร็จ!');
-                    await loadInitialData();
                 } catch (error) {
                     console.error('Error updating tracking number:', error);
                     alert('เกิดข้อผิดพลาดในการอัปเดต: ' + error.message);
+                    exitTrackingEditMode(trackingSpan); // Revert on error
                 } finally {
                     loadingOverlay.style.display = 'none';
                 }
@@ -1991,25 +2039,25 @@
                             loadOrderForEditing(orderId);
                         }
                     }
-
-                    if (target.closest('.btn-edit-tracking')) {
-                        event.stopPropagation();
-                        event.preventDefault();
-                        const trackingSpan = target.closest('.order-tracking');
-                        enterTrackingEditMode(trackingSpan);
-                    }
-                    if (target.closest('.btn-save-tracking-confirm')) {
-                        event.stopPropagation();
-                        event.preventDefault();
-                        const orderItem = target.closest('.order-list-item');
-                        const orderId = orderItem.dataset.orderId;
-                        const newTrackingNumber = orderItem.querySelector('.tracking-input').value.trim();
-                        saveTrackingNumber(orderId, newTrackingNumber);
-                    }
-                    if (target.closest('.btn-cancel-tracking-edit')) {
-                        event.stopPropagation();
-                        event.preventDefault();
-                        exitTrackingEditMode(target.closest('.order-tracking'));
+                    
+                    // MODIFICATION: Reworked tracking edit event handlers
+                    const trackingSpan = target.closest('.order-tracking');
+                    if (trackingSpan) {
+                         if (target.closest('.btn-edit-tracking')) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            enterTrackingEditMode(trackingSpan);
+                        }
+                        if (target.closest('.btn-save-tracking-confirm')) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            saveTrackingNumber(trackingSpan);
+                        }
+                        if (target.closest('.btn-cancel-tracking-edit')) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            exitTrackingEditMode(trackingSpan);
+                        }
                     }
 
                     const header = target.closest('.work-order-header');
@@ -2118,6 +2166,10 @@
                 importWyBtn.addEventListener('click', () => importWyInput.click());
                 importWyInput.addEventListener('change', (e) => handleWyImport(e.target.files[0]));
                 
+                // MODIFICATION: Add event listeners for new "move" buttons
+                document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล'));
+                document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น'));
+
                 document.getElementById('select-all-waiting-btn').addEventListener('click', () => selectAll('waiting'));
                 document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting'));
                 document.getElementById('select-all-complete-btn').addEventListener('click', () => selectAll('complete'));
