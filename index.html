@@ -115,6 +115,20 @@
         #order-system-container #items-table .select2-selection__rendered{padding-left: 0 !important; line-height: normal !important;}
         #order-system-container #items-table .select2-selection__arrow{height:30px!important}
 
+        /* MODIFICATION: Adjust Select2 height for promotion field */
+        #order-system-container .form-grid .select2-container .select2-selection--single {
+            height: 42px !important; 
+            display: flex;
+            align-items: center;
+        }
+        #order-system-container .form-grid .select2-container .select2-selection__rendered {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        #order-system-container .form-grid .select2-container .select2-selection__arrow {
+            height: 40px !important;
+        }
+
         #order-system-container #items-table .quantity-input{width:70px;text-align:center}#order-system-container #items-table .action-cell{width:50px;text-align:center}#order-system-container #items-table .remove-item-btn{font-size:12px;padding:4px 8px}
         .btn-edit-tracking { background: transparent; border: none; cursor: pointer; padding: 0 5px; font-size: 14px; }
         .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; width: 160px; }
@@ -270,8 +284,8 @@
                 <ul>
                     <li><a href="#" class="nav-link active" data-target="order-system-container"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
                     <li><a href="#" class="nav-link" data-target="packing-system-container"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
-                    <li><a href="#" class="nav-link" data-target="product-system-container"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
-                    <li><a href="accounting.html" class="nav-link"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
+                    <li id="nav-product"><a href="#" class="nav-link" data-target="product-system-container"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
+                    <li id="nav-accounting"><a href="accounting.html" class="nav-link"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
             </nav>
         </div>
@@ -333,7 +347,7 @@
                                         <label for="payment_method">วิธีการชำระ</label>
                                         <select id="payment_method"><option value="โอน">โอน</option><option value="COD">COD</option></select>
                                     </div>
-                                    <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><input type="text" id="promotion"></div>
+                                    <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><select id="promotion" style="width: 100%;"></select></div>
                                     <div class="form-group"><label for="payment_date">วันที่ชำระ</label><input type="date" id="payment_date"></div>
                                     <div class="form-group"><label for="payment_time">เวลาที่ชำระ</label><input type="time" id="payment_time"></div>
                                 </div>
@@ -499,12 +513,24 @@
         
         function handleInitialTab() {
             const target = localStorage.getItem('navigateTo');
-            if (target === 'packing') {
-                document.querySelector('.nav-link.active').classList.remove('active');
-                document.querySelector('[data-target="packing-system-container"]').classList.add('active');
-                document.querySelector('.system-content.active').classList.remove('active');
-                document.getElementById('packing-system-container').classList.add('active');
-                window.packingSystem.loadWorkOrdersForPacking();
+            if (target) {
+                const targetLink = document.querySelector(`.nav-link[data-target*="${target}"]`);
+                if (targetLink) {
+                    document.querySelector('.nav-link.active')?.classList.remove('active');
+                    document.querySelector('.system-content.active')?.classList.remove('active');
+                    
+                    targetLink.classList.add('active');
+                    const targetContent = document.getElementById(targetLink.dataset.target);
+                    if (targetContent) {
+                        targetContent.classList.add('active');
+                    }
+
+                    if (target === 'packing') {
+                        window.packingSystem.loadWorkOrdersForPacking();
+                    } else if (target === 'product') {
+                        window.productSystem.loadProducts();
+                    }
+                }
             }
             localStorage.removeItem('navigateTo');
         }
@@ -512,17 +538,25 @@
         async function mainAppInitializer(user) {
             loadingOverlay.style.display = 'flex';
             try {
-                const { data: userData, error } = await supabaseClient.from('users').select('username').eq('id', user.id).single();
+                const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
                 if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้ในระบบ');
                 
                 loggedInUsername = userData.username;
                 welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername}`;
                 
+                const isSuperAdmin = userData.role === 'superadmin';
+                document.getElementById('nav-product').style.display = isSuperAdmin ? '' : 'none';
+                document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none';
+
                 loginOverlay.style.display = 'none';
                 mainAppContainer.style.display = 'flex';
                 
                 await window.orderSystem.initializeApp(loggedInUsername);
-                window.productSystem.initializeApp();
+
+                if (isSuperAdmin) {
+                    window.productSystem.initializeApp();
+                }
+                
                 handleInitialTab();
 
             } catch (err) {
@@ -576,13 +610,20 @@
             const importPgtrBtn = document.getElementById('import-pgtr-btn');
             const importPgtrInput = document.getElementById('import-pgtr-input');
             const importWyInput = document.getElementById('import-wy-input');
-            let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], currentEditingOrderId = null;
+            let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
 
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
 
             async function initializeApp(username) {
                 adminUserInput.value = username;
+
+                $('#promotion').select2({
+                    tags: true,
+                    placeholder: 'เลือกหรือพิมพ์โปรโมชันใหม่',
+                    tokenSeparators: [',']
+                });
+                
                 await loadInitialData();
                 setFormMode('create');
                 initializeEventListeners();
@@ -591,12 +632,13 @@
             async function loadInitialData() {
                 loadingOverlay.style.display = 'flex';
                 try {
-                    const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes] = await Promise.all([
+                    const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
                         supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').order('created_at', { ascending: false }),
-                        supabaseClient.from('ink_types').select('ink_name').order('id')
+                        supabaseClient.from('ink_types').select('ink_name').order('id'),
+                        supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
                     ]);
                     if (productsRes.error) throw new Error('Could not load products');
                     
@@ -610,6 +652,18 @@
                     channelList = channelsRes.data;
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
                     inkTypeList = inkTypesRes.data;
+                    
+                    if (promotionsRes.error) throw new Error('Could not load promotions');
+                    const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
+                    promotionList = uniquePromotions.map(p => ({ id: p, text: p }));
+                    const promotionSelect = $('#promotion');
+                    promotionSelect.empty(); 
+                    uniquePromotions.forEach(promo => {
+                        const option = new Option(promo, promo, false, false);
+                        promotionSelect.append(option);
+                    });
+                    promotionSelect.trigger('change');
+                    
                     populateChannelDropdowns();
                     if (ordersRes.error) throw new Error('Could not load orders');
                     allOrdersData = ordersRes.data;
@@ -848,13 +902,24 @@
                 let successCount = 0;
                 let totalItemsCount = 0;
                 let failedOrders = [];
+                let skippedOrders = [];
 
                 for (const order of ordersToImport) {
                     try {
-                        applyStampInkLogicToOrderObject(order);
-                        
                         const billNo = useProvidedBillNo ? order.bill_no : await generateNextBillNo(order.channel_code);
-                        if (!billNo) throw new Error(`ไม่สามารถกำหนดเลขบิลสำหรับลูกค้า: ${order.customer_name}`);
+                        if (!billNo) {
+                            failedOrders.push({ name: order.customer_name || 'N/A', reason: 'ไม่สามารถสร้างเลขบิลได้' });
+                            continue; 
+                        }
+
+                        const existingOrder = allOrdersData.find(o => o.bill_no === billNo);
+                        if (existingOrder) {
+                            console.warn(`Skipping order with existing bill_no: ${billNo}`);
+                            skippedOrders.push(billNo);
+                            continue;
+                        }
+
+                        applyStampInkLogicToOrderObject(order);
                         
                         const orderData = { ...order };
                         delete orderData.items; 
@@ -888,20 +953,34 @@
                         successCount++;
                     } catch (err) {
                         console.error(`Error processing order for ${order.customer_name}:`, err);
-                        failedOrders.push(order.customer_name || 'N/A');
+                        const billNoForError = useProvidedBillNo ? order.bill_no : 'N/A';
+                        if (err.message.includes('duplicate key')) {
+                             failedOrders.push({ name: order.customer_name || 'N/A', reason: `เลขบิลซ้ำ: ${billNoForError}`});
+                        } else {
+                             failedOrders.push({ name: order.customer_name || 'N/A', reason: err.message });
+                        }
                     }
                 }
                 
                 loadingOverlay.style.display = 'none';
                 let alertMessage = `นำเข้าสำเร็จ ${successCount} ออร์เดอร์ (รวม ${totalItemsCount} รายการสินค้า)`;
-                if (failedOrders.length > 0) {
-                    alertMessage += `\n\nเกิดข้อผิดพลาดกับออร์เดอร์ของ: ${failedOrders.join(', ')}.`;
+                
+                if (skippedOrders.length > 0) {
+                    alertMessage += `\n\nข้าม ${skippedOrders.length} ออร์เดอร์เนื่องจากมีเลขบิลซ้ำในระบบแล้ว`;
+                    if (skippedOrders.length <= 10) { 
+                        alertMessage += `: ${skippedOrders.join(', ')}.`;
+                    }
                 }
+
+                if (failedOrders.length > 0) {
+                    const failedReasons = failedOrders.map(f => `${f.name} (${f.reason})`).join(', ');
+                    alertMessage += `\n\nเกิดข้อผิดพลาดกับออร์เดอร์: ${failedReasons}.`;
+                }
+
                 alert(alertMessage);
                 await loadInitialData();
             }
-            
-            // Helper function to find a header from multiple possible names (case-insensitive and trimmed)
+
             const findHeader = (headers, possibleNames) => {
                 const lowerCaseNames = possibleNames.map(name => name.toLowerCase().trim());
                 for (const header of headers) {
@@ -1009,7 +1088,6 @@
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
                         
                         const headers = Object.keys(jsonData[0]);
-                        // **MODIFICATION**: Using the exact confirmed header name for PGTR
                         const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']);
 
                         if(!orderNumberHeader){
@@ -1025,7 +1103,6 @@
                                 continue;
                             }
                             
-                            // --- MODIFICATION: Trim the trailing item number ---
                             let orderNumber = orderNumberRaw;
                             const lastHyphenIndex = orderNumber.lastIndexOf('-');
                             if (lastHyphenIndex > 0) {
@@ -1034,7 +1111,6 @@
                                     orderNumber = orderNumber.substring(0, lastHyphenIndex);
                                 }
                             }
-                            // --- END MODIFICATION ---
 
                             if (!ordersMap.has(orderNumber)) {
                                 const price = parseFloat(row["ราคาก่อนส่วนลด"]) || 0;
@@ -1111,7 +1187,6 @@
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์");
                         
                         const headers = Object.keys(jsonData[0]);
-                         // **MODIFICATION**: Using the exact confirmed header name for WY
                         const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']);
 
                         if(!billNoHeader){
@@ -1193,7 +1268,8 @@
             
             function setFormMode(mode, order = null) {
                 orderForm.reset(); itemsTbody.innerHTML = ''; currentEditingOrderId = null;
-                $(container.querySelectorAll('select')).val(null).trigger('change');
+                $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change'); 
+                $('#promotion').val(null).trigger('change');
                 adminUserInput.value = loggedInUsername;
 
                 if (mode === 'create') {
@@ -1206,11 +1282,20 @@
                     Object.keys(order).forEach(key => {
                         const input = container.querySelector(`#${key}`);
                         if (input) {
-                            if (input.tagName === 'SELECT') { $(input).val(order[key]).trigger('change'); } 
+                            if (input.tagName === 'SELECT') { 
+                                if (key === 'promotion') {
+                                    if (order[key] && !$('#promotion').find(`option[value='${order[key]}']`).length) {
+                                        var newOption = new Option(order[key], order[key], true, true);
+                                        $('#promotion').append(newOption).trigger('change');
+                                    }
+                                    $('#promotion').val(order[key]).trigger('change');
+                                } else {
+                                     $(input).val(order[key]).trigger('change'); 
+                                }
+                            } 
                             else { input.value = order[key]; }
                         }
                     });
-                     // Handle null time value
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
 
                     const itemGroups = {};
@@ -1301,7 +1386,7 @@
                 });
                 
                 if (item) {
-                    productSelect.val(item.product_id).trigger('change');
+                    productSelect.val(item.product_id).trigger('change.select2');
                     inkSelect.value = item.ink_color || '';
                     row.querySelector('.item-shelf_location').value = item.product_type || '';
                     row.querySelector('.item-cartoon_pattern').value = item.cartoon_pattern || '';
@@ -1347,11 +1432,31 @@
 
             function selectAllInWorkOrder(buttonElement) { const billsContainer = buttonElement.closest('.work-order-bills'); const checkboxes = billsContainer.querySelectorAll('.order-checkbox'); const isAllChecked = Array.from(checkboxes).every(cb => cb.checked); checkboxes.forEach(cb => cb.checked = !isAllChecked); }
             
+            // ===== MODIFICATION: This function now also deletes empty work orders =====
             async function updateWorkOrderCount(workOrderName) {
+                // First, count remaining orders for the work order
                 const { count, error: countError } = await supabaseClient.from('orders').select('id', { count: 'exact', head: true }).eq('work_order_name', workOrderName);
-                if (countError) throw countError;
-                if (count === 0) { await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); } 
-                else { await supabaseClient.from('work_orders').update({ order_count: count }).eq('work_order_name', workOrderName); }
+                if (countError) {
+                    console.error('Error counting remaining orders:', countError);
+                    throw countError; // Propagate error
+                }
+
+                if (count === 0) {
+                    // If no orders are left, delete the work order
+                    console.log(`Work order "${workOrderName}" is empty. Deleting it.`);
+                    const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName);
+                    if (deleteError) {
+                         console.error('Error deleting empty work order:', deleteError);
+                         throw deleteError;
+                    }
+                } else {
+                    // Otherwise, just update the count
+                    const { error: updateError } = await supabaseClient.from('work_orders').update({ order_count: count }).eq('work_order_name', workOrderName);
+                     if (updateError) {
+                         console.error('Error updating work order count:', updateError);
+                         throw updateError;
+                    }
+                }
             }
 
             async function revertSelectedBills(workOrderName, newStatus) { const groupEl = Array.from(container.querySelectorAll('.work-order-header')).find(h => h.textContent.includes(workOrderName)).parentElement; const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิลที่ต้องการคืนสถานะ'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการคืนสถานะ ${selectedIds.length} บิล กลับไปที่ "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: newStatus, work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); alert('คืนสถานะบิลสำเร็จ!'); await loadInitialData(); } catch (error) { console.error('Error reverting bills:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
@@ -1379,7 +1484,8 @@
                         channel_code: channelCode, bill_no: billNo, status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status,
                         entry_date: new Date().toISOString().slice(0, 10), customer_name: container.querySelector('#customer_name').value, price: parseFloat(container.querySelector('#price').value),
                         shipping_cost: parseFloat(container.querySelector('#shipping_cost').value), discount: parseFloat(container.querySelector('#discount').value), total_amount: parseFloat(container.querySelector('#total_amount').value),
-                        payment_method: container.querySelector('#payment_method').value, admin_user: adminUserInput.value, customer_address: container.querySelector('#customer_address').value, promotion: container.querySelector('#promotion').value,
+                        payment_method: container.querySelector('#payment_method').value, admin_user: adminUserInput.value, customer_address: container.querySelector('#customer_address').value, 
+                        promotion: $('#promotion').val(),
                         payment_date: paymentDateValue ? paymentDateValue : null,
                         payment_time: paymentTimeValue ? paymentTimeValue : null,
                     };
@@ -1440,7 +1546,7 @@
 
             function exitTrackingEditMode(trackingSpan) {
                 const originalTracking = trackingSpan.dataset.originalTracking;
-                trackingSpan.innerHTML = `เลขพัสดุ: <span class="tracking-text">${originalTracking}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>`;
+                trackingSpan.innerHTML = `<span class="tracking-text">${originalTracking}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>`;
             }
 
             async function saveTrackingNumber(orderId, newTrackingNumber) {
@@ -1457,9 +1563,11 @@
                     
                     if (error) throw error;
 
+                    console.log(`Successfully updated tracking for order ID ${orderId} to ${newTrackingNumber}`);
                     alert('อัปเดตเลขพัสดุสำเร็จ!');
                     await loadInitialData();
                 } catch (error) {
+                    console.error('Error updating tracking number:', error);
                     alert('เกิดข้อผิดพลาดในการอัปเดต: ' + error.message);
                 } finally {
                     loadingOverlay.style.display = 'none';
@@ -1487,7 +1595,7 @@
                                 item.bill_no,
                                 item.item_uid,
                                 item.product_name,
-                                item.product_type, //ชั้นที่
+                                item.product_type,
                                 item.ink_color,
                                 item.cartoon_pattern,
                                 item.line_pattern,
@@ -1495,7 +1603,7 @@
                                 item.line_1,
                                 item.line_2,
                                 item.line_3,
-                                1, // จำนวน always 1 for production line
+                                1, 
                                 item.notes,
                                 item.file_attachment
                             ]);
@@ -1569,7 +1677,39 @@
                 rowElement.dataset.linkedInkRowUid = newInkRowUid;
             }
 
-            // --- PICKING SLIP FUNCTIONS ---
+            function handleCondoStampExpansion(changedRow) {
+                if (changedRow.dataset.isCondoPart) {
+                    return;
+                }
+                const productId = $(changedRow).find('.item-product').val();
+                if (!productId) return;
+                const product = fullProductList.find(p => p.id == productId);
+
+                if (product && product.product_category && product.product_category.trim().toUpperCase() === 'CONDO STAMP') {
+                    if (window.isExpandingCondo) return;
+                    window.isExpandingCondo = true;
+
+                    const templateItem = { product_id: product.id };
+
+                    changedRow.querySelector('.item-shelf_location').value = '1';
+                    changedRow.dataset.isCondoPart = 'true';
+                    const qtyInput = changedRow.querySelector('.item-quantity');
+                    qtyInput.value = 1;
+                    qtyInput.readOnly = true;
+
+                    for (let i = 2; i <= 5; i++) {
+                        const newItemRow = addItemRow(templateItem);
+                        newItemRow.querySelector('.item-shelf_location').value = i.toString();
+                        newItemRow.dataset.isCondoPart = 'true';
+                        const newQtyInput = newItemRow.querySelector('.item-quantity');
+                        newQtyInput.value = 1;
+                        newQtyInput.readOnly = true;
+                    }
+                    
+                    setTimeout(() => { window.isExpandingCondo = false; }, 100);
+                }
+            }
+
             function showPickingSlipModal(workOrderName) {
                 const modal = document.getElementById('picking-slip-modal');
                 const modalTitle = document.getElementById('picking-slip-modal-title');
@@ -1604,12 +1744,20 @@
                                 name: item.product_name,
                                 code: item.product_code,
                                 location: item.storage_location || 'N/A',
+                                category: item.product_category,
                                 qty: 0
                             };
                         }
                         mainItemsAggregated[key].qty += 1;
                     });
                 
+                for (const key in mainItemsAggregated) {
+                    const item = mainItemsAggregated[key];
+                    if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') {
+                        item.qty = Math.ceil(item.qty / 5);
+                    }
+                }
+
                 const mainItems = Object.values(mainItemsAggregated).sort((a, b) => a.location.localeCompare(b.location));
                 
                 const sparePartsAggregated = {};
@@ -1707,7 +1855,8 @@
                                 transactionCode: workOrderName, 
                                 productCode: fullProduct ? fullProduct.product_code : 'N/A',
                                 productName: item.product_name,
-                                quantity: 1
+                                quantity: 1,
+                                category: fullProduct ? fullProduct.product_category : ''
                             });
                         });
                     }
@@ -1725,6 +1874,12 @@
                        aggregatedItems[key] = { ...item, quantity: 0 };
                     }
                     aggregatedItems[key].quantity += 1;
+                });
+
+                Object.values(aggregatedItems).forEach(item => {
+                    if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') {
+                        item.quantity = Math.ceil(item.quantity / 5);
+                    }
                 });
 
                 const finalRows = Object.values(aggregatedItems);
@@ -1902,11 +2057,19 @@
 
                 addItemBtn.addEventListener('click', () => addItemRow());
 
+                $(itemsTbody).on('select2:select', '.item-product', function(e) {
+                    const row = e.target.closest('tr');
+                    if (!row.dataset.isAutoAdded) {
+                        handleCondoStampExpansion(row);
+                        checkAndApplyStampInkLogic(row);
+                    }
+                });
+                
                 itemsTbody.addEventListener('change', (e) => {
-                    if (e.target.classList.contains('item-product') || e.target.classList.contains('item-ink_color')) {
+                    if (e.target.classList.contains('item-ink_color')) {
                         const row = e.target.closest('tr');
-                        if(!row.dataset.isAutoAdded) {
-                             checkAndApplyStampInkLogic(row);
+                        if (!row.dataset.isAutoAdded) {
+                            checkAndApplyStampInkLogic(row);
                         }
                     }
                 });
@@ -2477,7 +2640,6 @@
         // --- INITIAL LOAD ---
         checkAuth();
 
-        // --- SIDEBAR BUG FIX ---
         window.addEventListener('pageshow', function (event) {
             if (event.persisted) {
                 console.log("Page loaded from bfcache. Re-initializing app.");
