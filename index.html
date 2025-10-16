@@ -13,6 +13,9 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+    
+    <!-- NEW: Tesseract.js for Slip OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 
 
     <style>
@@ -319,6 +322,9 @@
                         <input type="file" id="tracking-file-input" style="display: none;" accept=".csv, text/csv">
                         <input type="file" id="import-orders-file-input" style="display: none;" accept=".csv, .xlsx, .xls">
                         
+                        <!-- NEW: Hidden file input for slip upload -->
+                        <input type="file" id="slip-file-input" style="display: none;" accept="image/*">
+
                         <div class="tabs">
                             <button class="tab-link active" data-tab="tab-create">สร้าง / แก้ไข</button>
                             <button class="tab-link" data-tab="tab-waiting">รอลงข้อมูล</button>
@@ -359,6 +365,11 @@
                                     <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><select id="promotion" style="width: 100%;"></select></div>
                                     <div class="form-group"><label for="payment_date">วันที่ชำระ</label><input type="date" id="payment_date"></div>
                                     <div class="form-group"><label for="payment_time">เวลาที่ชำระ</label><input type="time" id="payment_time"></div>
+                                </div>
+                                <!-- NEW: Slip uploader section -->
+                                <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
+                                    <button type="button" id="upload-slip-btn" class="btn btn-info">อัพโหลดและตรวจสอบสลิป</button>
+                                    <span id="slip-status" style="font-weight: bold; font-size: 16px;"></span>
                                 </div>
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
@@ -685,6 +696,143 @@
             }
         }
         
+        // --- SLIP PROCESSING MODULE (NEW) ---
+        const slipProcessor = (() => {
+            const slipStatusEl = document.getElementById('slip-status');
+            const totalAmountEl = document.getElementById('total_amount');
+            const paymentDateEl = document.getElementById('payment_date');
+            const paymentTimeEl = document.getElementById('payment_time');
+
+            const monthMap = {
+                '01': ['มกราคม', 'มค', 'ม.ค.', 'january', 'jan'],
+                '02': ['กุมภาพันธ์', 'กพ', 'ก.พ.', 'february', 'feb'],
+                '03': ['มีนาคม', 'มีค', 'มี.ค.', 'march', 'mar'],
+                '04': ['เมษายน', 'เมย', 'เม.ย.', 'april', 'apr'],
+                '05': ['พฤษภาคม', 'พค', 'พ.ค.', 'may'],
+                '06': ['มิถุนายน', 'มิย', 'มิ.ย.', 'june', 'jun'],
+                '07': ['กรกฎาคม', 'กค', 'ก.ค.', 'july', 'jul'],
+                '08': ['สิงหาคม', 'สค', 'ส.ค.', 'august', 'aug'],
+                '09': ['กันยายน', 'กย', 'ก.ย.', 'september', 'sep', 'sept'],
+                '10': ['ตุลาคม', 'ตค', 'ต.ค.', 'october', 'oct', '0.a.', '0a'],
+                '11': ['พฤศจิกายน', 'พย', 'พ.ย.', 'november', 'nov'],
+                '12': ['ธันวาคม', 'ธค', 'ธ.ค.', 'december', 'dec']
+            };
+
+            function normalizeDate(rawDateStr) {
+                if (!rawDateStr) return null;
+                const dateParts = rawDateStr.match(/(\d{1,2})\s+(\S+)\s+(\d{2,4})/);
+                if (!dateParts) return null;
+
+                let day = dateParts[1];
+                const monthStr = dateParts[2].toLowerCase().replace(/[.,]/g, '');
+                let year = dateParts[3];
+
+                let month = null;
+                for (const monthNum in monthMap) {
+                    if (monthMap[monthNum].includes(monthStr)) {
+                        month = monthNum;
+                        break;
+                    }
+                }
+                if (!month) return null;
+                if (year.length === 2) year = `25${year}`;
+                if (day.length === 1) day = `0${day}`;
+                return `${day}/${month}/${year}`;
+            }
+
+            function buddhistToISO(buddhistDate) {
+                if (!buddhistDate) return null;
+                const parts = buddhistDate.split('/');
+                if (parts.length !== 3) return null;
+                const day = parts[0];
+                const month = parts[1];
+                const buddhistYear = parseInt(parts[2], 10);
+                if (isNaN(buddhistYear)) return null;
+                const gregorianYear = buddhistYear - 543;
+                return `${gregorianYear}-${month}-${day}`;
+            }
+
+            function extractSlipInfo(text) {
+                const info = { amount: null, date: null, time: null };
+                let amountMatch = text.match(/(?:จํานวนเงิน|Amount|จํานวนเงินโอน|จํานวน)\s*([\d,]+\.\d{2})/);
+                if (amountMatch && amountMatch[1]) info.amount = amountMatch[1];
+                else {
+                    amountMatch = text.match(/([\d,]+\.\d{2})\s*บาท/);
+                    if (amountMatch && amountMatch[1]) info.amount = amountMatch[1];
+                    else {
+                        amountMatch = text.match(/^\|?\s*([1-9][\d,]*\.\d{2})\s*$/m);
+                        if (amountMatch && amountMatch[1]) info.amount = amountMatch[1];
+                    }
+                }
+                const dateTimeRegex = /(\d{1,2}\s+\S+\s+\d{2,4})\s*[,]?\s*(\d{2}:\d{2}(?::\d{2})?)/;
+                const dateTimeMatch = text.match(dateTimeRegex);
+                if (dateTimeMatch) {
+                    info.date = normalizeDate(dateTimeMatch[1]);
+                    info.time = dateTimeMatch[2].trim().substring(0, 5);
+                }
+                return info;
+            }
+
+            async function process(file) {
+                if (!file) return;
+                loadingOverlay.textContent = 'กำลังประมวลผลสลิป...';
+                loadingOverlay.style.display = 'flex';
+                slipStatusEl.textContent = '⏳ กำลังอ่านข้อมูล...';
+                slipStatusEl.style.color = '#0056b3';
+
+                try {
+                    const worker = await Tesseract.createWorker('tha+eng', 1, {
+                        logger: m => {
+                            if (m.status === 'recognizing text') {
+                                loadingOverlay.textContent = `กำลังประมวลผลสลิป... ${Math.round(m.progress * 100)}%`;
+                            }
+                        },
+                    });
+                    const { data: { text } } = await worker.recognize(file);
+                    await worker.terminate();
+                    
+                    const slipData = extractSlipInfo(text);
+
+                    // Auto-fill form
+                    if (slipData.date) {
+                        paymentDateEl.value = buddhistToISO(slipData.date);
+                    }
+                    if (slipData.time) {
+                        paymentTimeEl.value = slipData.time;
+                    }
+
+                    // Verify amount
+                    if (slipData.amount) {
+                        const slipAmount = parseFloat(slipData.amount.replace(/,/g, ''));
+                        const totalAmount = parseFloat(totalAmountEl.value);
+
+                        if (Math.abs(slipAmount - totalAmount) < 0.01) {
+                            slipStatusEl.textContent = `✅ ยอดโอนตรงกัน (${slipAmount.toFixed(2)} บาท)`;
+                            slipStatusEl.style.color = '#28a745';
+                        } else {
+                            slipStatusEl.textContent = `❌ ยอดโอนไม่ตรงกัน! (สลิป: ${slipAmount.toFixed(2)}, ยอดสุทธิ: ${totalAmount.toFixed(2)})`;
+                            slipStatusEl.style.color = '#dc3545';
+                        }
+                    } else {
+                        slipStatusEl.textContent = '⚠️ ไม่พบยอดเงินในสลิป แต่กรอกวันที่/เวลาให้แล้ว (ถ้ามี)';
+                        slipStatusEl.style.color = '#ffc107';
+                    }
+
+                } catch (error) {
+                    console.error("Slip processing error:", error);
+                    slipStatusEl.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                    slipStatusEl.style.color = '#dc3545';
+                } finally {
+                    loadingOverlay.textContent = 'กำลังโหลด...';
+                    loadingOverlay.style.display = 'none';
+                    // Clear the file input to allow re-uploading the same file
+                    document.getElementById('slip-file-input').value = '';
+                }
+            }
+            return { process };
+        })();
+
+
         // --- ORDER SYSTEM MODULE ---
         window.orderSystem = (() => {
             const container = document.getElementById('order-system-container');
@@ -717,6 +865,14 @@
                 await loadInitialData();
                 setFormMode('create');
                 initializeEventListeners();
+
+                // NEW: Initialize Slip Processor Event Listeners
+                document.getElementById('upload-slip-btn').addEventListener('click', () => {
+                    document.getElementById('slip-file-input').click();
+                });
+                document.getElementById('slip-file-input').addEventListener('change', (e) => {
+                    slipProcessor.process(e.target.files[0]);
+                });
             }
 
             async function loadInitialData() {
@@ -1522,6 +1678,8 @@
                 $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change'); 
                 $('#promotion').val(null).trigger('change');
                 adminUserInput.value = loggedInUsername;
+                // NEW: Reset slip status on form mode change
+                document.getElementById('slip-status').textContent = '';
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
