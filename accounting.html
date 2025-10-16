@@ -53,14 +53,6 @@
         td.currency { text-align: right; }
         #loading-message { text-align: center; font-size: 1.2em; color: var(--muted-color); padding: 40px; }
 
-        /* Styles for the hidden table used for styled XLSX export */
-        #xlsx-export-container { display: none; }
-        #xlsx-export-table { border-collapse: collapse; width: 800px; font-family: sans-serif; }
-        #xlsx-export-table th, #xlsx-export-table td { border: 1px solid #888; padding: 8px; text-align: left; }
-        #xlsx-export-table .header-row { font-weight: bold; font-size: 1.2em; }
-        #xlsx-export-table .sub-header { font-weight: bold; background-color: #f2f2f2; }
-        #xlsx-export-table .data-cell { text-align: right; }
-
         #mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
         @media (max-width: 768px) {
             .main-content { padding: 10px; } #mobile-menu-toggle { display: block; } .sidebar { transform: translateX(-100%); z-index: 1100; } body:not(.sidebar-collapsed) .sidebar { transform: translateX(0); } .page-wrapper, body.sidebar-collapsed .page-wrapper { margin-left: 0; } .filters { flex-direction: column; align-items: stretch;} .btn { align-self: auto; width: 100%; margin-top: 10px; } .filter-group .select2-container { width: 100% !important; } #summary-section { grid-template-columns: 1fr; }
@@ -76,6 +68,7 @@
             <nav>
                 <ul>
                     <li><a href="index.html" class="nav-link"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
+                    <li><a href="#" class="nav-link" id="nav-planner"><span class="icon">🗓️</span><span class="nav-text">ใบงาน (Export)</span></a></li>
                     <li><a href="#" class="nav-link" id="nav-packing"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
                     <li><a href="#" class="nav-link" id="nav-product"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
                     <li><a href="#" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
@@ -128,10 +121,6 @@
         </div>
     </div>
     
-    <!-- Hidden container for the styled XLSX export -->
-    <div id="xlsx-export-container"></div>
-
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const SUPABASE_URL = 'https://scxcuwjhjbkxvqmpywqs.supabase.co';
@@ -150,7 +139,6 @@
             const exportPngBtn = document.getElementById('export-png-btn');
             const resultsContainer = document.getElementById('results-container');
             const summaryContainer = document.getElementById('summary-container');
-            const xlsxExportContainer = document.getElementById('xlsx-export-container');
             const loadingOverlay = document.getElementById('loading-overlay');
             const logoutBtn = document.getElementById('logout-btn');
 
@@ -179,6 +167,7 @@
                 localStorage.setItem('navigateTo', target);
                 window.location.href = 'index.html';
             }
+            document.getElementById('nav-planner').addEventListener('click', (e) => { e.preventDefault(); navigateTo('planner-system-container'); });
             document.getElementById('nav-packing').addEventListener('click', (e) => { e.preventDefault(); navigateTo('packing-system-container'); });
             document.getElementById('nav-product').addEventListener('click', (e) => { e.preventDefault(); navigateTo('product-system-container'); });
 
@@ -211,7 +200,6 @@
                 currentReportData = [];
                 resultsContainer.innerHTML = '<p id="loading-message">กำลังดึงข้อมูล...</p>';
                 summaryContainer.innerHTML = '';
-                xlsxExportContainer.innerHTML = '';
 
                 try {
                     const selectedChannels = channelFilterSelect.val();
@@ -272,29 +260,6 @@
                     <div class="summary-box"> <h3>สรุปตามบัญชี</h3> <table class="summary-table"> ${Object.entries(salesByAccount).map(([account, total]) => `<tr><td>${account}</td><td class="summary-value">${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('')} <tr class="total-row"><td>รวม</td><td class="summary-value">${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr> </table> </div>
                 </div>`;
 
-                // --- Prepare Hidden Table for Styled XLSX Export ---
-                const channelHeaders = Object.keys(salesByChannel).map(code => code);
-                const channelTotals = channelHeaders.map(code => salesByChannel[code]);
-                const accountHeaders = Object.keys(salesByAccount);
-                const accountTotals = accountHeaders.map(acc => salesByAccount[acc]);
-
-                xlsxExportContainer.innerHTML = `
-                    <table id="xlsx-export-table">
-                        <tr><td colspan="2" class="header-row">สรุปยอดขายตามวันที่ชำระเงิน</td></tr>
-                        <tr><td>จากวันที่:</td><td>${startDateInput.value}</td></tr>
-                        <tr><td>ถึงวันที่:</td><td>${endDateInput.value}</td></tr>
-                        <tr><td colspan="2"></td></tr>
-                        <tr><td colspan="2" class="sub-header">สรุปภาพรวม</td></tr>
-                        <tr><td>ยอดขายรวม</td><td class="data-cell">${totalSales}</td></tr>
-                        <tr><td>จำนวนออร์เดอร์</td><td class="data-cell">${orders.length}</td></tr>
-                        <tr><td colspan="2"></td></tr>
-                        <tr><td class="sub-header">ช่องทาง</td>${channelHeaders.map(h => `<td class="sub-header">${h}</td>`).join('')}</tr>
-                        <tr><td>ยอดขาย</td>${channelTotals.map(t => `<td class="data-cell">${t}</td>`).join('')}</tr>
-                        <tr><td colspan="${1 + channelHeaders.length}"></td></tr>
-                        <tr><td class="sub-header">บัญชี</td>${accountHeaders.map(h => `<td class="sub-header">${h}</td>`).join('')}</tr>
-                        <tr><td>ยอดขาย</td>${accountTotals.map(t => `<td class="data-cell">${t}</td>`).join('')}</tr>
-                    </table>`;
-
                 // --- Render Raw Data Table ---
                 const rawDataTableHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ลูกค้า", "ยอดสุทธิ", "วิธีชำระ", "สถานะ"];
                 let tableHTML = `<table><thead><tr>${rawDataTableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
@@ -315,32 +280,74 @@
             }
 
             function exportReportToXLSX() {
-                if (currentReportData.length === 0) { alert("ไม่มีข้อมูลสำหรับ Export"); return; }
+                if (currentReportData.length === 0) {
+                    alert("ไม่มีข้อมูลสำหรับ Export");
+                    return;
+                }
 
-                const table = document.getElementById('xlsx-export-table');
-                const workbook = XLSX.utils.table_to_book(table, { sheet: "สรุปยอด" });
-                
+                // Headers for all files
                 const rawDataHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "ยอดสุทธิ", "วิธีชำระ", "โปรโมชั่น", "สถานะ"];
-                const selectedChannels = channelFilterSelect.val().length > 0 ? channelFilterSelect.val() : Object.keys(channelMap);
 
-                selectedChannels.forEach(channelCode => {
-                    const channelData = currentReportData.filter(order => order.channel_code === channelCode);
-                    if (channelData.length > 0) {
-                        const channelRows = channelData.map(order => [
-                            order.payment_date || '', order.payment_time ? order.payment_time.substring(0, 5) : '',
-                            order.bill_no || '', order.channel_code || '', order.customer_name || '',
-                            order.price || 0, order.shipping_cost || 0, order.discount || 0, order.total_amount || 0,
-                            order.payment_method || '', order.promotion || '', order.status || ''
-                        ]);
-                        const channelWs = XLSX.utils.aoa_to_sheet([rawDataHeaders, ...channelRows]);
-                        const sheetName = (channelMap[channelCode]?.name || channelCode).replace(/[\*\:\/\\ \?\[\]]/g, "").substring(0, 31);
-                        XLSX.utils.book_append_sheet(workbook, channelWs, sheetName);
+                // 1. Group orders by bank account
+                const ordersByAccount = {};
+                currentReportData.forEach(order => {
+                    const channelInfo = channelMap[order.channel_code];
+                    const accountName = channelInfo ? channelInfo.account : 'ไม่ระบุ';
+                    if (!ordersByAccount[accountName]) {
+                        ordersByAccount[accountName] = [];
                     }
+                    ordersByAccount[accountName].push(order);
                 });
-                
-                const fileName = `SalesReport_ByPaymentDate_${startDateInput.value}_to_${endDateInput.value}.xlsx`;
-                XLSX.writeFile(workbook, fileName);
+
+                // 2. Loop through each account and create a separate file
+                Object.keys(ordersByAccount).forEach(accountName => {
+                    if (ordersByAccount[accountName].length === 0) {
+                        return; // Skip if no orders for this account
+                    }
+
+                    // Create a new workbook for this account
+                    const workbook = XLSX.utils.book_new();
+
+                    // Get data for this account and sort it by channel
+                    let accountData = ordersByAccount[accountName];
+                    accountData.sort((a, b) => (a.channel_code || '').localeCompare(b.channel_code || ''));
+
+                    // Map data to array format for the worksheet
+                    const accountRows = accountData.map(order => [
+                        order.payment_date || '',
+                        order.payment_time ? order.payment_time.substring(0, 5) : '',
+                        order.bill_no || '',
+                        order.channel_code || '',
+                        order.customer_name || '',
+                        order.price || 0,
+                        order.shipping_cost || 0,
+                        order.discount || 0,
+                        order.total_amount || 0,
+                        order.payment_method || '',
+                        order.promotion || '',
+                        order.status || ''
+                    ]);
+
+                    // Create the worksheet
+                    const worksheet = XLSX.utils.aoa_to_sheet([rawDataHeaders, ...accountRows]);
+                    
+                    // Sanitize sheet name (it will be the only sheet in the file)
+                    const sheetName = accountName.replace(/[\*\:\/\\ \?\[\]]/g, "").substring(0, 31);
+                    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+                    // 3. Create a unique filename for this account's file
+                    // Sanitize account name for the filename by replacing invalid characters with an underscore
+                    const sanitizedAccountName = accountName.replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
+                    const fileName = `${sanitizedAccountName}_${startDateInput.value}_to_${endDateInput.value}.xlsx`;
+
+                    // 4. Trigger the download for this specific file
+                    XLSX.writeFile(workbook, fileName);
+                });
+
+                // Provide feedback to the user that downloads have started
+                alert(`กำลังดาวน์โหลดไฟล์ Excel แยกตามบัญชีทั้งหมด ${Object.keys(ordersByAccount).length} ไฟล์... (หากเบราว์เซอร์ถาม ให้กดอนุญาตดาวน์โหลดหลายไฟล์)`);
             }
+
 
             function exportReportToPNG() {
                 const summaryElement = document.getElementById('summary-container');
