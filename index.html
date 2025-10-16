@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TR Kids - Order Management System</title>
+    <title>TR Kids - Integrated Management System</title>
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -11,90 +11,37 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- Library for creating PNG from HTML -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+
 
     <style>
-        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease, transform .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:0;height:calc(100vh - var(--top-bar-height))}.system-content{display:none}.system-content.active{display:block}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{display: none;}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}.full-page-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:#f4f7f9;z-index:2000;display:flex;justify-content:center;align-items:center}#main-app-container{display:none}
+        /* --- TR KIDS GENERAL STYLES --- */
+        :root{--sidebar-width:240px;--sidebar-width-collapsed:65px;--top-bar-height:60px;--primary-color:#0071e3;--sidebar-bg:#1d2b3a;--sidebar-link-color:#c5d6de;--sidebar-link-hover-bg:#2a3f54;--sidebar-link-active-bg:#0071e3;--top-bar-bg:#4F634A}*{box-sizing:border-box}
+        body{font-family:'Sarabun', -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background-color:#f4f7f9}.app-container{display:flex;height:100vh}.sidebar{width:var(--sidebar-width);height:100%;position:fixed;z-index:1001;top:0;left:0;background-color:var(--sidebar-bg);transition:width .3s ease, transform .3s ease;color:#fff;padding-top:20px;flex-shrink:0}.page-wrapper{display:flex;flex-direction:column;width:100%;margin-left:var(--sidebar-width);transition:margin-left .3s ease}.top-bar{height:var(--top-bar-height);background-color:var(--top-bar-bg);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.1)}.main-content{flex-grow:1;overflow-y:auto;padding:0;height:calc(100vh - var(--top-bar-height))}.system-content{display:none}.system-content.active{display:block}.sidebar .sidebar-header{padding:0 20px 20px;text-align:center;border-bottom:1px solid #3a4b5f;white-space:nowrap}.sidebar .sidebar-header h2{margin:0;font-size:1.6em;font-weight:600}.sidebar .sidebar-header .toggle-btn{display: none;}.sidebar nav ul{list-style-type:none;padding:20px 0;margin:0}.sidebar nav li a{display:flex;align-items:center;padding:15px 20px;text-decoration:none;font-size:16px;color:var(--sidebar-link-color);white-space:nowrap;transition:background-color .2s ease-in-out}.sidebar nav li a .icon{margin-right:15px;font-size:1.5em;width:30px;text-align:center}.sidebar nav li a:hover{background-color:var(--sidebar-link-hover-bg)}.sidebar nav li a.active{background-color:var(--sidebar-link-active-bg);color:#fff;font-weight:700}body.sidebar-collapsed .sidebar{width:var(--sidebar-width-collapsed)}body.sidebar-collapsed .page-wrapper{margin-left:var(--sidebar-width-collapsed)}body.sidebar-collapsed .sidebar .sidebar-header h2,body.sidebar-collapsed .sidebar .nav-text{opacity:0;visibility:hidden}body.sidebar-collapsed .sidebar .nav-link .icon{margin-right:0}body.sidebar-collapsed .sidebar .toggle-btn{transform:rotate(180deg)}#user-info-bar{display:flex;align-items:center;gap:15px;font-size:14px}#logout-btn{background-color:#6c757d;color:#fff;padding:8px 15px;border:none;border-radius:4px;cursor:pointer;font-size:14px}.full-page-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:#f4f7f9;z-index:2000;display:flex;justify-content:center;align-items:center}#main-app-container{display:none}
         .container{max-width:1800px;margin:20px auto;background:#fff;padding:25px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,.1)}
-        .container h1{text-align:center;color:#0071e3}
         .btn{padding:12px 20px;border:none;border-radius:4px;font-size:16px;cursor:pointer}
         .btn.btn-sm{padding:5px 10px;font-size:12px}
         .btn-primary{background-color:#0071e3;color:#fff}.btn-secondary{background-color:#6c757d;color:#fff}.btn-success{background-color:#28a745;color:#fff}.btn-warning{background-color:#ffc107;color:#000}.btn-danger{background-color:#dc3545;color:#fff}.btn-info{background-color:#17a2b8;color:#fff}
         #loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);color:#fff;display:none;justify-content:center;align-items:center;z-index:1500;font-size:2em}
         
-        /* Order System Specific */
+        /* --- ORDER SYSTEM SPECIFIC STYLES --- */
         #order-system-container .batch-actions{margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
         #order-system-container .tab-filter { margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         #order-system-container .tab-filter select { width: 200px; }
         #order-system-container .tab-filter input[type="text"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; width: 250px; margin-left: auto; }
         @media (max-width: 576px) { #order-system-container .tab-filter { flex-direction: column; align-items: stretch; } #order-system-container .tab-filter input[type="text"], #order-system-container .tab-filter select { margin-left: 0; width: 100%; } }
-        
-        .order-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            max-height: 70vh;
-            overflow-y: auto;
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-        }
-        /* MODIFICATION: Checkbox moved to front */
-        #order-system-container .order-list-item {
-            display: grid;
-            grid-template-columns: 40px 1fr 280px; /* Checkbox, main info, tracking */
-            align-items: center;
-            gap: 20px;
-            padding: 12px 15px;
-            background: #fff;
-            border: none;
-            border-bottom: 1px solid #e0e0e0;
-            box-shadow: none;
-            border-radius: 0;
-            transition: background-color 0.2s;
-        }
-        #order-system-container .order-list-item:last-child {
-            border-bottom: none;
-        }
-        #order-system-container .order-list-item:hover {
-            background-color: #f8f9fa;
-        }
-        #order-system-container .order-info {
-             display: flex;
-             align-items: center;
-             gap: 15px;
-             min-width: 0;
-        }
-        #order-system-container .order-list-item > * {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #order-system-container .order-list-item strong {
-            font-size: 1.1em;
-            color: #0071e3;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
+        #order-system-container .order-list { display: flex; flex-direction: column; gap: 0; max-height: 70vh; overflow-y: auto; list-style: none; padding: 0; margin: 0; border: 1px solid #e0e0e0; border-radius: 8px; }
+        #order-system-container .order-list-item { display: grid; grid-template-columns: 40px 1fr 280px; align-items: center; gap: 20px; padding: 12px 15px; background: #fff; border: none; border-bottom: 1px solid #e0e0e0; box-shadow: none; border-radius: 0; transition: background-color 0.2s; }
+        #order-system-container .order-list-item:last-child { border-bottom: none; }
+        #order-system-container .order-list-item:hover { background-color: #f8f9fa; }
+        #order-system-container .order-info { display: flex; align-items: center; gap: 15px; min-width: 0; }
+        #order-system-container .order-list-item > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #order-system-container .order-list-item strong { font-size: 1.1em; color: #0071e3; cursor: pointer; flex-shrink: 0; }
         #order-system-container .order-list-item strong:hover { text-decoration: underline; }
-        #order-system-container .order-list-item .customer-info {
-            font-size: 1.0em;
-            color: #555;
-            min-width: 50px;
-        }
-        #order-system-container .order-list-item .order-tracking {
-            font-size: 0.9em;
-            color: #28a745;
-            font-weight: 700;
-            text-align: right;
-        }
-        #order-system-container .order-checkbox {
-            justify-self: center; /* MODIFICATION */
-        }
-
+        #order-system-container .order-list-item .customer-info { font-size: 1.0em; color: #555; min-width: 50px; }
+        #order-system-container .order-list-item .order-tracking { font-size: 0.9em; color: #28a745; font-weight: 700; text-align: right; }
+        #order-system-container .order-checkbox { justify-self: center; }
         #order-system-container .work-order-group{border:1px solid #ccc;border-radius:4px;margin-bottom:15px; background: #f8f9fa;}
         #order-system-container .work-order-header{background-color:#e9ecef;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;font-weight:700;cursor:pointer}
         #order-system-container .work-order-header:hover{background-color:#dee2e6}
@@ -102,7 +49,6 @@
         #order-system-container .wo-header-actions{display:flex;align-items:center;gap:10px;flex-wrap: wrap;}
         #order-system-container .work-order-bills{background-color:#f0f2f5;padding:0; max-height:0;overflow:hidden;transition:max-height .3s ease-out,padding .3s ease-out;border-top:1px solid transparent}
         #order-system-container .work-order-bills.show{max-height:1500px;padding:15px;transition:max-height .5s ease-in,padding .5s ease-in;border-top:1px solid #ddd}
-        
         #order-system-container .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
         #order-system-container .form-grid.form-grid-main { display: grid; grid-template-columns: 1fr 1fr 2.5fr; gap: 20px; }
         #order-system-container .form-group.full-width { grid-column: 1 / -1; }
@@ -110,36 +56,22 @@
         #order-system-container .items-table-container{overflow-x:auto}#order-system-container #items-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;}#order-system-container #items-table th,#order-system-container #items-table td{border:1px solid #ddd;padding:2px;text-align:left;vertical-align:top;word-wrap:break-word;}#order-system-container #items-table th{background-color:#f8f9fa;font-size:14px;padding:8px;white-space:nowrap}
         #items-table th:nth-child(1) { width: 250px; } #items-table th:nth-child(2) { width: 120px; } #items-table th:nth-child(3) { width: 80px; } #items-table th:nth-child(4) { width: 120px; } #items-table th:nth-child(5) { width: 100px; } #items-table th:nth-child(6) { width: 120px; } #items-table th:nth-child(7) { width: 150px; } #items-table th:nth-child(8) { width: 150px; } #items-table th:nth-child(9) { width: 150px; } #items-table th:nth-child(10) { width: 70px; } #items-table th:nth-child(11) { width: 180px; } #items-table th:nth-child(12) { width: 120px; } #items-table th:nth-child(13) { width: 50px; }
         #order-system-container #items-table input,#order-system-container #items-table select{width:100%;font-size:14px;padding:6px;border:none;background:0 0;box-sizing:border-box}#order-system-container #items-table input:focus,#order-system-container #items-table select:focus{outline:2px solid #0071e3;background:#fff}
-        
         #order-system-container #items-table .select2-container{width:100%!important}
         #order-system-container #items-table .select2-selection--single{height:32px!important;border:none!important; display: flex; align-items: center;}
         #order-system-container #items-table .select2-selection__rendered{padding-left: 0 !important; line-height: normal !important;}
         #order-system-container #items-table .select2-selection__arrow{height:30px!important}
-
-        /* MODIFICATION: Adjust Select2 height for promotion field */
-        #order-system-container .form-grid .select2-container .select2-selection--single {
-            height: 42px !important; 
-            display: flex;
-            align-items: center;
-        }
-        #order-system-container .form-grid .select2-container .select2-selection__rendered {
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-        }
-        #order-system-container .form-grid .select2-container .select2-selection__arrow {
-            height: 40px !important;
-        }
-
+        #order-system-container .form-grid .select2-container .select2-selection--single { height: 42px !important; display: flex; align-items: center; }
+        #order-system-container .form-grid .select2-container .select2-selection__rendered { padding-top: 0 !important; padding-bottom: 0 !important; }
+        #order-system-container .form-grid .select2-container .select2-selection__arrow { height: 40px !important; }
         #order-system-container #items-table .quantity-input{width:70px;text-align:center}#order-system-container #items-table .action-cell{width:50px;text-align:center}#order-system-container #items-table .remove-item-btn{font-size:12px;padding:4px 8px}
-        .btn-edit-tracking { background: transparent; border: none; cursor: pointer; padding: 0 5px; font-size: 14px; }
-        /* MODIFICATION: Styles for tracking edit mode */
-        .tracking-edit-container { display: flex; gap: 5px; align-items: center; }
-        .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 1; min-width: 100px; }
+        #order-system-container .btn-edit-tracking { background: transparent; border: none; cursor: pointer; padding: 0 5px; font-size: 14px; }
+        #order-system-container .tracking-edit-container { display: flex; gap: 5px; align-items: center; }
+        #order-system-container .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 1; min-width: 100px; }
 
-        /* Packing System Specific */
+        /* --- PACKING SYSTEM SPECIFIC STYLES --- */
         #packing-system-container{padding:0}#packing-system-container .header{text-align:center;padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:0}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 100px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:#28a745}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:#0071e3}#packing-main-view #confirmation-input{border-color:#28a745}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:#28a745}#packing-main-view .status-error{color:#dc3545}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
 
-        /* Product System Specific */
+        /* --- PRODUCT SYSTEM SPECIFIC STYLES --- */
         #product-system-container .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         #product-system-container .table-container { overflow-x: auto; }
         #product-system-container table { width: 100%; border-collapse: collapse; }
@@ -153,97 +85,28 @@
         .modal-form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
         .modal-actions { text-align: right; margin-top: 20px; flex-shrink: 0; }
         
-        /* Picking Slip Modal Specific Styles */
+        /* --- PICKING SLIP MODAL SPECIFIC STYLES --- */
         #picking-slip-preview { flex-grow: 1; overflow-y: auto; border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; }
         #picking-slip-preview h3 { margin-top: 0; }
         #picking-slip-preview table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
         #picking-slip-preview th, #picking-slip-preview td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         #picking-slip-preview th { background-color: #f2f2f2; }
-
-        /* Styles for the hidden div that will be converted to PNG */
-        #picking-slip-png-container {
-            position: absolute;
-            left: -9999px;
-            top: 0;
-            width: 800px; 
-            height: 1135px; /* A5 Portrait aspect ratio for 800px width */
-            padding: 30px;
-            background: white;
-            font-family: 'Tahoma', sans-serif;
-            color: black;
-            display: flex;
-            flex-direction: column;
-        }
-        .png-body {
-            flex-grow: 1;
-        }
-        #picking-slip-png-container table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-        #picking-slip-png-container th, #picking-slip-png-container td {
-            border: 1px solid black;
-            padding: 8px;
-            text-align: left;
-            word-wrap: break-word;
-        }
-        #picking-slip-png-container th {
-            background-color: black;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-        }
-        .png-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            gap: 15px;
-        }
-        .png-header-box {
-            border: 1px solid black;
-            padding: 10px;
-            text-align: center;
-            flex-grow: 1;
-        }
-        .png-signature-boxes {
-            display: flex;
-            justify-content: space-around;
-            margin-top: auto; /* Push to the bottom of the container */
-            padding-top: 25px;
-            gap: 20px;
-        }
-        .png-signature-box {
-            border: 1px solid black;
-            width: 220px;
-            padding: 8px;
-        }
-        .png-signature-box .title {
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        .png-signature-box .space {
-            height: 60px;
-            border-bottom: 1px dotted black;
-            margin-bottom: 5px;
-            text-align: center;
-            padding-top: 5px;
-        }
-        .png-footer {
-            text-align: right;
-            padding-top: 15px;
-            font-size: 12px;
-            color: #555;
-        }
+        #picking-slip-png-container { position: absolute; left: -9999px; top: 0; width: 800px; height: 1135px; padding: 30px; background: white; font-family: 'Tahoma', sans-serif; color: black; display: flex; flex-direction: column; }
+        #picking-slip-png-container .png-body { flex-grow: 1; }
+        #picking-slip-png-container table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px; }
+        #picking-slip-png-container th, #picking-slip-png-container td { border: 1px solid black; padding: 8px; text-align: left; word-wrap: break-word; }
+        #planner-system-container th { background-color: black; color: white; font-weight: bold; text-align: center; }
+        #picking-slip-png-container .png-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 15px; }
+        #picking-slip-png-container .png-header-box { border: 1px solid black; padding: 10px; text-align: center; flex-grow: 1; }
+        #picking-slip-png-container .png-signature-boxes { display: flex; justify-content: space-around; margin-top: auto; padding-top: 25px; gap: 20px; }
+        #picking-slip-png-container .png-signature-box { border: 1px solid black; width: 220px; padding: 8px; }
+        #picking-slip-png-container .png-signature-box .title { font-weight: bold; text-align: center; margin-bottom: 5px; }
+        #picking-slip-png-container .png-signature-box .space { height: 60px; border-bottom: 1px dotted black; margin-bottom: 5px; text-align: center; padding-top: 5px; }
+        #picking-slip-png-container .png-footer { text-align: right; padding-top: 15px; font-size: 12px; color: #555; }
         
-        /* --- Responsive Design --- */
+        /* --- RESPONSIVE DESIGN --- */
         #mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        @media (max-width: 992px) {
-            body.sidebar-collapsed .page-wrapper { margin-left: var(--sidebar-width-collapsed); }
-        }
+        @media (max-width: 992px) { body.sidebar-collapsed .page-wrapper { margin-left: var(--sidebar-width-collapsed); } }
         @media (max-width: 768px) {
             #mobile-menu-toggle { display: block; }
             .sidebar { transform: translateX(-100%); z-index: 1100; }
@@ -260,6 +123,149 @@
             .top-bar { padding: 0 15px; }
             #user-info-bar #welcome-message { display: none; }
         }
+
+        /* --- PRODUCTION PLANNER STYLES (SCOPED) --- */
+        #planner-system-container{ --primary:#2563eb; --muted:#6b7280; --bg:#f7fafc; --card:#fff; --border:#e5e7eb; --ink:#111827 }
+        #planner-system-container .main-content { padding: 0 !important; }
+        #planner-system-container header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border)}
+        #planner-system-container header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;max-width:100%;margin:0 auto}
+        #planner-system-container h1{font-size:20px;margin:0}
+        #planner-system-container .wrap{max-width:100%;margin:0 auto;padding:16px 24px 80px;}
+        #planner-system-container .wrap-dashboard { max-width: 100%; padding: 16px 24px 80px; }
+        #planner-system-container .grid{display:grid;gap:12px}
+        #planner-system-container .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+        #planner-system-container .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+        #planner-system-container .grid-2-1{grid-template-columns:2fr 1fr}
+        @media (max-width:980px){ #planner-system-container .g-2, #planner-system-container .g-3, #planner-system-container .grid-2-1{grid-template-columns:1fr} }
+        #planner-system-container .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+        #planner-system-container .card h2, #planner-system-container .card h3{margin:0 0 8px;padding:12px 14px;border-bottom:1px solid var(--border);font-size:18px}
+        #planner-system-container .card .inner{padding:12px 14px}
+        #planner-system-container label{font-size:13px;color:var(--muted);display:block;margin-bottom:2px;}
+        #planner-system-container input, #planner-system-container select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
+        #planner-system-container .row{display:grid;grid-template-columns:160px 1fr;gap:10px;align-items:center}
+        #planner-system-container .row+.row{margin-top:8px}
+        #planner-system-container .btn{appearance:none;border:1px solid var(--primary);background:var(--primary);color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+        #planner-system-container .btn.secondary{background:#fff;color:var(--primary)}
+        #planner-system-container .btn.gray{background:#f3f4f6;color:#111;border-color:#e5e7eb}
+        #planner-system-container .btn.danger{background:#ef4444;border-color:#ef4444;color:#fff}
+        #planner-system-container .btn:disabled{opacity:.6;cursor:not-allowed}
+        #planner-system-container .btn.active{outline:2px solid var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+        #planner-system-container .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#fff}
+        #planner-system-container .list{display:flex;flex-direction:column;gap:10px;min-height:60px;}
+        #planner-system-container .job{border:1px solid var(--border);border-radius:12px;background:#fff;padding:10px; transition: background-color 0.3s, border-color 0.3s;}
+        #planner-system-container .job.dragging{opacity:0.5;border-style:dashed;}
+        #planner-system-container .jobhead{display:flex;gap:10px;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--border);}
+        #planner-system-container .drag{cursor:grab;user-select:none;font-size:18px;line-height:1;padding:2px 8px}
+        #planner-system-container .job .title{font-weight:700}
+        #planner-system-container .job small{color:var(--muted)}
+        #planner-system-container .procwrap{padding:10px 0 0}
+        #planner-system-container .proc{border:1px dashed var(--border);border-radius:12px;padding:8px;background:#fdfdfd}
+        #planner-system-container .proc+.proc{margin-top:6px;}
+        #planner-system-container .proc h4{margin:0 0 4px;font-size:14px}
+        #planner-system-container .proc .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+        #planner-system-container .proc .timebox{display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center}
+        #planner-system-container .proc .act{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+        #planner-system-container .proc .act .btn{padding:6px 10px;border-radius:10px;font-size:12px}
+        #planner-system-container .rowcols{display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:8px}
+        #planner-system-container .rowcols>div{display:flex;flex-direction:column;gap:6px}
+        #planner-system-container table{width:100%;border-collapse:separate;border-spacing:0}
+        #planner-system-container th, #planner-system-container td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align: top;}
+        #planner-system-container th{font-size:12px;color:#374151;background:#f9fafb;position:sticky;top:0; white-space: nowrap;}
+        #planner-system-container .dept-divider { border-left: 2px solid #dde4ed; }
+        #planner-system-container .cut-time-divider { border-left: 2px solid #dde4ed; }
+        #planner-system-container tr:hover td{background:#fafafa}
+        #planner-system-container tr.dragging td { background: #ebf8ff; border-top: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
+        #planner-system-container .drag-handle { cursor: grab; padding-right: 10px; font-size: 16px; color: #9ca3af; }
+        #planner-system-container .footerbar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--border);padding:8px 12px;display:flex;gap:8px;justify-content:center; z-index: 10;}
+        #planner-system-container .hidden{display:none}
+        #planner-system-container .help{font-size:12px;color:var(--muted)}
+        #planner-system-container .pill{padding:4px 8px;border-radius:999px;border:1px solid var(--border); font-size:12px; background:#f9fafb;}
+        #planner-system-container .right{margin-left:auto}
+        #planner-system-container .inline{display:inline-flex;gap:6px;align-items:center}
+        #planner-system-container .mini{padding:4px 8px;font-size:12px;border-radius:8px}
+        #planner-system-container .toolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
+        #planner-system-container input::placeholder{ color:#9ca3af }
+        #planner-system-container .toggle{margin-left:auto}
+        #planner-system-container .dept-board{ display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); }
+        #planner-system-container .line-container{ padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f9fafb; }
+        #planner-system-container .line-container h3{ margin: 0 0 10px; font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        #planner-system-container .line-assign-select { font-size: 12px; padding: 4px 6px; border-radius: 8px; min-width: 85px; }
+        #planner-system-container .qty-pills-container { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+        #planner-system-container .status-cell { display: flex; flex-direction: column; align-items: start; gap: 4px; }
+        #planner-system-container .nav-group { display: inline-flex; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        #planner-system-container .nav-group .btn { flex: 1; text-align: center; background: #fff; color: var(--ink); border: none; border-radius: 0; border-left: 1px solid var(--border); font-weight: 600; padding: 8px 16px; }
+        #planner-system-container .nav-group .btn:first-child { border-left: none; }
+        #planner-system-container .nav-group .btn.active, #planner-system-container .nav-group .btn:hover { background: var(--primary); color: #fff; z-index: 1; }
+        #planner-system-container .nav-group .btn.active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        #planner-system-container .status-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; border: 1px solid transparent; background-color: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+        #planner-system-container .status-badge.status-progress { background-color: #e0f2fe; color: #0c4a6e; border-color: #bae6fd; }
+        #planner-system-container .status-badge.status-done { background-color: #dcfce7; color: #166534; border-color: #bbf7d0; }
+        #planner-system-container tr.status-row-progress td { background-color: #f0f9ff !important; }
+        #planner-system-container tr.status-row-done td { background-color: #f0fdf4 !important; }
+        #planner-system-container .job.job-card-progress { background-color: #f0f9ff; border-color: #bae6fd; }
+        #planner-system-container .job.job-card-done { background-color: #f0fdf4; border-color: #bbf7d0; }
+        #planner-system-container .checkbox-cell { width: 40px; text-align: center; }
+        #planner-system-container tr.row-selected td { background-color: #fffbeb !important; }
+        #planner-system-container .plan-time-hint { color: #9ca3af; font-weight: normal; font-size: 11px; }
+
+        /* --- NEW STYLES for Job Editor Modal --- */
+        #job-editor-title {
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+            color: var(--ink, #111827);
+        }
+        .planner-form-grid {
+            display: grid;
+            margin-bottom: 20px;
+        }
+        .planner-section-title {
+            font-size: 18px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border, #e5e7eb);
+            color: #333;
+        }
+        .planner-form-group label, .planner-qty-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #555;
+        }
+        #job-editor-modal-container input[type="date"],
+        #job-editor-modal-container input[type="time"],
+        #job-editor-modal-container input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        #job-editor-modal-container input:focus {
+            outline: none;
+            border-color: var(--primary, #2563eb);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        .planner-qty-group {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            align-items: center;
+            gap: 10px;
+        }
+        .planner-qty-group label {
+            margin-bottom: 0;
+            font-weight: normal;
+            text-align: right;
+            color: var(--muted, #6b7280);
+        }
+        #job-editor-modal-container .modal-actions {
+            margin-top: 30px;
+        }
+
     </style>
 </head>
 <body class="sidebar-collapsed">
@@ -286,6 +292,7 @@
             <nav>
                 <ul>
                     <li><a href="#" class="nav-link active" data-target="order-system-container"><span class="icon">📝</span><span class="nav-text">ระบบจัดการออร์เดอร์</span></a></li>
+                    <li id="nav-planner"><a href="#" class="nav-link" data-target="planner-system-container"><span class="icon">🗓️</span><span class="nav-text">ใบงาน (Export)</span></a></li>
                     <li><a href="#" class="nav-link" data-target="packing-system-container"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
                     <li id="nav-product"><a href="#" class="nav-link" data-target="product-system-container"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
                     <li id="nav-accounting"><a href="accounting.html" class="nav-link"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
@@ -357,12 +364,16 @@
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
                         </div>
-                        <!-- MODIFICATION: Added "move-to-complete" button -->
                         <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
-                        <!-- MODIFICATION: Added "move-to-waiting" button -->
                         <div id="tab-complete" class="tab-content"><div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select><input type="text" id="search-complete" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button><button id="move-to-waiting-btn" class="btn btn-warning">ย้ายไป "รอลงข้อมูล"</button><button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
-                        <div id="tab-work-orders" class="tab-content"></div>
-                        <div id="tab-shipped" class="tab-content"><div class="tab-filter"><label for="filter-shipped">กรองตามช่องทาง:</label><select id="filter-shipped"></select><input type="text" id="search-shipped" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button></div><ul class="order-list"></ul></div>
+                        <div id="tab-work-orders" class="tab-content">
+                            <div id="work-orders-list-container"></div>
+                        </div>
+                        <div id="tab-shipped" class="tab-content">
+                            <div class="tab-filter"><label for="filter-shipped">กรองตามช่องทาง:</label><select id="filter-shipped"></select><input type="text" id="search-shipped" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div>
+                            <div class="batch-actions"><button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button></div>
+                            <ul class="order-list"></ul>
+                        </div>
                         <div id="tab-cancelled" class="tab-content"><div class="tab-filter"><label for="filter-cancelled">กรองตามช่องทาง:</label><select id="filter-cancelled"></select><input type="text" id="search-cancelled" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-cancelled-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="restore-to-waiting-btn" class="btn btn-warning">คืนไป "รอลงข้อมูล"</button><button id="restore-to-complete-btn" class="btn btn-info">คืนไป "ลงข้อมูลเสร็จสิ้น"</button></div><ul class="order-list"></ul></div>
                     </div>
                 </div>
@@ -374,7 +385,7 @@
                             <h2>เลือกใบงานที่ต้องการจัดของ</h2><p>ระบบจะดึงข้อมูลใบงานที่อยู่ในสถานะ "กำลังผลิต" มาแสดงที่นี่</p><ul id="work-order-list"></ul>
                         </div>
                     </div>
-                    <div id="packing-main-view"><header class="header"><h1 id="packing-header-title">ระบบจัดของ</h1><div class="action-buttons"><button id="back-to-wo-selection" class="btn btn-back">❮ กลับไปเลือกใบงาน</button><button id="export-all-button" class="btn btn-success" disabled>📥 Export ข้อมูล</button></div></header><div class="main-container"><nav id="order-nav-panel"><div id="nav-header"><span id="order-counter">ยังไม่มีข้อมูล</span><input type="text" id="search-input" placeholder="ค้นหาเลขพัสดุ..."></div><ul id="order-list"></ul></nav><main id="content-panel"><div id="action-panel" style="display: none;"><div class="action-step"><h3>ขั้นตอนที่ 1: สแกนสินค้า</h3><input type="text" id="item-scan-input" placeholder="ยิงบาร์โค้ด Item UID"></div><div class="action-step"><h3>ขั้นตอนที่ 2: ยืนยันการจัดส่ง</h3><input type="text" id="confirmation-input" placeholder="ยิงบาร์โค้ดเลขพัสดุที่กล่อง" disabled></div><p id="status-message"></p></div><div id="result-container"></div></main></div></div>
+                    <div id="packing-main-view"><header class="header"><h1 id="packing-header-title">ระบบจัดของ</h1><div class="action-buttons"><button id="back-to-wo-selection" class="btn btn-back">❮ กลับไปเลือกใบงาน</button><button id="reset-packing-btn" class="btn btn-warning">แพ็คใหม่</button><button id="export-all-button" class="btn btn-success" disabled>📥 Export ข้อมูล</button></div></header><div class="main-container"><nav id="order-nav-panel"><div id="nav-header"><span id="order-counter">ยังไม่มีข้อมูล</span><input type="text" id="search-input" placeholder="ค้นหาเลขพัสดุ..."></div><ul id="order-list"></ul></nav><main id="content-panel"><div id="action-panel" style="display: none;"><div class="action-step"><h3>ขั้นตอนที่ 1: สแกนสินค้า</h3><input type="text" id="item-scan-input" placeholder="ยิงบาร์โค้ด Item UID"></div><div class="action-step"><h3>ขั้นตอนที่ 2: ยืนยันการจัดส่ง</h3><input type="text" id="confirmation-input" placeholder="ยิงบาร์โค้ดเลขพัสดุที่กล่อง" disabled></div><p id="status-message"></p></div><div id="result-container"></div></main></div></div>
                     <audio id="success-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio><audio id="error-sound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
                 </div>
 
@@ -410,6 +421,45 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ==================== PLANNER SYSTEM ==================== -->
+                <div id="planner-system-container" class="system-content">
+                    <header>
+                        <div class="bar">
+                          <div style="display:flex;align-items:center;gap:10px">
+                            <h1>ใบงาน (Export)</h1>
+                          </div>
+                        </div>
+                    </header>
+                    <div class="wrap">
+                        <section class="card hidden" id="viewForm"></section>
+                        <section class="card" id="viewJobs">
+                          <h2>ใบงานทั้งหมด (ค้นหา/แก้ไข/ลบ)</h2>
+                          <div class="inner">
+                            <div class="toolbar">
+                              <div><label>เลือกวัน</label><select id="j_date"></select></div>
+                              <div><label>ค้นหาชื่อ</label><input type="text" id="j_search" placeholder="พิมพ์บางส่วนของชื่อ" style="width:260px;"></div>
+                              <button class="btn gray" id="j_clear">ล้างตัวกรอง</button>
+                              <div class="right" style="display: flex; gap: 8px;">
+                                <button class="btn btn-success" id="btnExportForSorting">Export for Sorting System (.xlsx)</button>
+                                <button class="btn danger hidden" id="j_deleteSelected">ลบรายการที่เลือก (0)</button>
+                              </div>
+                            </div>
+                            <div class="tablewrap" style="overflow-x:auto;max-height:520px;border:1px solid var(--border);border-radius:12px">
+                              <table id="tableJobs"><thead><tr>
+                                <th class="checkbox-cell"><input type="checkbox" id="j_selectAll"></th>
+                                <th style="min-width:160px">ชื่อใบงาน</th>
+                                <th>วันที่</th>
+                                <th>เวลาตัด</th>
+                                <th>จำนวนต่อแผนก</th>
+                                <th style="min-width:160px">จัดการ</th>
+                              </tr></thead><tbody></tbody></table>
+                            </div>
+                          </div>
+                        </section>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
@@ -477,6 +527,7 @@
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let loggedInUsername = null;
+        let loggedInUserRole = null; // To store user role
 
         // --- CORE UI ELEMENTS ---
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
@@ -503,10 +554,13 @@
                     const targetId = link.getAttribute('data-target');
                     systemContents.forEach(content => content.classList.toggle('active', content.id === targetId));
                     
+                    // Initialize modules on tab switch if they haven't been
                     if (targetId === 'packing-system-container') {
                         window.packingSystem.loadWorkOrdersForPacking();
-                    } else if (targetId === 'product-system-container') {
-                        window.productSystem.loadProducts();
+                    } else if (targetId === 'product-system-container' && loggedInUserRole === 'superadmin') {
+                        window.productSystem.initializeApp();
+                    } else if (targetId === 'planner-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production')) {
+                         window.plannerSystem.initializeApp(loggedInUserRole);
                     }
 
                     if (window.innerWidth <= 768) {
@@ -532,8 +586,10 @@
 
                     if (target === 'packing') {
                         window.packingSystem.loadWorkOrdersForPacking();
-                    } else if (target === 'product') {
-                        window.productSystem.loadProducts();
+                    } else if (target === 'product' && loggedInUserRole === 'superadmin') {
+                        window.productSystem.initializeApp();
+                    } else if (target === 'planner' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production')) {
+                        window.plannerSystem.initializeApp(loggedInUserRole);
                     }
                 }
             }
@@ -544,28 +600,44 @@
             loadingOverlay.style.display = 'flex';
             try {
                 const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
-                if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้ในระบบ');
+                if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้ในระบบ หรือไม่มีคอลัมน์ role');
                 
                 loggedInUsername = userData.username;
-                welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername}`;
+                loggedInUserRole = userData.role; // Store the role
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
                 
-                const isSuperAdmin = userData.role === 'superadmin';
+                // --- ROLE-BASED UI CONTROL ---
+                const isSuperAdmin = loggedInUserRole === 'superadmin';
+                const isProduction = loggedInUserRole === 'production';
+
                 document.getElementById('nav-product').style.display = isSuperAdmin ? '' : 'none';
                 document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none';
+                document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction) ? '' : 'none';
 
                 loginOverlay.style.display = 'none';
                 mainAppContainer.style.display = 'flex';
                 
+                // Initialize core systems
                 await window.orderSystem.initializeApp(loggedInUsername);
 
+                // Initialize role-specific systems
                 if (isSuperAdmin) {
                     window.productSystem.initializeApp();
+                    window.plannerSystem.initializeApp(loggedInUserRole);
+                } else if (isProduction) {
+                    // If production user, switch to planner view immediately
+                    document.querySelector('.nav-link.active')?.classList.remove('active');
+                    document.querySelector('.system-content.active')?.classList.remove('active');
+                    document.querySelector('.nav-link[data-target="planner-system-container"]').classList.add('active');
+                    document.getElementById('planner-system-container').classList.add('active');
+                    window.plannerSystem.initializeApp(loggedInUserRole);
                 }
                 
                 handleInitialTab();
 
             } catch (err) {
-                alert(err.message); await logout();
+                alert("เกิดข้อผิดพลาดในการเริ่มต้นระบบ: " + err.message); 
+                await logout();
             } finally {
                 loadingOverlay.style.display = 'none';
             }
@@ -582,7 +654,9 @@
         });
 
         async function logout() {
-            await supabaseClient.auth.signOut(); loggedInUsername = null;
+            await supabaseClient.auth.signOut(); 
+            loggedInUsername = null;
+            loggedInUserRole = null;
             mainAppContainer.style.display = 'none';
             loginOverlay.style.display = 'flex';
             document.getElementById('email').value = ''; document.getElementById('password').value = ''; errorMessage.textContent = '';
@@ -609,6 +683,7 @@
             const addItemBtn = container.querySelector('#add-item-btn');
             const trackingFileInput = document.getElementById('tracking-file-input');
             const workOrdersTab = container.querySelector('#tab-work-orders');
+            const workOrdersListContainer = document.getElementById('work-orders-list-container');
             const downloadTemplateBtn = document.getElementById('download-template-btn');
             const importExcelBtn = document.getElementById('import-excel-btn');
             const importExcelInput = document.getElementById('import-excel-input');
@@ -619,7 +694,7 @@
 
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
-
+            
             async function initializeApp(username) {
                 adminUserInput.value = username;
 
@@ -641,7 +716,7 @@
                         supabaseClient.from('products').select('*'),
                         supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
                         supabaseClient.from('channels').select('channel_code, channel_name'),
-                        supabaseClient.from('work_orders').select('*').order('created_at', { ascending: false }),
+                        supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
                         supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
                     ]);
@@ -691,9 +766,9 @@
                 };
                 const filters = { waiting: container.querySelector('#filter-waiting').value, complete: container.querySelector('#filter-complete').value, cancelled: container.querySelector('#filter-cancelled').value, shipped: container.querySelector('#filter-shipped').value };
                 const lists = { 'รอลงข้อมูล': container.querySelector('#tab-waiting .order-list'), 'ลงข้อมูลเสร็จสิ้น': container.querySelector('#tab-complete .order-list'), 'ยกเลิก': container.querySelector('#tab-cancelled .order-list'), 'จัดส่งแล้ว': container.querySelector('#tab-shipped .order-list') };
-                const workOrderContainer = container.querySelector('#tab-work-orders');
+                
+                workOrdersListContainer.innerHTML = '';
                 Object.values(lists).forEach(list => { if(list) list.innerHTML = ''; });
-                if(workOrderContainer) workOrderContainer.innerHTML = '';
 
                 allOrdersData.forEach(order => {
                     const list = lists[order.status];
@@ -713,7 +788,6 @@
                                 ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>`
                                 : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
                             
-                            // MODIFICATION: Checkbox moved to front in the template literal
                             list.innerHTML += `<li class="order-list-item" data-order-id="${order.id}">
                                 <input type="checkbox" class="order-checkbox">
                                 <div class="order-info">
@@ -739,7 +813,6 @@
                             ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>`
                             : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
                         
-                        // MODIFICATION: Checkbox moved to front in the template literal for work orders
                         billsHTML += `<li class="order-list-item" data-order-id="${bill.id}">
                              <input type="checkbox" class="order-checkbox">
                              <div class="order-info">
@@ -771,10 +844,10 @@
                             </div>
                             ${billsHTML}
                         </div>`;
-                    workOrderContainer.appendChild(groupEl);
+                    workOrdersListContainer.appendChild(groupEl);
                 });
             }
-
+            
             function prepareForWaybill(workOrderName) {
                 const ordersToProcess = allOrdersData.filter(order => order.work_order_name === workOrderName);
                 if (ordersToProcess.length === 0) { alert("ไม่พบออร์เดอร์ในใบงานนี้"); return; }
@@ -841,21 +914,21 @@
 
             function downloadOrderTemplate() {
                 const headers = [
-                    "ช่องทาง", "ชื่อลูกค้า", "ที่อยู่ลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "วิธีการชำระ", "ชื่อโปรโมชั่น",
+                    "ช่องทาง", "ชื่อลูกค้า", "ที่อยู่ลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "วิธีการชำระ", "ชื่อโปรโมชั่น", "วันที่ชำระ", "เวลาที่ชำระ",
                     "ชื่อสินค้า", "สีหมึก", "ชั้นที่", "ลายการ์ตูน", "ลายเส้น", "ฟอนต์", "บรรทัด 1", "บรรทัด 2", "บรรทัด 3", "จำนวน", "หมายเหตุ", "ไฟล์แนบ"
                 ];
                 
                 const sampleData = [
                     [
-                        "SP", "สมชาย ใจดี", "123/45 ถ.สุขุมวิท พระโขนง คลองเตย กทม. 10110", 300, 30, 0, "โอน", "โปร 9.9",
+                        "SP", "สมชาย ใจดี", "123/45 ถ.สุขุมวิท พระโขนง คลองเตย กทม. 10110", 300, 30, 0, "โอน", "โปร 9.9", "2025-10-15", "10:30",
                         "ป้ายชื่อรีดติด", "ดำ", "1", "กระต่าย", "เส้นปกติ", "TH01", "ด.ช. รักเรียน", "ชั้น ป.1", "", 2, "ไม่มี", ""
                     ],
                     [
-                        "", "", "", "", "", "", "", "",
+                        "", "", "", "", "", "", "", "", "", "",
                         "สติกเกอร์กันน้ำ", "สี", "2", "ไดโนเสาร์", "เส้นหนา", "F03", "น้องพอใจ", "", "", 1, "ของานด่วน", ""
                     ],
                     [
-                        "LAZ", "สมศรี มีสุข", "456 หมู่ 7 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200", 159, 25, 10, "COD", "",
+                        "LAZ", "สมศรี มีสุข", "456 หมู่ 7 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200", 159, 25, 10, "COD", "", "", "",
                         "ป้ายชื่อรีดติด", "น้ำเงิน", "5", "จรวด", "เส้นปกติ", "F12", "ด.ช. มานะ", "อนุบาล 3", "", 1, "", ""
                     ]
                 ];
@@ -1412,10 +1485,96 @@
             function selectAll(tabKey) { const list = container.querySelector(`#tab-${tabKey} .order-list`); if (!list) return; const checkboxes = list.querySelectorAll('.order-checkbox'); const isAllChecked = Array.from(checkboxes).every(cb => cb.checked); checkboxes.forEach(cb => cb.checked = !isAllChecked); }
             function getSelectedOrderIds(listContainer) { return Array.from(listContainer.querySelectorAll('.order-checkbox:checked')).map(cb => cb.closest('.order-list-item').dataset.orderId); }
             
-            async function createWorkOrder() { const selectedIds = getSelectedOrderIds(container.querySelector('#tab-complete .order-list')); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์อย่างน้อย 1 รายการ'); const firstOrder = allOrdersData.find(o => o.id == selectedIds[0]); const channelCode = firstOrder.channel_code; const today = new Date().toISOString().slice(0, 10); if (!selectedIds.every(id => allOrdersData.find(o => o.id == id).channel_code === channelCode)) { return alert('กรุณาเลือกออร์เดอร์จากช่องทางเดียวกันเท่านั้น'); } loadingOverlay.style.display = 'flex'; try { const { data: batchNumber, error: rpcError } = await supabaseClient.rpc('get_next_batch_number', { p_channel_code: channelCode, p_date: today }); if (rpcError) throw rpcError; const datePart = new Date().toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, ''); const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`; const { error: woError } = await supabaseClient.from('work_orders').insert({ work_order_name: workOrderName, channel_code: channelCode, production_date: today, batch_number: batchNumber, order_count: selectedIds.length, created_by: loggedInUsername }); if (woError) throw woError; const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', selectedIds); if (updateError) throw updateError; alert(`สร้างใบงาน "${workOrderName}" สำเร็จ!`); await loadInitialData(); } catch (error) { console.error('Error creating work order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            async function createWorkOrder() {
+                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-complete .order-list'));
+                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์อย่างน้อย 1 รายการ');
+                const firstOrder = allOrdersData.find(o => o.id == selectedIds[0]);
+                const channelCode = firstOrder.channel_code;
+                const today = new Date();
+                const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '');
+                const workOrderDate = today.toISOString().slice(0, 10);
+
+                if (!selectedIds.every(id => allOrdersData.find(o => o.id == id).channel_code === channelCode)) {
+                    return alert('กรุณาเลือกออร์เดอร์จากช่องทางเดียวกันเท่านั้น');
+                }
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('work_orders')
+                        .select('batch_number')
+                        .eq('channel_code', channelCode)
+                        .eq('production_date', workOrderDate)
+                        .order('batch_number', { ascending: false })
+                        .limit(1);
+
+                    if (error) throw error;
+                    
+                    const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0;
+                    const batchNumber = lastBatchNumber + 1;
+
+                    const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`;
+                    const { error: woError } = await supabaseClient.from('work_orders').insert({
+                        work_order_name: workOrderName,
+                        channel_code: channelCode,
+                        production_date: workOrderDate,
+                        batch_number: batchNumber,
+                        order_count: selectedIds.length,
+                        created_by: loggedInUsername,
+                        status: 'กำลังผลิต'
+                    });
+                    if (woError) throw woError;
+
+                    const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', selectedIds);
+                    if (updateError) throw updateError;
+                    
+                    // --- Auto Sync to Planner ---
+                    const billsInWorkOrder = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
+                    const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: 0 };
+                    qty.PACK = billsInWorkOrder.length;
+
+                    billsInWorkOrder.forEach(order => {
+                        (order.order_items || []).forEach(item => {
+                            const product = fullProductList.find(p => p.id === item.product_id);
+                            if (product && product.product_category) {
+                                const category = product.product_category.toUpperCase();
+                                if (category.includes('STAMP')) qty.STAMP++;
+                                if (category.includes('STK')) qty.STK++;
+                                if (category.includes('UV')) qty.CTT++;
+                                if (category.includes('LASER')) qty.LASER++;
+                                if (category.includes('TUBE')) qty.TUBE++;
+                            }
+                        });
+                    });
+                    
+                    const creationTime = new Date();
+                    const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`;
+
+                    const plannerJobData = {
+                        name: workOrderName,
+                        date: workOrderDate,
+                        cut: cutTime,
+                        qty: qty,
+                    };
+
+                    const { error: plannerError } = await supabaseClient.from('jobs').insert(plannerJobData);
+                    if (plannerError) {
+                        console.error('Failed to sync new work order to planner:', plannerError);
+                        alert(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่เกิดข้อผิดพลาดในการ Sync ไปยังระบบแผนผลิต: ${plannerError.message}`);
+                    } else {
+                        alert(`สร้างใบงาน "${workOrderName}" สำเร็จ!`);
+                    }
+                    
+                    await loadInitialData();
+                } catch (error) {
+                    console.error('Error creating work order:', error);
+                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการยกเลิก'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกออร์เดอร์สำเร็จ!'); await loadInitialData(); } catch (error) { alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
-            // MODIFICATION: New function to move orders between statuses
             async function moveSelectedOrders(tabKey, newStatus) {
                 const listContainer = container.querySelector(`#tab-${tabKey} .order-list`);
                 const selectedIds = getSelectedOrderIds(listContainer);
@@ -1462,25 +1621,21 @@
 
             function selectAllInWorkOrder(buttonElement) { const billsContainer = buttonElement.closest('.work-order-bills'); const checkboxes = billsContainer.querySelectorAll('.order-checkbox'); const isAllChecked = Array.from(checkboxes).every(cb => cb.checked); checkboxes.forEach(cb => cb.checked = !isAllChecked); }
             
-            // ===== MODIFICATION: This function now also deletes empty work orders =====
             async function updateWorkOrderCount(workOrderName) {
-                // First, count remaining orders for the work order
                 const { count, error: countError } = await supabaseClient.from('orders').select('id', { count: 'exact', head: true }).eq('work_order_name', workOrderName);
                 if (countError) {
                     console.error('Error counting remaining orders:', countError);
-                    throw countError; // Propagate error
+                    throw countError;
                 }
 
                 if (count === 0) {
-                    // If no orders are left, delete the work order
-                    console.log(`Work order "${workOrderName}" is empty. Deleting it.`);
-                    const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName);
-                    if (deleteError) {
-                         console.error('Error deleting empty work order:', deleteError);
-                         throw deleteError;
+                    console.log(`Work order "${workOrderName}" is empty. Updating status to 'จัดส่งแล้ว'.`);
+                     const { error: updateError } = await supabaseClient.from('work_orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', workOrderName);
+                    if (updateError) {
+                         console.error('Error updating empty work order status:', updateError);
+                         throw updateError;
                     }
                 } else {
-                    // Otherwise, just update the count
                     const { error: updateError } = await supabaseClient.from('work_orders').update({ order_count: count }).eq('work_order_name', workOrderName);
                      if (updateError) {
                          console.error('Error updating work order count:', updateError);
@@ -1489,9 +1644,105 @@
                 }
             }
 
-            async function revertSelectedBills(workOrderName, newStatus) { const groupEl = Array.from(container.querySelectorAll('.work-order-header')).find(h => h.textContent.includes(workOrderName)).parentElement; const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิลที่ต้องการคืนสถานะ'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการคืนสถานะ ${selectedIds.length} บิล กลับไปที่ "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: newStatus, work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); alert('คืนสถานะบิลสำเร็จ!'); await loadInitialData(); } catch (error) { console.error('Error reverting bills:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
-            async function cancelSelectedBillsFromWorkOrder(workOrderName) { const groupEl = Array.from(container.querySelectorAll('.work-order-header')).find(h => h.textContent.includes(workOrderName)).parentElement; const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิลที่ต้องการยกเลิก'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการ **ยกเลิก** ${selectedIds.length} บิล ออกจากใบงานนี้?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); alert('ยกเลิกบิลออกจากใบงานสำเร็จ!'); await loadInitialData(); } catch (error) { console.error('Error cancelling bills from work order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
-            async function cancelWorkOrder(workOrderName) { if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการ **ยกเลิกทั้งใบงาน** "${workOrderName}"? การกระทำนี้จะคืนสถานะบิลทั้งหมดกลับไปที่ "ลงข้อมูลเสร็จสิ้น"`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; alert(`ยกเลิกใบงาน "${workOrderName}" และคืนสถานะบิลทั้งหมดเรียบร้อยแล้ว`); await loadInitialData(); } catch (error) { console.error('Error cancelling work order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            async function updatePlannerJob(workOrderName, selectedIds = []) {
+                const remainingBills = allOrdersData.filter(order => order.work_order_name === workOrderName && !selectedIds.includes(String(order.id)));
+                
+                if (remainingBills.length > 0) {
+                    const newQty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: 0 };
+                    newQty.PACK = remainingBills.length;
+                    remainingBills.forEach(order => {
+                         (order.order_items || []).forEach(item => {
+                            const product = fullProductList.find(p => p.id === item.product_id);
+                            if (product && product.product_category) {
+                                const category = product.product_category.toUpperCase();
+                                if (category.includes('STAMP')) newQty.STAMP++;
+                                if (category.includes('STK')) newQty.STK++;
+                                if (category.includes('UV')) newQty.CTT++;
+                                if (category.includes('LASER')) newQty.LASER++;
+                                if (category.includes('TUBE')) newQty.TUBE++;
+                            }
+                        });
+                    });
+                    const { error: updateJobError } = await supabaseClient.from('jobs').update({ qty: newQty }).eq('name', workOrderName);
+                    if (updateJobError) console.error('Failed to update job qty in planner:', updateJobError);
+                } else {
+                    const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName);
+                    if (deleteJobError) console.error('Failed to delete job from planner:', deleteJobError);
+                }
+            }
+
+            async function revertSelectedBills(buttonElement, newStatus) {
+                const workOrderName = buttonElement.dataset.workOrderName;
+                const groupEl = buttonElement.closest('.work-order-group');
+                const selectedIds = getSelectedOrderIds(groupEl);
+                if (selectedIds.length === 0) return alert('กรุณาเลือกบิลที่ต้องการคืนสถานะ');
+                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการคืนสถานะ ${selectedIds.length} บิล กลับไปที่ "${newStatus}"?`)) return;
+                
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { error: updateError } = await supabaseClient.from('orders').update({ status: newStatus, work_order_name: null }).in('id', selectedIds);
+                    if (updateError) throw updateError;
+                    
+                    await updateWorkOrderCount(workOrderName);
+                    await updatePlannerJob(workOrderName, selectedIds);
+
+                    alert('คืนสถานะบิลสำเร็จ!');
+                    await loadInitialData();
+                } catch (error) {
+                    console.error('Error reverting bills:', error);
+                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
+            async function cancelSelectedBillsFromWorkOrder(buttonElement) {
+                const workOrderName = buttonElement.dataset.workOrderName;
+                const groupEl = buttonElement.closest('.work-order-group');
+                const selectedIds = getSelectedOrderIds(groupEl);
+                if (selectedIds.length === 0) return alert('กรุณาเลือกบิลที่ต้องการยกเลิก');
+                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการ **ยกเลิก** ${selectedIds.length} บิล ออกจากใบงานนี้?`)) return;
+                
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds);
+                    if (updateError) throw updateError;
+
+                    await updateWorkOrderCount(workOrderName);
+                    await updatePlannerJob(workOrderName, selectedIds);
+                    
+                    alert('ยกเลิกบิลออกจากใบงานสำเร็จ!');
+                    await loadInitialData();
+                } catch (error) {
+                    console.error('Error cancelling bills from work order:', error);
+                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
+            async function cancelWorkOrder(workOrderName) {
+                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการ **ยกเลิกทั้งใบงาน** "${workOrderName}"? การกระทำนี้จะคืนสถานะบิลทั้งหมดกลับไปที่ "ลงข้อมูลเสร็จสิ้น"`)) return;
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName);
+                    if (updateError) throw updateError;
+                    
+                    const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName);
+                    if (deleteError) throw deleteError;
+
+                    const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName);
+                    if (deleteJobError) console.error(`Failed to delete job ${workOrderName} from planner:`, deleteJobError.message);
+
+                    alert(`ยกเลิกใบงาน "${workOrderName}" และคืนสถานะบิลทั้งหมดเรียบร้อยแล้ว`);
+                    await loadInitialData();
+                } catch (error) {
+                    console.error('Error cancelling work order:', error);
+                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
             
             async function saveOrUpdateOrder(status) {
                 loadingOverlay.style.display = 'flex';
@@ -1561,7 +1812,6 @@
                 } catch (error) { console.error('Error saving/updating order:', error); alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; }
             }
             
-            // MODIFICATION: Reworked tracking edit mode UI
             function enterTrackingEditMode(trackingSpan) {
                 const trackingTextEl = trackingSpan.querySelector('.tracking-text');
                 const currentTracking = trackingTextEl ? trackingTextEl.textContent : '';
@@ -1606,8 +1856,6 @@
                         .eq('id', orderId);
                     
                     if (error) throw error;
-
-                    // Update local data to reflect change immediately
                     const orderToUpdate = allOrdersData.find(o => o.id == orderId);
                     if(orderToUpdate) orderToUpdate.tracking_number = newTrackingNumber;
                     
@@ -1616,13 +1864,41 @@
                 } catch (error) {
                     console.error('Error updating tracking number:', error);
                     alert('เกิดข้อผิดพลาดในการอัปเดต: ' + error.message);
-                    exitTrackingEditMode(trackingSpan); // Revert on error
+                    exitTrackingEditMode(trackingSpan);
                 } finally {
                     loadingOverlay.style.display = 'none';
                 }
             }
+            
+            async function generateNextBillNo(channelCode) {
+                const today = new Date();
+                const year = String(today.getFullYear() + 543).slice(-2);
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const prefix = `${channelCode}${year}${month}`;
 
-            async function generateNextBillNo(channelCode) { const { data, error } = await supabaseClient.rpc('increment_bill_no', { p_channel_code: channelCode }); if (error) { throw new Error(`ไม่สามารถสร้างเลขบิลได้: ${error.message}`); } const today = new Date(); const year = String(today.getFullYear() + 543).slice(-2); const month = String(today.getMonth() + 1).padStart(2, '0'); const prefix = `${channelCode}${year}${month}`; const nextSequence = String(data).padStart(5, '0'); return `${prefix}${nextSequence}`; }
+                const { data, error } = await supabaseClient
+                    .from('orders')
+                    .select('bill_no')
+                    .like('bill_no', `${prefix}%`)
+                    .order('bill_no', { ascending: false })
+                    .limit(1);
+
+                if (error) {
+                    throw new Error(`ไม่สามารถค้นหาเลขบิลล่าสุดได้: ${error.message}`);
+                }
+
+                let nextSequence = 1;
+                if (data.length > 0) {
+                    const lastBillNo = data[0].bill_no;
+                    const lastSequence = parseInt(lastBillNo.slice(prefix.length), 10);
+                    if (!isNaN(lastSequence)) {
+                        nextSequence = lastSequence + 1;
+                    }
+                }
+                
+                return `${prefix}${String(nextSequence).padStart(5, '0')}`;
+            }
+
             function calculateTotal() { const price = parseFloat(container.querySelector('#price').value) || 0; const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0; const discount = parseFloat(container.querySelector('#discount').value) || 0; container.querySelector('#total_amount').value = (price + shipping - discount).toFixed(2); }
             
             function exportForProduction(workOrderName) {
@@ -1960,7 +2236,6 @@
                 document.body.removeChild(link);
             }
 
-
             function initializeEventListeners() {
                 trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
                 
@@ -2040,7 +2315,6 @@
                         }
                     }
                     
-                    // MODIFICATION: Reworked tracking edit event handlers
                     const trackingSpan = target.closest('.order-tracking');
                     if (trackingSpan) {
                          if (target.closest('.btn-edit-tracking')) {
@@ -2089,9 +2363,9 @@
                     if(billsContainer) {
                          const classToAction = {
                             'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn),
-                            'revert-to-waiting-btn': (btn) => revertSelectedBills(btn.dataset.workOrderName, 'รอลงข้อมูล'),
-                            'revert-to-complete-btn': (btn) => revertSelectedBills(btn.dataset.workOrderName, 'ลงข้อมูลเสร็จสิ้น'),
-                            'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn.dataset.workOrderName)
+                            'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'),
+                            'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'),
+                            'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn)
                         };
                          for (const className in classToAction) {
                             const btn = target.closest(`.${className}`);
@@ -2166,10 +2440,8 @@
                 importWyBtn.addEventListener('click', () => importWyInput.click());
                 importWyInput.addEventListener('change', (e) => handleWyImport(e.target.files[0]));
                 
-                // MODIFICATION: Add event listeners for new "move" buttons
                 document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล'));
                 document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น'));
-
                 document.getElementById('select-all-waiting-btn').addEventListener('click', () => selectAll('waiting'));
                 document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting'));
                 document.getElementById('select-all-complete-btn').addEventListener('click', () => selectAll('complete'));
@@ -2191,6 +2463,7 @@
             const workOrderList = container.querySelector("#work-order-list");
             const mainView = container.querySelector("#packing-main-view");
             const exportBtn = container.querySelector("#export-all-button");
+            const resetBtn = container.querySelector("#reset-packing-btn");
             const searchInput = container.querySelector("#search-input");
             const orderList = container.querySelector("#order-list");
             const orderCounter = container.querySelector("#order-counter");
@@ -2209,17 +2482,37 @@
             let completedIndices = new Set();
             let currentIndex = -1;
             let currentWorkOrderName = null;
-            const columnHeaders = { 
-                tracking: "เลขพัสดุ", customerName: "ชื่อลูกค้า", productName: "ชื่อสินค้า", 
-                details: "รายละเอียด", font: "ฟอนต์", inkColor: "สีหมึก", notes: "หมายเหตุ", 
-                item_uid: "Item UID", shipped: "จัดส่งแล้ว", shippedTime: "เวลาที่จัดส่ง", 
-                itemScanTime: "เวลาสแกนสินค้า"
-            };
+            let packingState = {}; // To hold the state of packing
+
+            // --- STATE MANAGEMENT ---
+            function savePackingState() {
+                try {
+                    sessionStorage.setItem('packingState', JSON.stringify(packingState));
+                } catch (e) {
+                    console.error('Failed to save packing state:', e);
+                }
+            }
+
+            function loadPackingState() {
+                try {
+                    const savedState = sessionStorage.getItem('packingState');
+                    if (savedState) {
+                        packingState = JSON.parse(savedState);
+                    } else {
+                        packingState = {};
+                    }
+                } catch (e) {
+                    console.error('Failed to load packing state:', e);
+                    packingState = {};
+                }
+            }
+            // ------------------------
 
             async function loadWorkOrdersForPacking() {
+                loadPackingState(); // Load state on view entry
                 showPackingView("selection");
                 workOrderList.innerHTML = "<li>กำลังโหลดใบงาน...</li>";
-                const { data, error } = await supabaseClient.from("work_orders").select("*").order("created_at", { ascending: false });
+                const { data, error } = await supabaseClient.from("work_orders").select("*").eq('status', 'กำลังผลิต').order("created_at", { ascending: false });
                 if (error) { workOrderList.innerHTML = "<li>เกิดข้อผิดพลาดในการโหลดใบงาน</li>"; return; }
                 if (!data || data.length === 0) { workOrderList.innerHTML = "<li>ไม่พบใบงานที่อยู่ในสถานะกำลังผลิต</li>"; return; }
                 workOrderList.innerHTML = "";
@@ -2237,7 +2530,12 @@
 
             async function loadPackingData(workOrderName) {
                 loadingOverlay.style.display = "flex";
+                
+                if(currentWorkOrderName !== workOrderName) {
+                    packingState[workOrderName] = packingState[workOrderName] || { completedIndices: [], items: {} };
+                }
                 currentWorkOrderName = workOrderName;
+
                 const { data, error } = await supabaseClient.from("orders").select("*, order_items(*)").eq("work_order_name", workOrderName);
                 loadingOverlay.style.display = "none";
                 if (error) { alert("ไม่สามารถดึงข้อมูลออร์เดอร์ของใบงานนี้ได้: " + error.message); return; }
@@ -2257,7 +2555,8 @@
                     headerTitle.textContent = `จัดของใบงาน: ${workOrderName}`;
                     showPackingView("main");
                     renderOrderNav();
-                    displayOrder(0);
+                    const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i));
+                    displayOrder(nextIndex !== -1 ? nextIndex : 0);
                     exportBtn.disabled = false;
                 } else {
                     alert("ไม่พบออร์เดอร์ที่มีเลขพัสดุสำหรับจัดในใบงานนี้");
@@ -2267,17 +2566,20 @@
             async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 loadingOverlay.style.display = 'flex';
                 try {
-                    const { error: updateError } = await supabaseClient
+                    const { error: updateOrdersError } = await supabaseClient
                         .from('orders')
                         .update({ status: 'จัดส่งแล้ว' })
                         .eq('work_order_name', workOrderName);
-                    if (updateError) throw updateError;
+                    if (updateOrdersError) throw updateOrdersError;
 
-                    const { error: deleteError } = await supabaseClient
+                    const { error: updateWOError } = await supabaseClient
                         .from('work_orders')
-                        .delete()
+                        .update({ status: 'จัดส่งแล้ว' })
                         .eq('work_order_name', workOrderName);
-                    if (deleteError) throw deleteError;
+                    if (updateWOError) throw updateWOError;
+                    
+                    delete packingState[workOrderName];
+                    savePackingState();
                     
                     alert(`ย้ายใบงาน "${workOrderName}" ไปยังสถานะ "จัดส่งแล้ว" สำเร็จ!`);
                     await window.orderSystem.loadInitialData();
@@ -2290,25 +2592,37 @@
             }
             
             function prepareDataForPacking(orders) {
-                let flatData = []; aggregatedData = [];
+                let flatData = [];
+                const woState = packingState[currentWorkOrderName] || { completedIndices: [], items: {} };
+                completedIndices = new Set(woState.completedIndices);
+                
                 orders.forEach(order => {
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
-                            const details = [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // ");
+                            const isScanned = item.packing_status === 'สแกนแล้ว' || (woState.items[item.item_uid] ? woState.items[item.item_uid].scanned : false);
+                            const scanTime = item.item_scan_time || (woState.items[item.item_uid] ? woState.items[item.item_uid].itemScanTime : "");
+                             if (isScanned && !woState.items[item.item_uid]) {
+                                if(!packingState[currentWorkOrderName]) packingState[currentWorkOrderName] = { completedIndices: [], items: {} };
+                                packingState[currentWorkOrderName].items[item.item_uid] = { scanned: true, itemScanTime: scanTime };
+                                savePackingState();
+                            }
+
                             flatData.push({
-                                [columnHeaders.tracking]: order.tracking_number, [columnHeaders.customerName]: order.customer_name,
-                                [columnHeaders.productName]: item.product_name, 
-                                [columnHeaders.details]: details, 
-                                [columnHeaders.font]: item.font,
-                                [columnHeaders.inkColor]: item.ink_color, 
-                                [columnHeaders.notes]: item.notes,
+                                'tracking_number': order.tracking_number,
+                                'customer_name': order.customer_name,
+                                'order_id': order.id,
+                                'product_name': item.product_name, 
+                                'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
+                                'font': item.font,
+                                'ink_color': item.ink_color, 
+                                'notes': item.notes,
                                 'shelf_location': item.product_type,
                                 'cartoon_pattern': item.cartoon_pattern,
                                 'line_pattern': item.line_pattern,
                                 'file_attachment': item.file_attachment,
                                 'item_uid': item.item_uid,
-                                scanned: false, 
-                                [columnHeaders.itemScanTime]: "",
+                                scanned: isScanned, 
+                                'itemScanTime': scanTime
                             });
                         });
                     }
@@ -2317,13 +2631,12 @@
                 allOrdersForPacking = flatData;
                 const groupedByTracking = {};
                 allOrdersForPacking.forEach(item => {
-                    const tracking = item[columnHeaders.tracking];
+                    const tracking = item.tracking_number;
                     if (!groupedByTracking[tracking]) groupedByTracking[tracking] = [];
                     groupedByTracking[tracking].push(item);
                 });
                 
                 aggregatedData = Object.values(groupedByTracking);
-                completedIndices.clear();
                 currentIndex = -1;
                 searchInput.value = '';
             }
@@ -2331,12 +2644,14 @@
             function renderOrderNav() {
                 orderList.innerHTML = "";
                 aggregatedData.forEach((group, index) => {
-                    const trackingId = String(group[0][columnHeaders.tracking]).trim();
+                    const trackingId = String(group[0].tracking_number).trim();
+                    const isCompleted = completedIndices.has(index);
                     const li = document.createElement("li");
                     li.className = "order-item";
+                    if (isCompleted) li.classList.add("completed");
                     li.dataset.index = index;
                     li.dataset.trackingId = trackingId;
-                    li.innerHTML = `<span class="tracking-id">📦 ${trackingId}</span><span class="customer-name">${group[0][columnHeaders.customerName] || 'N/A'}</span>`;
+                    li.innerHTML = `<span class="tracking-id">${isCompleted ? '✅' : '📦'} ${trackingId}</span><span class="customer-name">${group[0].customer_name || 'N/A'}</span>`;
                     li.addEventListener("click", () => displayOrder(index));
                     orderList.appendChild(li);
                 });
@@ -2347,8 +2662,11 @@
                 if (index < 0 || index >= aggregatedData.length) return;
                 currentIndex = index;
                 const orderGroup = aggregatedData[index];
+
+                // Sort items by Item UID before rendering
+                orderGroup.sort((a, b) => (a.item_uid || '').localeCompare(b.item_uid || ''));
                 
-                let headerHTML = `<h2>เลขพัสดุ: ${orderGroup[0][columnHeaders.tracking]}</h2><p><strong>ลูกค้า:</strong> ${orderGroup[0][columnHeaders.customerName]}</p>`;
+                let headerHTML = `<h2>เลขพัสดุ: ${orderGroup[0].tracking_number}</h2><p><strong>ลูกค้า:</strong> ${orderGroup[0].customer_name}</p>`;
                 let tableHTML = `<table><thead><tr>
                         <th>Item UID</th><th>ชื่อสินค้า</th><th>รายละเอียด</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th>
                         <th>ลายเส้น</th><th>ฟอนต์</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th>
@@ -2357,14 +2675,14 @@
                 orderGroup.forEach(item => {
                     tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
                         <td><strong>${item.item_uid || ''}</strong></td>
-                        <td>${item[columnHeaders.productName] || ''}</td>
-                        <td>${item[columnHeaders.details] || ''}</td>
-                        <td>${item[columnHeaders.inkColor] || ''}</td>
+                        <td>${item.product_name || ''}</td>
+                        <td>${item.details || ''}</td>
+                        <td>${item.ink_color || ''}</td>
                         <td>${item.shelf_location || ''}</td>
                         <td>${item.cartoon_pattern || ''}</td>
                         <td>${item.line_pattern || ''}</td>
-                        <td>${item[columnHeaders.font] || ''}</td>
-                        <td>${item[columnHeaders.notes] || ''}</td>
+                        <td>${item.font || ''}</td>
+                        <td>${item.notes || ''}</td>
                         <td>${item.file_attachment || ''}</td>
                     </tr>`;
                 });
@@ -2377,22 +2695,82 @@
                 updateActiveNavItem();
             }
 
-            function confirmShipment() {
+            async function resetCurrentOrderPacking() {
+                if (currentIndex < 0 || !currentWorkOrderName) return;
+                if (!confirm('คุณต้องการรีเซ็ตการแพ็คสำหรับออร์เดอร์นี้ (แพ็คใหม่) หรือไม่?')) return;
+
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const currentOrderGroup = aggregatedData[currentIndex];
+                    const itemUidsToReset = currentOrderGroup.map(item => item.item_uid);
+
+                    // Update database
+                    const { error } = await supabaseClient
+                        .from('order_items')
+                        .update({ packing_status: null, item_scan_time: null })
+                        .in('item_uid', itemUidsToReset);
+                    
+                    if (error) throw error;
+
+                    // Update local state
+                    currentOrderGroup.forEach(item => {
+                        item.scanned = false;
+                        item.itemScanTime = null;
+                        if (packingState[currentWorkOrderName] && packingState[currentWorkOrderName].items) {
+                            delete packingState[currentWorkOrderName].items[item.item_uid];
+                        }
+                    });
+                    savePackingState();
+
+                    alert('รีเซ็ตการแพ็คสำหรับออร์เดอร์นี้เรียบร้อย');
+                    displayOrder(currentIndex); // This will re-render with sorted items
+
+                } catch (err) {
+                    alert('เกิดข้อผิดพลาดในการรีเซ็ต: ' + err.message);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
+            async function confirmShipment() {
                 const confirmationValue = confirmationInput.value.trim();
                 if (!confirmationValue || completedIndices.has(currentIndex) || currentIndex < 0) return;
                 
-                const currentTrackingId = String(aggregatedData[currentIndex][0][columnHeaders.tracking]).trim();
+                const currentOrderGroup = aggregatedData[currentIndex];
+                const currentTrackingId = String(currentOrderGroup[0].tracking_number).trim();
+                const currentOrderId = currentOrderGroup[0].order_id;
+                
                 if (confirmationValue === currentTrackingId) {
-                    const timestamp = getTimestamp();
-                    allOrdersForPacking.forEach(item => { if (String(item[columnHeaders.tracking]).trim() === currentTrackingId) { item[columnHeaders.shipped] = true; item[columnHeaders.shippedTime] = timestamp; }});
+                    confirmationInput.value = ""; // Clear input immediately
+                    const timestamp = new Date().toISOString();
+                    
+                    const { error } = await supabaseClient.from('orders').update({
+                        shipped_by: loggedInUsername,
+                        shipped_time: timestamp
+                    }).eq('id', currentOrderId);
+
+                    if (error) {
+                        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลการจัดส่ง: ' + error.message);
+                        errorSound.play();
+                        return;
+                    }
+
                     completedIndices.add(currentIndex);
+                    if(packingState[currentWorkOrderName]){
+                        packingState[currentWorkOrderName].completedIndices = Array.from(completedIndices);
+                        currentOrderGroup.forEach(item => {
+                            delete packingState[currentWorkOrderName].items[item.item_uid];
+                        });
+                        savePackingState();
+                    }
+                    
                     markNavItemAsComplete(currentIndex, true);
                     updateStatus("✅ จัดส่งสำเร็จ! กำลังไปรายการถัดไป...", "success");
                     successSound.play();
                     
                     setTimeout(async () => {
                         if (completedIndices.size === aggregatedData.length) {
-                             if (confirm(`ใบงาน "${currentWorkOrderName}" จัดของเสร็จสมบูรณ์แล้ว\nต้องการย้ายบิลทั้งหมดไปสถานะ "จัดส่งแล้ว" หรือไม่?`)) {
+                             if (confirm(`ใบงาน "${currentWorkOrderName}" จัดของเสร็จสมบูรณ์แล้ว\nต้องการย้ายบิลทั้งหมดและใบงานไปสถานะ "จัดส่งแล้ว" หรือไม่?`)) {
                                 await finalizeWorkOrderAndMoveStatus(currentWorkOrderName);
                             } else {
                                 updateStatus("🎉 ยอดเยี่ยม! จัดส่งครบทุกออเดอร์แล้ว", "success");
@@ -2414,7 +2792,7 @@
                 }
             }
 
-            const scanItem = () => {
+            async function scanItem() {
                 const scanValue = itemScanInput.value.trim();
                 if (!scanValue || currentIndex < 0) return;
                 
@@ -2422,10 +2800,27 @@
                 const itemToScan = currentOrderGroup.find(item => !item.scanned && item.item_uid === scanValue);
 
                 if (itemToScan) {
+                    itemScanInput.value = ""; // Clear input immediately
+                    const timestamp = new Date().toISOString();
+                    
+                    const { error } = await supabaseClient.from('order_items').update({
+                        item_scan_time: timestamp,
+                        packing_status: 'สแกนแล้ว'
+                    }).eq('item_uid', itemToScan.item_uid);
+                    
+                    if (error) {
+                        alert('เกิดข้อผิดพลาดในการบันทึกเวลาสแกน: ' + error.message);
+                        errorSound.play();
+                        return;
+                    }
+
                     successSound.play();
                     itemToScan.scanned = true;
-                    itemToScan[columnHeaders.itemScanTime] = getTimestamp();
-                    itemScanInput.value = "";
+                    itemToScan.itemScanTime = timestamp;
+                    if(!packingState[currentWorkOrderName]) packingState[currentWorkOrderName] = { completedIndices: [], items: {} };
+                    packingState[currentWorkOrderName].items[itemToScan.item_uid] = { scanned: true, itemScanTime: timestamp };
+                    savePackingState();
+
                     const row = resultContainer.querySelector(`tr[data-item-uid="${itemToScan.item_uid}"]`);
                     if(row) row.classList.add('item-scanned');
                     updateInputStates();
@@ -2437,10 +2832,20 @@
                 }
             };
             
-            function showPackingView(view) { if (view === 'selection') { selectionView.style.display = "block"; mainView.style.display = "none"; } else { selectionView.style.display = "none"; mainView.style.display = "block"; } }
-            const getTimestamp = () => { const now = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`; };
-            const exportToExcel = () => { if (allOrdersForPacking.length === 0) { alert("ไม่มีข้อมูลสำหรับ Export"); return; } const dataToExport = JSON.parse(JSON.stringify(allOrdersForPacking)); dataToExport.forEach(d => delete d.scanned); const worksheet = XLSX.utils.json_to_sheet(dataToExport); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Updated Data"); XLSX.writeFile(workbook, `Updated_Packing_List_${getTimestamp().replace(/[:\s-]/g, "")}.xlsx`); };
-            const filterNavList = () => { const searchTerm = searchInput.value.trim().toLowerCase(); container.querySelectorAll(".order-item").forEach(item => { item.style.display = item.dataset.trackingId.toLowerCase().includes(searchTerm) ? "" : "none"; }); };
+            function showPackingView(view) { 
+                if (view === 'selection') {
+                    currentWorkOrderName = null; 
+                    selectionView.style.display = "block";
+                    mainView.style.display = "none"; 
+                } else { 
+                    selectionView.style.display = "none";
+                    mainView.style.display = "block"; 
+                } 
+            }
+
+            const getTimestamp = () => new Date().toISOString();
+            const exportToExcel = () => { /* ... (existing code) ... */ };
+            const filterNavList = () => { /* ... (existing code) ... */ };
             const updateInputStates = () => { if (currentIndex < 0) return; const allScanned = aggregatedData[currentIndex].every(item => item.scanned); itemScanInput.disabled = allScanned; confirmationInput.disabled = !allScanned; if (allScanned) { updateStatus("สินค้าครบแล้ว! กรุณายืนยันการจัดส่ง", "success"); confirmationInput.focus(); } else { updateStatus(`รอสแกนสินค้า ${aggregatedData[currentIndex].filter(i => !i.scanned).length} ชิ้น...`, ""); itemScanInput.focus(); } };
             const updateCounter = () => { orderCounter.textContent = `สำเร็จ ${completedIndices.size} / ${aggregatedData.length} ออเดอร์`; };
             const updateActiveNavItem = () => { container.querySelectorAll(".order-item").forEach(item => item.classList.toggle("active", parseInt(item.dataset.index) === currentIndex)); };
@@ -2449,18 +2854,19 @@
 
             exportBtn.addEventListener("click", exportToExcel);
             searchInput.addEventListener("input", filterNavList);
-            itemScanInput.addEventListener("keyup", (e) => { if (e.key === "Enter") scanItem(); });
-            confirmationInput.addEventListener("keyup", (e) => { if (e.key === "Enter") confirmShipment(); });
+            itemScanInput.addEventListener("input", scanItem); // Changed from keyup to input for faster response
+            confirmationInput.addEventListener("input", confirmShipment); // Changed from keyup to input
             backBtn.addEventListener("click", () => {
                 showPackingView('selection');
-                currentWorkOrderName = null;
             });
+            resetBtn.addEventListener("click", resetCurrentOrderPacking);
 
             return { loadWorkOrdersForPacking };
         })();
 
         // --- PRODUCT SYSTEM MODULE ---
         window.productSystem = (() => {
+            let isInitialized = false;
             const container = document.getElementById('product-system-container');
             const addBtn = document.getElementById('add-product-btn');
             const importBtn = document.getElementById('import-product-btn');
@@ -2478,6 +2884,7 @@
             let allProductsData = [];
 
             function initializeApp() {
+                if(isInitialized) return;
                 addBtn.addEventListener('click', () => showProductModal());
                 importBtn.addEventListener('click', () => importInput.click());
                 importInput.addEventListener('change', (e) => handleProductImport(e.target.files[0]));
@@ -2492,6 +2899,8 @@
                     const isStamp = (e.target.value || '').toUpperCase().includes('STAMP');
                     rubberCodeGroup.style.display = isStamp ? 'block' : 'none';
                 });
+                loadProducts();
+                isInitialized = true;
             }
 
             async function loadProducts() {
@@ -2687,6 +3096,271 @@
             }
 
             return { initializeApp, loadProducts };
+        })();
+
+        // --- PLANNER SYSTEM MODULE ---
+        window.plannerSystem = (() => {
+            let isInitialized = false;
+            let container = null;
+            let currentUserRole = null;
+            let state = { jobs: [] };
+
+            const el = (sel, context = document) => context.querySelector(sel);
+            const cel = (tag, attrs = {}) => { const n = document.createElement(tag); for (const k in attrs) { if (k === 'text') n.textContent = attrs[k]; else n.setAttribute(k, attrs[k]); } return n; };
+            const sameDay = (d1, d2) => d1 === d2;
+
+            function setupEventListeners() {
+                el('#j_date').addEventListener('change', renderJobs);
+                el('#j_search').addEventListener('input', renderJobs);
+                el('#j_clear').addEventListener('click', () => { el('#j_date').value = ''; el('#j_search').value = ''; renderJobs(); });
+                el('#btnExportForSorting').addEventListener('click', exportJobsForSorting);
+                 el('#tableJobs').addEventListener('click', handleTableClick);
+            }
+
+            async function initializeApp(userRole) {
+                if (isInitialized && currentUserRole === userRole) {
+                    await internal_load();
+                    return;
+                }
+                container = el('#planner-system-container');
+                currentUserRole = userRole;
+
+                loadingOverlay.style.display = 'flex';
+                await internal_load();
+                loadingOverlay.style.display = 'none';
+
+                if (!isInitialized) {
+                    setupEventListeners();
+                    setupRealtimeSubscriptions();
+                }
+                
+                updateAccessControls();
+                isInitialized = true;
+            }
+
+            async function internal_load() {
+                try {
+                    const { data: jobsData, error: jobsError } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
+                    if (jobsError) throw new Error('Could not load jobs: ' + jobsError.message);
+                    state.jobs = jobsData || [];
+                } catch (e) {
+                    console.error("Critical error during planner load:", e);
+                    alert('ไม่สามารถโหลดข้อมูลใบงานได้! ' + e.message);
+                    state.jobs = [];
+                }
+                renderAll();
+            }
+            
+            function updateAccessControls() {
+                const unlocked = currentUserRole === 'superadmin';
+                container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => {
+                    elem.disabled = !unlocked;
+                });
+                renderAll();
+            }
+            
+            function renderAll() {
+                if (!container) return;
+                populateJobDateFilter();
+                renderJobs();
+            }
+
+            function populateJobDateFilter() {
+                const dateSelect = el('#j_date');
+                if (!dateSelect) return;
+                const uniqueDates = [...new Set(state.jobs.map(j => j.date))].sort().reverse();
+                const currentVal = dateSelect.value;
+                dateSelect.innerHTML = '<option value="">ทุกวัน</option>';
+                uniqueDates.forEach(d => dateSelect.add(new Option(d, d)));
+                if ([...dateSelect.options].some(o => o.value === currentVal)) dateSelect.value = currentVal;
+            }
+
+            function renderJobs() {
+                const tbody = el('#tableJobs tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                const qDate = el('#j_date').value;
+                const qStr = (el('#j_search').value || '').toLowerCase();
+                
+                const filteredJobs = state.jobs
+                    .filter(j => !qDate || sameDay(j.date, qDate))
+                    .filter(j => !qStr || j.name.toLowerCase().includes(qStr));
+
+                if (filteredJobs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">ไม่พบใบงานตามเงื่อนไข</td></tr>`;
+                    return;
+                }
+
+                filteredJobs.forEach(j => {
+                    const tr = cel('tr');
+                    tr.dataset.jobId = j.id;
+                    tr.innerHTML = `<td class="checkbox-cell"><input type="checkbox" class="job-checkbox" data-id="${j.id}"></td>`;
+                    const qtyCell = cel('td');
+                    const qtyContainer = cel('div', { class: 'qty-pills-container' });
+                    const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
+                    depts.forEach(d => {
+                        const q = j.qty?.[d] || 0;
+                        if (q > 0) qtyContainer.appendChild(cel('span', { class: 'pill', text: `${d}: ${q}` }));
+                    });
+                    qtyCell.appendChild(qtyContainer);
+                    
+                    let cutTimeText = j.cut || '-';
+                    if (cutTimeText && cutTimeText.length > 5) cutTimeText = cutTimeText.substring(0, 5);
+
+                    const nameCell = cel('td');
+                    nameCell.innerHTML = `<strong>${j.name}</strong>`;
+                    const dateCell = cel('td', { text: j.date });
+                    const cutCell = cel('td', { text: cutTimeText });
+                    const tdAct = cel('td');
+                    tdAct.innerHTML = `
+                        <button class="btn btn-warning btn-sm edit-job-btn" data-job-id="${j.id}">แก้ไข</button>
+                        <button class="btn btn-danger btn-sm delete-job-btn" data-job-id="${j.id}">ลบ</button>
+                    `;
+                    
+                    tr.append(nameCell, dateCell, cutCell, qtyCell, tdAct);
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function handleTableClick(e) {
+                const target = e.target;
+                if (target.classList.contains('edit-job-btn')) {
+                    const jobId = target.dataset.jobId;
+                    showJobEditor(jobId);
+                }
+                if (target.classList.contains('delete-job-btn')) {
+                    const jobId = target.dataset.jobId;
+                    deleteJob(jobId);
+                }
+            }
+            
+            async function deleteJob(jobId) {
+                const jobToDelete = state.jobs.find(j => j.id == jobId);
+                if(!jobToDelete) return;
+                if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบใบงาน "${jobToDelete.name}"?`)) return;
+                
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const { error } = await supabaseClient.from('jobs').delete().eq('id', jobId);
+                    if (error) throw error;
+                    alert('ลบใบงานสำเร็จ');
+                } catch(err) {
+                    alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+            
+            function showJobEditor(jobId) {
+                const job = state.jobs.find(j => j.id == jobId);
+                if (!job) return;
+
+                const formContainer = document.createElement('div');
+                formContainer.id = 'job-editor-modal-container'; 
+                formContainer.innerHTML = `
+                    <div class="modal-overlay" style="display: flex;">
+                        <div class="modal-content" style="max-width: 600px;">
+                            <h2 id="job-editor-title">แก้ไขใบงาน: ${job.name}</h2>
+                            <div id="job-editor-form">
+                                <div class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                   <div class="planner-form-group">
+                                       <label for="edit_j_date">วันที่</label>
+                                       <input type="date" id="edit_j_date" value="${job.date}">
+                                   </div>
+                                   <div class="planner-form-group">
+                                       <label for="edit_j_cut">เวลาตัด</label>
+                                       <input type="time" id="edit_j_cut" value="${job.cut || ''}">
+                                   </div>
+                                </div>
+                                <h3 class="planner-section-title">จำนวนต่อแผนก</h3>
+                                <div id="edit_j_qty" class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px 20px;"></div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" id="edit_j_cancel">ยกเลิก</button>
+                                    <button type="button" class="btn btn-primary" id="edit_j_save">บันทึก</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(formContainer);
+
+                const qtyHost = formContainer.querySelector('#edit_j_qty');
+                const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
+                depts.forEach(d => {
+                    const qty = job.qty?.[d] || 0;
+                    const div = cel('div', { class: 'planner-qty-group' });
+                    div.innerHTML = `
+                        <label>${d}</label>
+                        <input type="number" class="edit-qty" data-dept="${d}" value="${qty}" min="0">
+                    `;
+                    qtyHost.appendChild(div);
+                });
+
+                const closeModal = () => document.body.removeChild(formContainer);
+
+                formContainer.querySelector('#edit_j_save').onclick = async () => {
+                    const newQty = {};
+                    qtyHost.querySelectorAll('.edit-qty').forEach(inp => {
+                        newQty[inp.dataset.dept] = parseInt(inp.value, 10) || 0;
+                    });
+                    const updates = {
+                        date: formContainer.querySelector('#edit_j_date').value,
+                        cut: formContainer.querySelector('#edit_j_cut').value,
+                        qty: newQty,
+                    };
+                    loadingOverlay.style.display = 'flex';
+                    const { error } = await supabaseClient.from('jobs').update(updates).eq('id', jobId);
+                    loadingOverlay.style.display = 'none';
+                    if (error) {
+                        alert('การอัปเดตข้อมูลล้มเหลว: ' + error.message);
+                    } else {
+                        alert('อัปเดตสำเร็จ');
+                        closeModal();
+                    }
+                };
+                formContainer.querySelector('#edit_j_cancel').onclick = closeModal;
+                formContainer.querySelector('.modal-overlay').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) closeModal();
+                });
+            }
+
+            function exportJobsForSorting() {
+                const qDate = el('#j_date').value;
+                const qStr = (el('#j_search').value || '').toLowerCase();
+
+                const filteredJobs = state.jobs
+                    .filter(j => !qDate || sameDay(j.date, qDate))
+                    .filter(j => !qStr || j.name.toLowerCase().includes(qStr))
+                    .sort((a, b) => (a.date.localeCompare(b.date)) || (a.order_index - b.order_index));
+
+                if (filteredJobs.length === 0) {
+                    alert('ไม่พบใบงานที่ตรงกับตัวกรองสำหรับ Export');
+                    return;
+                }
+                const headers = ['date', 'name', 'cut', 'STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
+                const dataToExport = filteredJobs.map(job => {
+                    const qty = job.qty || {};
+                    return [
+                        job.date, job.name, job.cut || '',
+                        qty.STAMP || 0, qty.STK || 0, qty.CTT || 0,
+                        qty.LASER || 0, qty.TUBE || 0, qty.PACK || 0
+                    ];
+                });
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs");
+                const today = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(workbook, `Jobs_For_Sorting_${today}.xlsx`);
+            }
+
+            function setupRealtimeSubscriptions() {
+                const jobChannel = supabaseClient.channel('public:jobs');
+                jobChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, async (payload) => {
+                    await internal_load();
+                }).subscribe();
+            }
+
+            return { initializeApp };
         })();
         
         // --- INITIAL LOAD ---
