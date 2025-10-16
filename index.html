@@ -207,7 +207,7 @@
         #planner-system-container .checkbox-cell { width: 40px; text-align: center; }
         #planner-system-container tr.row-selected td { background-color: #fffbeb !important; }
         #planner-system-container .plan-time-hint { color: #9ca3af; font-weight: normal; font-size: 11px; }
-
+        
         /* --- NEW STYLES for Job Editor Modal --- */
         #job-editor-title {
             margin-top: 0;
@@ -314,9 +314,7 @@
                     <div class="container">
                         <h1>ระบบจัดการออร์เดอร์</h1>
                         <input type="file" id="tracking-file-input" style="display: none;" accept=".csv, text/csv">
-                        <input type="file" id="import-excel-input" style="display: none;" accept=".xlsx, .xls">
-                        <input type="file" id="import-pgtr-input" style="display: none;" accept=".xlsx, .xls">
-                        <input type="file" id="import-wy-input" style="display: none;" accept=".csv, .xlsx, .xls">
+                        <input type="file" id="import-orders-file-input" style="display: none;" accept=".csv, .xlsx, .xls">
                         
                         <div class="tabs">
                             <button class="tab-link active" data-tab="tab-create">สร้าง / แก้ไข</button>
@@ -340,9 +338,7 @@
                                 <h3>รายการสินค้า</h3>
                                 <div class="batch-actions">
                                     <button type="button" id="download-template-btn" class="btn btn-info">📥 Download Template</button>
-                                    <button type="button" id="import-excel-btn" class="btn btn-success">📤 Import Multiple Orders</button>
-                                    <button type="button" id="import-pgtr-btn" class="btn btn-primary">📤 Import PGTR</button>
-                                    <button type="button" id="import-wy-btn" class="btn" style="background-color: #9C27B0; color: white;">📤 Import WY</button>
+                                    <button type="button" id="import-orders-btn" class="btn btn-success">📤 Import Orders from File</button>
                                 </div>
                                 <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
                                 <h3>ข้อมูลการชำระเงิน</h3>
@@ -685,11 +681,8 @@
             const workOrdersTab = container.querySelector('#tab-work-orders');
             const workOrdersListContainer = document.getElementById('work-orders-list-container');
             const downloadTemplateBtn = document.getElementById('download-template-btn');
-            const importExcelBtn = document.getElementById('import-excel-btn');
-            const importExcelInput = document.getElementById('import-excel-input');
-            const importPgtrBtn = document.getElementById('import-pgtr-btn');
-            const importPgtrInput = document.getElementById('import-pgtr-input');
-            const importWyInput = document.getElementById('import-wy-input');
+            const importOrdersBtn = document.getElementById('import-orders-btn');
+            const importOrdersFileInput = document.getElementById('import-orders-file-input');
             let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
 
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
@@ -1070,6 +1063,27 @@
                 }
                 return null;
             };
+            
+            // Function to convert Excel serial date to JS Date object
+            function excelDateToJSDate(serial) {
+                if (typeof serial !== 'number' || isNaN(serial)) return null;
+                // Excel's epoch is 1899-12-30, not 1900-01-01, due to a bug.
+                const utc_days = Math.floor(serial - 25569);
+                const utc_value = utc_days * 86400;                                        
+                const date_info = new Date(utc_value * 1000);
+
+                const fractional_day = serial - Math.floor(serial) + 0.0000001;
+
+                let total_seconds = Math.floor(86400 * fractional_day);
+
+                const seconds = total_seconds % 60;
+                total_seconds -= seconds;
+
+                const hours = Math.floor(total_seconds / (60 * 60));
+                const minutes = Math.floor(total_seconds / 60) % 60;
+
+                return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+            }
 
             function handleExcelImport(file) {
                 if (!file) return;
@@ -1082,7 +1096,7 @@
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         
-                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false }); // raw: false to get formatted strings
 
                         if (rowsData.length <= 1) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
 
@@ -1095,17 +1109,39 @@
                             
                             const channelCode = String(row[0]).trim();
                             const customerName = String(row[1]).trim();
-                            const productNameOrCode = String(row[8]).trim();
+                            const productNameOrCode = String(row[10]).trim();
 
                             if (channelCode && customerName) {
                                 const price = parseFloat(row[3]) || 0;
                                 const shippingCost = parseFloat(row[4]) || 0;
                                 const discount = parseFloat(row[5]) || 0;
+
+                                let paymentDate = row[8] ? String(row[8]).trim() : null;
+                                let paymentTime = row[9] ? String(row[9]).trim() : null;
+
+                                // Attempt to parse Excel date/time if it's a number
+                                if (paymentDate && !isNaN(paymentDate)) {
+                                    const jsDate = excelDateToJSDate(parseFloat(paymentDate));
+                                    if(jsDate) {
+                                        paymentDate = jsDate.toISOString().split('T')[0];
+                                    }
+                                }
+                                if (paymentTime && !isNaN(paymentTime)) {
+                                     const jsDate = excelDateToJSDate(parseFloat(paymentTime));
+                                     if(jsDate) {
+                                         paymentTime = jsDate.toTimeString().split(' ')[0].substring(0,5);
+                                     }
+                                }
                                 
                                 currentOrder = {
-                                    channel_code: channelCode, customer_name: customerName, customer_address: String(row[2]),
+                                    channel_code: channelCode,
+                                    customer_name: customerName,
+                                    customer_address: String(row[2]),
                                     price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
-                                    payment_method: String(row[6]), promotion: String(row[7]),
+                                    payment_method: String(row[6]),
+                                    promotion: String(row[7]),
+                                    payment_date: paymentDate,
+                                    payment_time: paymentTime,
                                     admin_user: loggedInUsername, 
                                     status: 'ลงข้อมูลเสร็จสิ้น',
                                     entry_date: new Date().toISOString().slice(0, 10),
@@ -1124,14 +1160,14 @@
                                     console.warn(`ไม่พบสินค้า '${productNameOrCode}' ที่แถว ${i+1} - จะถูกข้ามไป`);
                                     continue;
                                 }
-
+                                
                                 const itemData = {
                                     product_id: product.id, product_name: product.product_name,
-                                    ink_color: String(row[9]), product_type: String(row[10]), cartoon_pattern: String(row[11]),
-                                    line_pattern: String(row[12]), font: String(row[13]), line_1: String(row[14]),
-                                    line_2: String(row[15]), line_3: String(row[16]), 
-                                    quantity: parseInt(row[17]) || 1, 
-                                    notes: String(row[18]), file_attachment: String(row[19])
+                                    ink_color: String(row[11]), product_type: String(row[12]), cartoon_pattern: String(row[13]),
+                                    line_pattern: String(row[14]), font: String(row[15]), line_1: String(row[16]),
+                                    line_2: String(row[17]), line_3: String(row[18]), 
+                                    quantity: parseInt(row[19]) || 1, 
+                                    notes: String(row[20]), file_attachment: String(row[21])
                                 };
                                 currentOrder.items.push(itemData);
                             }
@@ -1147,7 +1183,7 @@
                         console.error('Error importing Excel file:', err);
                         alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
                     } finally {
-                        importExcelInput.value = '';
+                        importOrdersFileInput.value = '';
                     }
                 };
                 reader.readAsArrayBuffer(file);
@@ -1246,7 +1282,7 @@
                         console.error('Error importing PGTR file:', err);
                         alert('เกิดข้อผิดพลาดในการอ่านไฟล์ PGTR: ' + err.message);
                     } finally {
-                        importPgtrInput.value = '';
+                        importOrdersFileInput.value = '';
                     }
                 };
                 reader.readAsArrayBuffer(file);
@@ -1306,7 +1342,7 @@
 
                             const currentOrder = ordersMap.get(billNo);
                             const productCode = String(row['รหัส']).trim();
-                            const product = fullProductList.find(p => p.product_code.toLowerCase() === productCode.toLowerCase());
+                            const product = fullProductList.find(p => p.product_name.toLowerCase() === productCode.toLowerCase());
                             
                             if (product) {
                                 const itemData = {
@@ -1333,7 +1369,56 @@
                         console.error('Error importing WY file:', err);
                         alert('เกิดข้อผิดพลาดในการอ่านไฟล์ WY: ' + err.message);
                     } finally {
-                        importWyInput.value = '';
+                        importOrdersFileInput.value = '';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            // --- NEW: Smart Import Handler ---
+            function handleSmartImport(file) {
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', bookFiles: true });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                        if (jsonData.length === 0) {
+                            throw new Error("ไฟล์ที่เลือกไม่มีข้อมูล");
+                        }
+
+                        const firstRow = jsonData[0];
+                        const headers = Object.keys(firstRow);
+
+                        // Check for PGTR format (Order number starts with S2Y)
+                        const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']);
+                        if (orderNumberHeader && String(firstRow[orderNumberHeader]).toUpperCase().startsWith('S2Y')) {
+                            console.log("PGTR format detected.");
+                            handlePgtrImport(file);
+                            return;
+                        }
+
+                        // Check for WY format (Bill number starts with WY)
+                        const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']);
+                        if (billNoHeader && String(firstRow[billNoHeader]).toUpperCase().startsWith('WY')) {
+                             console.log("WY format detected.");
+                             handleWyImport(file);
+                             return;
+                        }
+
+                        // Otherwise, assume it's the standard template
+                        console.log("Standard template format detected.");
+                        handleExcelImport(file);
+
+                    } catch (err) {
+                        console.error('Error detecting file type:', err);
+                        alert("ไม่สามารถระบุประเภทของไฟล์ได้ หรือไฟล์อาจมีรูปแบบไม่ถูกต้อง: " + err.message);
+                        importOrdersFileInput.value = ''; // Reset file input
                     }
                 };
                 reader.readAsArrayBuffer(file);
@@ -2430,15 +2515,8 @@
                 });
                 
                 downloadTemplateBtn.addEventListener('click', downloadOrderTemplate);
-                importExcelBtn.addEventListener('click', () => importExcelInput.click());
-                importExcelInput.addEventListener('change', (e) => handleExcelImport(e.target.files[0]));
-                
-                importPgtrBtn.addEventListener('click', () => importPgtrInput.click());
-                importPgtrInput.addEventListener('change', (e) => handlePgtrImport(e.target.files[0]));
-
-                const importWyBtn = document.getElementById('import-wy-btn');
-                importWyBtn.addEventListener('click', () => importWyInput.click());
-                importWyInput.addEventListener('change', (e) => handleWyImport(e.target.files[0]));
+                importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click());
+                importOrdersFileInput.addEventListener('change', (e) => handleSmartImport(e.target.files[0]));
                 
                 document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล'));
                 document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น'));
