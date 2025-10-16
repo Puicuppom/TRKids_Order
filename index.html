@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TR Kids - Integrated Management System</title>
+    <title>TR Kids - Order Management System</title>
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -1259,13 +1259,31 @@
                                 const discount = parseFloat(row["ส่วนลด admin"]) || 0;
                                 
                                 let paymentDate = null;
+                                let paymentTime = null;
+
                                 if (paymentDateHeader && row[paymentDateHeader]) {
-                                    const dateParts = String(row[paymentDateHeader]).split('/');
-                                    if (dateParts.length === 3) {
-                                        paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                                    const rawDate = row[paymentDateHeader];
+                                    if (typeof rawDate === 'number' && !isNaN(rawDate)) {
+                                        const jsDate = excelDateToJSDate(rawDate);
+                                        if (jsDate) paymentDate = jsDate.toISOString().split('T')[0];
+                                    } else if (typeof rawDate === 'string' && rawDate.trim() !== '') {
+                                        const dateParts = rawDate.trim().split('/');
+                                        if (dateParts.length === 3 && dateParts[2].length === 4) {
+                                            paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                                        }
                                     }
                                 }
                                 
+                                if (paymentTimeHeader && row[paymentTimeHeader]) {
+                                    const rawTime = row[paymentTimeHeader];
+                                    if (typeof rawTime === 'number' && !isNaN(rawTime) && rawTime < 1) {
+                                        const jsDate = excelDateToJSDate(rawTime);
+                                        if(jsDate) paymentTime = jsDate.toTimeString().split(' ')[0].substring(0, 5);
+                                    } else if (typeof rawTime === 'string' && rawTime.trim() !== '') {
+                                        paymentTime = rawTime.trim().substring(0, 5);
+                                    }
+                                }
+
                                 const orderData = {
                                     bill_no: orderNumber,
                                     channel_code: 'PGTR',
@@ -1274,7 +1292,7 @@
                                     price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
                                     payment_method: "โอน", promotion: "",
                                     payment_date: paymentDate,
-                                    payment_time: (paymentTimeHeader && row[paymentTimeHeader]) ? String(row[paymentTimeHeader]).substring(0, 5) : null,
+                                    payment_time: paymentTime,
                                     admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
@@ -1366,18 +1384,34 @@
                                 let paymentDate = null;
                                 let paymentTime = null;
                                 if (dateTimeHeader && row[dateTimeHeader]) {
-                                    try {
-                                        const dateTimeString = String(row[dateTimeHeader]);
-                                        const parts = dateTimeString.split(' ');
-                                        if (parts.length >= 2) {
-                                            const dateParts = parts[0].split('/');
-                                            if (dateParts.length === 3) {
-                                                paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
-                                            }
-                                            paymentTime = parts[1].substring(0, 5);
+                                    const rawValue = row[dateTimeHeader];
+                                    if (typeof rawValue === 'number' && !isNaN(rawValue)) {
+                                        const jsDate = excelDateToJSDate(rawValue);
+                                        if (jsDate) {
+                                            paymentDate = jsDate.toISOString().split('T')[0];
+                                            paymentTime = jsDate.toTimeString().split(' ')[0].substring(0, 5);
                                         }
-                                    } catch (dateErr) {
-                                        console.warn(`Could not parse date for bill ${billNo}:`, row[dateTimeHeader]);
+                                    } else if (typeof rawValue === 'string' && rawValue.trim() !== '') {
+                                        try {
+                                            const dateTimeString = rawValue.trim();
+                                            const parts = dateTimeString.split(/\s+/);
+                                            if (parts.length >= 2) {
+                                                const dateParts = parts[0].split('/');
+                                                if (dateParts.length === 3) {
+                                                    const day = dateParts[0];
+                                                    const month = dateParts[1];
+                                                    const year = dateParts[2];
+                                                    if (year.length === 4 && !isNaN(parseInt(year))) {
+                                                       paymentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                                                    }
+                                                }
+                                                if (/^\d{1,2}:\d{2}/.test(parts[1])) {
+                                                    paymentTime = parts[1].substring(0, 5);
+                                                }
+                                            }
+                                        } catch (dateErr) {
+                                            console.warn(`Could not parse date string for bill ${billNo}:`, rawValue);
+                                        }
                                     }
                                 }
 
