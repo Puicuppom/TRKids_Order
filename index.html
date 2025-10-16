@@ -702,6 +702,7 @@
             const totalAmountEl = document.getElementById('total_amount');
             const paymentDateEl = document.getElementById('payment_date');
             const paymentTimeEl = document.getElementById('payment_time');
+            const paymentMethodEl = document.getElementById('payment_method'); // <-- Added payment method element
 
             const monthMap = {
                 '01': ['มกราคม', 'มค', 'ม.ค.', 'january', 'jan'],
@@ -792,6 +793,11 @@
                     await worker.terminate();
                     
                     const slipData = extractSlipInfo(text);
+
+                    // If any data is found, consider it a valid slip and set payment method to "Transfer"
+                    if (slipData.date || slipData.time || slipData.amount) {
+                        paymentMethodEl.value = 'โอน';
+                    }
 
                     // Auto-fill form
                     if (slipData.date) {
