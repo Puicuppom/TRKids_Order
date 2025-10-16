@@ -67,6 +67,9 @@
         #order-system-container .btn-edit-tracking { background: transparent; border: none; cursor: pointer; padding: 0 5px; font-size: 14px; }
         #order-system-container .tracking-edit-container { display: flex; gap: 5px; align-items: center; }
         #order-system-container .tracking-input { padding: 4px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 1; min-width: 100px; }
+        .channel-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; min-height: 50px; align-items: center; }
+        .channel-summary-item { background-color: #0071e3; color: white; padding: 6px 14px; border-radius: 16px; font-size: 14px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .channel-summary-placeholder { color: #6c757d; font-style: italic; }
 
         /* --- PACKING SYSTEM SPECIFIC STYLES --- */
         #packing-system-container{padding:0}#packing-system-container .header{text-align:center;padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:0}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 100px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:#28a745}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:#0071e3}#packing-main-view #confirmation-input{border-color:#28a745}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:#28a745}#packing-main-view .status-error{color:#dc3545}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
@@ -361,7 +364,21 @@
                             </form>
                         </div>
                         <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
-                        <div id="tab-complete" class="tab-content"><div class="tab-filter"><label for="filter-complete">กรองตามช่องทาง:</label><select id="filter-complete"></select><input type="text" id="search-complete" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button><button id="move-to-waiting-btn" class="btn btn-warning">ย้ายไป "รอลงข้อมูล"</button><button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+                        <div id="tab-complete" class="tab-content">
+                            <div class="tab-filter">
+                                <label for="filter-complete">กรองตามช่องทาง:</label>
+                                <select id="filter-complete"></select>
+                                <input type="text" id="search-complete" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ...">
+                            </div>
+                            <div id="channel-summary-container" class="channel-summary"></div>
+                            <div class="batch-actions">
+                                <button id="select-all-complete-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
+                                <button id="create-work-order-btn" class="btn btn-success">สร้างใบงานจากที่เลือก</button>
+                                <button id="move-to-waiting-btn" class="btn btn-warning">ย้ายไป "รอลงข้อมูล"</button>
+                                <button id="cancel-selected-complete-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button>
+                            </div>
+                            <ul class="order-list"></ul>
+                        </div>
                         <div id="tab-work-orders" class="tab-content">
                             <div id="work-orders-list-container"></div>
                         </div>
@@ -760,6 +777,29 @@
                 const filters = { waiting: container.querySelector('#filter-waiting').value, complete: container.querySelector('#filter-complete').value, cancelled: container.querySelector('#filter-cancelled').value, shipped: container.querySelector('#filter-shipped').value };
                 const lists = { 'รอลงข้อมูล': container.querySelector('#tab-waiting .order-list'), 'ลงข้อมูลเสร็จสิ้น': container.querySelector('#tab-complete .order-list'), 'ยกเลิก': container.querySelector('#tab-cancelled .order-list'), 'จัดส่งแล้ว': container.querySelector('#tab-shipped .order-list') };
                 
+                const summaryContainer = container.querySelector('#channel-summary-container');
+                if (summaryContainer) {
+                    const completedOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น');
+                    const channelCounts = completedOrders.reduce((acc, order) => {
+                        const channel = order.channel_code || 'N/A';
+                        acc[channel] = (acc[channel] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    summaryContainer.innerHTML = '';
+                    const sortedChannels = Object.keys(channelCounts).sort();
+
+                    if (sortedChannels.length > 0) {
+                        let summaryHTML = '';
+                        for (const channel of sortedChannels) {
+                            summaryHTML += `<span class="channel-summary-item">${channel}: ${channelCounts[channel]} บิล</span>`;
+                        }
+                        summaryContainer.innerHTML = summaryHTML;
+                    } else {
+                        summaryContainer.innerHTML = `<span class="channel-summary-placeholder">ไม่มีบิลที่รอสร้างใบงาน</span>`;
+                    }
+                }
+                
                 workOrdersListContainer.innerHTML = '';
                 Object.values(lists).forEach(list => { if(list) list.innerHTML = ''; });
 
@@ -1064,24 +1104,17 @@
                 return null;
             };
             
-            // Function to convert Excel serial date to JS Date object
             function excelDateToJSDate(serial) {
                 if (typeof serial !== 'number' || isNaN(serial)) return null;
-                // Excel's epoch is 1899-12-30, not 1900-01-01, due to a bug.
                 const utc_days = Math.floor(serial - 25569);
                 const utc_value = utc_days * 86400;                                        
                 const date_info = new Date(utc_value * 1000);
-
                 const fractional_day = serial - Math.floor(serial) + 0.0000001;
-
                 let total_seconds = Math.floor(86400 * fractional_day);
-
                 const seconds = total_seconds % 60;
                 total_seconds -= seconds;
-
                 const hours = Math.floor(total_seconds / (60 * 60));
                 const minutes = Math.floor(total_seconds / 60) % 60;
-
                 return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
             }
 
@@ -1096,7 +1129,7 @@
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         
-                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false }); // raw: false to get formatted strings
+                        const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false });
 
                         if (rowsData.length <= 1) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
 
@@ -1118,33 +1151,26 @@
 
                                 let paymentDate = row[8] ? String(row[8]).trim() : null;
                                 let paymentTime = row[9] ? String(row[9]).trim() : null;
-
-                                // Attempt to parse Excel date/time if it's a number
-                                if (paymentDate && !isNaN(paymentDate)) {
-                                    const jsDate = excelDateToJSDate(parseFloat(paymentDate));
+                                
+                                if (paymentDate && !isNaN(paymentDate) && Number(paymentDate) > 1) {
+                                    const jsDate = excelDateToJSDate(Number(paymentDate));
                                     if(jsDate) {
                                         paymentDate = jsDate.toISOString().split('T')[0];
                                     }
                                 }
-                                if (paymentTime && !isNaN(paymentTime)) {
-                                     const jsDate = excelDateToJSDate(parseFloat(paymentTime));
+                                if (paymentTime && !isNaN(paymentTime) && Number(paymentTime) < 1) {
+                                     const jsDate = excelDateToJSDate(Number(paymentTime));
                                      if(jsDate) {
                                          paymentTime = jsDate.toTimeString().split(' ')[0].substring(0,5);
                                      }
                                 }
                                 
                                 currentOrder = {
-                                    channel_code: channelCode,
-                                    customer_name: customerName,
-                                    customer_address: String(row[2]),
+                                    channel_code: channelCode, customer_name: customerName, customer_address: String(row[2]),
                                     price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
-                                    payment_method: String(row[6]),
-                                    promotion: String(row[7]),
-                                    payment_date: paymentDate,
-                                    payment_time: paymentTime,
-                                    admin_user: loggedInUsername, 
-                                    status: 'ลงข้อมูลเสร็จสิ้น',
-                                    entry_date: new Date().toISOString().slice(0, 10),
+                                    payment_method: String(row[6]), promotion: String(row[7]),
+                                    payment_date: paymentDate, payment_time: paymentTime,
+                                    admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
                                 processedOrders.push(currentOrder);
@@ -1199,12 +1225,14 @@
                         const workbook = XLSX.read(data, { type: 'array' });
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {raw: false});
 
                         if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
                         
                         const headers = Object.keys(jsonData[0]);
                         const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']);
+                        const paymentDateHeader = findHeader(headers, ['วันที่สั่งซื้อ']);
+                        const paymentTimeHeader = findHeader(headers, ['เวลา']);
 
                         if(!orderNumberHeader){
                             throw new Error("ไม่พบคอลัมน์ 'เลขออร์เดอร์' ในไฟล์");
@@ -1214,10 +1242,7 @@
 
                         for (const row of jsonData) {
                             const orderNumberRaw = String(row[orderNumberHeader] || '').trim();
-                            if (!orderNumberRaw) {
-                                console.warn("Skipping row with no order number:", row);
-                                continue;
-                            }
+                            if (!orderNumberRaw) continue;
                             
                             let orderNumber = orderNumberRaw;
                             const lastHyphenIndex = orderNumber.lastIndexOf('-');
@@ -1233,6 +1258,14 @@
                                 const shippingCost = parseFloat(row["ค่าขนส่ง"]) || 0;
                                 const discount = parseFloat(row["ส่วนลด admin"]) || 0;
                                 
+                                let paymentDate = null;
+                                if (paymentDateHeader && row[paymentDateHeader]) {
+                                    const dateParts = String(row[paymentDateHeader]).split('/');
+                                    if (dateParts.length === 3) {
+                                        paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                                    }
+                                }
+                                
                                 const orderData = {
                                     bill_no: orderNumber,
                                     channel_code: 'PGTR',
@@ -1240,6 +1273,8 @@
                                     customer_address: `${row["ชื่อสกุลผู้รับ"] || ''},${row["ที่อยู่เต็ม"] || ''},${row["โทรศัพท์"] || ''}`,
                                     price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount,
                                     payment_method: "โอน", promotion: "",
+                                    payment_date: paymentDate,
+                                    payment_time: (paymentTimeHeader && row[paymentTimeHeader]) ? String(row[paymentTimeHeader]).substring(0, 5) : null,
                                     admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
@@ -1304,6 +1339,7 @@
                         
                         const headers = Object.keys(jsonData[0]);
                         const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']);
+                        const dateTimeHeader = findHeader(headers, ['วันที่สั่งซื้อ']);
 
                         if(!billNoHeader){
                              throw new Error("ไม่พบคอลัมน์ 'เลขบิล' ในไฟล์");
@@ -1326,6 +1362,24 @@
                                     `ต.${row['แขวง/ตำบล'] || ''}`, `อ.${row['เขต/อำเภอ'] || ''}`,
                                     `จ.${row['จังหวัด'] || ''}`, `${row['เลขไปรษณีย์'] || ''}`
                                 ].filter(Boolean).join(', ');
+                                
+                                let paymentDate = null;
+                                let paymentTime = null;
+                                if (dateTimeHeader && row[dateTimeHeader]) {
+                                    try {
+                                        const dateTimeString = String(row[dateTimeHeader]);
+                                        const parts = dateTimeString.split(' ');
+                                        if (parts.length >= 2) {
+                                            const dateParts = parts[0].split('/');
+                                            if (dateParts.length === 3) {
+                                                paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                                            }
+                                            paymentTime = parts[1].substring(0, 5);
+                                        }
+                                    } catch (dateErr) {
+                                        console.warn(`Could not parse date for bill ${billNo}:`, row[dateTimeHeader]);
+                                    }
+                                }
 
                                 const orderData = {
                                     bill_no: billNo, channel_code: 'WY',
@@ -1334,6 +1388,8 @@
                                     price: price, shipping_cost: shippingCost, discount: discount,
                                     total_amount: parseFloat(row['ยอดสุทธิ']) || (price + shippingCost - discount),
                                     payment_method: 'โอน', promotion: row['โค้ดส่วนลด'] || '',
+                                    payment_date: paymentDate,
+                                    payment_time: paymentTime,
                                     admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
@@ -1341,8 +1397,8 @@
                             }
 
                             const currentOrder = ordersMap.get(billNo);
-                            const productCode = String(row['รหัส']).trim();
-                            const product = fullProductList.find(p => p.product_name.toLowerCase() === productCode.toLowerCase());
+                            const productNameFromFile = String(row['รหัส']).trim();
+                            const product = fullProductList.find(p => p.product_name.toLowerCase() === productNameFromFile.toLowerCase());
                             
                             if (product) {
                                 const itemData = {
@@ -1354,14 +1410,14 @@
                                 };
                                 currentOrder.items.push(itemData);
                             } else {
-                                console.warn(`ไม่พบสินค้า '${productCode}' สำหรับบิล ${billNo} - จะถูกข้ามไป`);
+                                console.warn(`ไม่พบสินค้า '${productNameFromFile}' สำหรับบิล ${billNo} - จะถูกข้ามไป`);
                             }
                         }
                         
                         const processedOrders = Array.from(ordersMap.values());
                         if (processedOrders.length === 0) throw new Error("ไม่พบข้อมูลออร์เดอร์ที่สมบูรณ์ในไฟล์");
 
-                        if (confirm(`พบ ${processedOrders.length} ออร์เดอร์ในไฟล์นี้ คุณต้องการดำเนินการนำเข้าใช่หรือไม่?`)) {
+                        if (confirm(`พบ ${processedOrders.length} ออร์เดอร์ในไฟล์ WY นี้ คุณต้องการดำเนินการนำเข้าใช่หรือไม่?`)) {
                              await processAndSaveImportedOrders(processedOrders, true);
                         }
 
@@ -1374,8 +1430,7 @@
                 };
                 reader.readAsArrayBuffer(file);
             }
-
-            // --- NEW: Smart Import Handler ---
+            
             function handleSmartImport(file) {
                 if (!file) return;
 
@@ -1395,30 +1450,27 @@
                         const firstRow = jsonData[0];
                         const headers = Object.keys(firstRow);
 
-                        // Check for PGTR format (Order number starts with S2Y)
                         const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']);
                         if (orderNumberHeader && String(firstRow[orderNumberHeader]).toUpperCase().startsWith('S2Y')) {
                             console.log("PGTR format detected.");
                             handlePgtrImport(file);
                             return;
                         }
-
-                        // Check for WY format (Bill number starts with WY)
+                        
                         const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']);
                         if (billNoHeader && String(firstRow[billNoHeader]).toUpperCase().startsWith('WY')) {
                              console.log("WY format detected.");
                              handleWyImport(file);
                              return;
                         }
-
-                        // Otherwise, assume it's the standard template
+                        
                         console.log("Standard template format detected.");
                         handleExcelImport(file);
 
                     } catch (err) {
                         console.error('Error detecting file type:', err);
                         alert("ไม่สามารถระบุประเภทของไฟล์ได้ หรือไฟล์อาจมีรูปแบบไม่ถูกต้อง: " + err.message);
-                        importOrdersFileInput.value = ''; // Reset file input
+                        importOrdersFileInput.value = '';
                     }
                 };
                 reader.readAsArrayBuffer(file);
@@ -1572,90 +1624,119 @@
             
             async function createWorkOrder() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-complete .order-list'));
-                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์อย่างน้อย 1 รายการ');
-                const firstOrder = allOrdersData.find(o => o.id == selectedIds[0]);
-                const channelCode = firstOrder.channel_code;
-                const today = new Date();
-                const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '');
-                const workOrderDate = today.toISOString().slice(0, 10);
-
-                if (!selectedIds.every(id => allOrdersData.find(o => o.id == id).channel_code === channelCode)) {
-                    return alert('กรุณาเลือกออร์เดอร์จากช่องทางเดียวกันเท่านั้น');
+                if (selectedIds.length === 0) {
+                    return alert('กรุณาเลือกออร์เดอร์อย่างน้อย 1 รายการ');
                 }
-                loadingOverlay.style.display = 'flex';
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('work_orders')
-                        .select('batch_number')
-                        .eq('channel_code', channelCode)
-                        .eq('production_date', workOrderDate)
-                        .order('batch_number', { ascending: false })
-                        .limit(1);
 
-                    if (error) throw error;
-                    
-                    const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0;
-                    const batchNumber = lastBatchNumber + 1;
-
-                    const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`;
-                    const { error: woError } = await supabaseClient.from('work_orders').insert({
-                        work_order_name: workOrderName,
-                        channel_code: channelCode,
-                        production_date: workOrderDate,
-                        batch_number: batchNumber,
-                        order_count: selectedIds.length,
-                        created_by: loggedInUsername,
-                        status: 'กำลังผลิต'
-                    });
-                    if (woError) throw woError;
-
-                    const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', selectedIds);
-                    if (updateError) throw updateError;
-                    
-                    // --- Auto Sync to Planner ---
-                    const billsInWorkOrder = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
-                    const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: 0 };
-                    qty.PACK = billsInWorkOrder.length;
-
-                    billsInWorkOrder.forEach(order => {
-                        (order.order_items || []).forEach(item => {
-                            const product = fullProductList.find(p => p.id === item.product_id);
-                            if (product && product.product_category) {
-                                const category = product.product_category.toUpperCase();
-                                if (category.includes('STAMP')) qty.STAMP++;
-                                if (category.includes('STK')) qty.STK++;
-                                if (category.includes('UV')) qty.CTT++;
-                                if (category.includes('LASER')) qty.LASER++;
-                                if (category.includes('TUBE')) qty.TUBE++;
-                            }
-                        });
-                    });
-                    
-                    const creationTime = new Date();
-                    const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`;
-
-                    const plannerJobData = {
-                        name: workOrderName,
-                        date: workOrderDate,
-                        cut: cutTime,
-                        qty: qty,
-                    };
-
-                    const { error: plannerError } = await supabaseClient.from('jobs').insert(plannerJobData);
-                    if (plannerError) {
-                        console.error('Failed to sync new work order to planner:', plannerError);
-                        alert(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่เกิดข้อผิดพลาดในการ Sync ไปยังระบบแผนผลิต: ${plannerError.message}`);
-                    } else {
-                        alert(`สร้างใบงาน "${workOrderName}" สำเร็จ!`);
+                const selectedOrders = allOrdersData.filter(o => selectedIds.includes(String(o.id)));
+                
+                const ordersByChannel = selectedOrders.reduce((acc, order) => {
+                    const channel = order.channel_code;
+                    if (!acc[channel]) {
+                        acc[channel] = [];
                     }
-                    
-                    await loadInitialData();
-                } catch (error) {
-                    console.error('Error creating work order:', error);
-                    alert(`เกิดข้อผิดพลาด: ${error.message}`);
-                } finally {
-                    loadingOverlay.style.display = 'none';
+                    acc[channel].push(order);
+                    return acc;
+                }, {});
+
+                const channelGroups = Object.keys(ordersByChannel);
+
+                let confirmationMessage = "คุณต้องการสร้างใบงานสำหรับ:\n";
+                channelGroups.forEach(channel => {
+                    confirmationMessage += `- ${channel}: ${ordersByChannel[channel].length} บิล\n`;
+                });
+                confirmationMessage += "\nดำเนินการต่อใช่หรือไม่?";
+
+                if (!confirm(confirmationMessage)) {
+                    return;
                 }
+
+                loadingOverlay.style.display = 'flex';
+                let successMessages = [];
+                let errorMessages = [];
+
+                for (const channelCode of channelGroups) {
+                    const groupSelectedIds = ordersByChannel[channelCode].map(o => o.id);
+                    try {
+                        const today = new Date();
+                        const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '');
+                        const workOrderDate = today.toISOString().slice(0, 10);
+
+                        const { data, error } = await supabaseClient
+                            .from('work_orders')
+                            .select('batch_number')
+                            .eq('channel_code', channelCode)
+                            .eq('production_date', workOrderDate)
+                            .order('batch_number', { ascending: false })
+                            .limit(1);
+
+                        if (error) throw error;
+                        
+                        const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0;
+                        const batchNumber = lastBatchNumber + 1;
+                        const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`;
+
+                        const { error: woError } = await supabaseClient.from('work_orders').insert({
+                            work_order_name: workOrderName,
+                            channel_code: channelCode,
+                            production_date: workOrderDate,
+                            batch_number: batchNumber,
+                            order_count: groupSelectedIds.length,
+                            created_by: loggedInUsername,
+                            status: 'กำลังผลิต'
+                        });
+                        if (woError) throw woError;
+
+                        const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', groupSelectedIds);
+                        if (updateError) throw updateError;
+                        
+                        const billsInWorkOrder = ordersByChannel[channelCode];
+                        const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: billsInWorkOrder.length };
+
+                        billsInWorkOrder.forEach(order => {
+                            (order.order_items || []).forEach(item => {
+                                const product = fullProductList.find(p => p.id === item.product_id);
+                                if (product && product.product_category) {
+                                    const category = product.product_category.toUpperCase();
+                                    if (category.includes('STAMP')) qty.STAMP++;
+                                    if (category.includes('STK')) qty.STK++;
+                                    if (category.includes('UV')) qty.CTT++;
+                                    if (category.includes('LASER')) qty.LASER++;
+                                    if (category.includes('TUBE')) qty.TUBE++;
+                                }
+                            });
+                        });
+                        
+                        const creationTime = new Date();
+                        const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`;
+
+                        const { error: plannerError } = await supabaseClient.from('jobs').insert({
+                            name: workOrderName,
+                            date: workOrderDate,
+                            cut: cutTime,
+                            qty: qty,
+                        });
+
+                        if (plannerError) {
+                            console.error('Failed to sync new work order to planner:', plannerError);
+                             throw new Error(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่ Sync ไปยัง Planner ล้มเหลว`);
+                        }
+                        
+                        successMessages.push(`สร้างใบงาน "${workOrderName}" สำเร็จ`);
+
+                    } catch (error) {
+                        console.error(`Error creating work order for channel ${channelCode}:`, error);
+                        errorMessages.push(`เกิดข้อผิดพลาดกับช่องทาง ${channelCode}: ${error.message}`);
+                    }
+                }
+                
+                loadingOverlay.style.display = 'none';
+                let finalAlertMessage = successMessages.join('\n');
+                if(errorMessages.length > 0) {
+                    finalAlertMessage += '\n\nข้อผิดพลาด:\n' + errorMessages.join('\n');
+                }
+                alert(finalAlertMessage);
+                await loadInitialData();
             }
 
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการยกเลิก'); if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกออร์เดอร์สำเร็จ!'); await loadInitialData(); } catch (error) { alert(`เกิดข้อผิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
@@ -1742,9 +1823,9 @@
                                 const category = product.product_category.toUpperCase();
                                 if (category.includes('STAMP')) newQty.STAMP++;
                                 if (category.includes('STK')) newQty.STK++;
-                                if (category.includes('UV')) newQty.CTT++;
-                                if (category.includes('LASER')) newQty.LASER++;
-                                if (category.includes('TUBE')) newQty.TUBE++;
+                                if (category.includes('UV')) qty.CTT++;
+                                if (category.includes('LASER')) qty.LASER++;
+                                if (category.includes('TUBE')) qty.TUBE++;
                             }
                         });
                     });
