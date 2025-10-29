@@ -346,7 +346,9 @@
                                 <hr>
                                 <h3>รายการสินค้า</h3>
                                 <div class="batch-actions">
-                                    <button type="button" id="download-template-btn" class="btn btn-info">📥 Download Template</button>
+                                    <button type="button" id="download-template-btn" class="btn btn-info">📥 Template (Standard)</button>
+                                    <button type="button" id="download-pgtr-template-btn" class="btn btn-info">📥 Template (PGTR)</button>
+                                    <button type="button" id="download-wy-template-btn" class="btn btn-info">📥 Template (WY)</button>
                                     <button type="button" id="import-orders-btn" class="btn btn-success">📤 Import Orders from File</button>
                                 </div>
                                 <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
@@ -1120,7 +1122,7 @@
                 reader.readAsText(file, 'UTF-8');
             }
 
-            function downloadOrderTemplate() {
+            function downloadStandardOrderTemplate() {
                 const headers = [
                     "ช่องทาง", "ชื่อลูกค้า", "ที่อยู่ลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "วิธีการชำระ", "ชื่อโปรโมชั่น", "วันที่ชำระ", "เวลาที่ชำระ",
                     "ชื่อสินค้า", "สีหมึก", "ชั้นที่", "ลายการ์ตูน", "ลายเส้น", "ฟอนต์", "บรรทัด 1", "บรรทัด 2", "บรรทัด 3", "จำนวน", "หมายเหตุ", "ไฟล์แนบ"
@@ -1130,14 +1132,6 @@
                     [
                         "SP", "สมชาย ใจดี", "123/45 ถ.สุขุมวิท พระโขนง คลองเตย กทม. 10110", 300, 30, 0, "โอน", "โปร 9.9", "2025-10-15", "10:30",
                         "ป้ายชื่อรีดติด", "ดำ", "1", "กระต่าย", "เส้นปกติ", "TH01", "ด.ช. รักเรียน", "ชั้น ป.1", "", 2, "ไม่มี", ""
-                    ],
-                    [
-                        "", "", "", "", "", "", "", "", "", "",
-                        "สติกเกอร์กันน้ำ", "สี", "2", "ไดโนเสาร์", "เส้นหนา", "F03", "น้องพอใจ", "", "", 1, "ของานด่วน", ""
-                    ],
-                    [
-                        "LAZ", "สมศรี มีสุข", "456 หมู่ 7 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200", 159, 25, 10, "COD", "", "", "",
-                        "ป้ายชื่อรีดติด", "น้ำเงิน", "5", "จรวด", "เส้นปกติ", "F12", "ด.ช. มานะ", "อนุบาล 3", "", 1, "", ""
                     ]
                 ];
                 
@@ -1145,6 +1139,36 @@
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "OrderTemplate");
                 XLSX.writeFile(workbook, "TRKids_Multi_Order_Template_Simple.xlsx");
+            }
+
+            function downloadPgtrTemplate() {
+                const headers = [
+                    '#', 'วันที่สั่งซื้อ', 'เวลา', 'หลักฐานการโอน', 'ราคาก่อนส่วนลด', 'ค่าขนส่ง', 
+                    'coupon', 'ส่วนลด admin', 'ยอดสุทธิ', 'ตัวแทน', 'แอดมิน', 'ช่องทางการสั่งซื้อ', 
+                    'เลขออร์เดอร์', 'ชื่อสินค้า', 'รหัสสินค้า', 'ฟอนต์', 'รหัสรูปแบบ', 'Underline', 
+                    'Ink', 'สี', 'Label1', 'Label2', 'Label3', 'จำนวน', 'comment', 'remark', 
+                    'ชื่อสกุลผู้รับ', 'โทรศัพท์', 'อีเมล', 'จังหวัด', 'เขตอำเภอ', 'ตำบลปลายทาง', 
+                    'รหัสไปรษณีย์', 'ที่อยู่ผู้รับ', 'ที่อยู่เต็ม'
+                ];
+                const sampleData = [[]];
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "PGTR_Template");
+                XLSX.writeFile(workbook, "TRKids_PGTR_Order_Template.xlsx");
+            }
+
+            function downloadWyTemplate() {
+                const headers = [
+                    "เลขบิล", "ชื่อลูกค้า", "รหัสลูกค้า", "วันที่สั่งซื้อ", "เลขอ้างอิงชำระ", "รหัส", "สินค้า", "บรรทัด1",
+                    "บรรทัด2", "font", "จำนวน", "ราคา", "โค้ดส่วนลด", "ส่วนลด", "ราคาก่อนลด", "ราคาหลังลด", "ค่าส่ง",
+                    "ยอดสุทธิ", "หมายเหตุ", "เลขพัสดุ", "ชื่อ", "นามสกุล", "เบอร์โทร", "ที่อยู่", "แขวง/ตำบล", "เขต/อำเภอ",
+                    "จังหวัด", "เลขไปรษณีย์", "ชื่อที่อยู่-เบอร์โทรผู้รับ"
+                ];
+                const sampleData = [[]];
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "WY_Template");
+                XLSX.writeFile(workbook, "TRKids_WY_Order_Template.xlsx");
             }
 
             function applyStampInkLogicToOrderObject(order) {
@@ -2821,7 +2845,12 @@
                     if (el) el.addEventListener('input', renderAllTabs);
                 });
                 
-                downloadTemplateBtn.addEventListener('click', downloadOrderTemplate);
+                downloadTemplateBtn.addEventListener('click', downloadStandardOrderTemplate);
+                const downloadPgtrTemplateBtn = document.getElementById('download-pgtr-template-btn');
+                const downloadWyTemplateBtn = document.getElementById('download-wy-template-btn');
+                if(downloadPgtrTemplateBtn) downloadPgtrTemplateBtn.addEventListener('click', downloadPgtrTemplate);
+                if(downloadWyTemplateBtn) downloadWyTemplateBtn.addEventListener('click', downloadWyTemplate);
+
                 importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click());
                 importOrdersFileInput.addEventListener('change', (e) => handleSmartImport(e.target.files[0]));
                 
