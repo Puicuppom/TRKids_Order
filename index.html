@@ -1024,8 +1024,8 @@
                             <span class="wo-name">${wo.work_order_name} (จำนวน: ${billsInWorkOrder.length} บิล)${trackingStatusIcon}</span>
                             <div class="wo-header-actions">
                                 <button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button>
-                                <button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export เพื่อผลิต</button>
-                                <button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">เตรียมทำใบปะหน้า</button>
+                                <button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button>
+                                <button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button>
                                 <button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>
                                 <button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกทั้งใบงาน</button>
                             </div>
@@ -1043,9 +1043,21 @@
                 });
             }
             
+            // FIX: Add a flag to prevent double-opening the waybill tab
+            let isOpeningWindow = false;
             function prepareForWaybill(workOrderName) {
+                if (isOpeningWindow) {
+                    console.log("Preventing double open for waybill.");
+                    return; 
+                }
+                isOpeningWindow = true;
+
                 const ordersToProcess = allOrdersData.filter(order => order.work_order_name === workOrderName);
-                if (ordersToProcess.length === 0) { alert("ไม่พบออร์เดอร์ในใบงานนี้"); return; }
+                if (ordersToProcess.length === 0) { 
+                    alert("ไม่พบออร์เดอร์ในใบงานนี้"); 
+                    isOpeningWindow = false;
+                    return;
+                }
                 const headers = ['bill_no', 'customer_address', 'payment_method', 'total_amount'];
                 const rows = ordersToProcess.map(order => {
                     const escapeCsvField = (field) => {
@@ -1066,6 +1078,8 @@
                 } catch (e) {
                     console.error("Error accessing localStorage or opening new window:", e);
                     alert("เกิดข้อผิดพลาดในการส่งข้อมูลไปยังแท็บใหม่ อาจเกิดจากข้อจำกัดของเบราว์เซอร์");
+                } finally {
+                    setTimeout(() => { isOpeningWindow = false; }, 1000); // 1-second cooldown
                 }
             }
             
@@ -2698,9 +2712,10 @@
                         }
                     }
 
-                    const header = target.closest('.work-order-header');
-                    if (header) {
-                         const classToAction = {
+                    // FIX: Revise work order header click logic for robustness
+                    const headerForAction = target.closest('.work-order-header');
+                    if (headerForAction) {
+                        const classToAction = {
                             'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName),
                             'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName),
                             'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName),
@@ -2708,18 +2723,20 @@
                             'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName)
                         };
 
-                        let actionFound = false;
+                        let actionTaken = false;
                         for (const className in classToAction) {
                             const btn = target.closest(`.${className}`);
                             if (btn) {
-                                event.stopPropagation();
+                                event.stopPropagation(); // Prevent toggle
                                 classToAction[className](btn);
-                                actionFound = true;
+                                actionTaken = true;
                                 break;
                             }
                         }
-                        if (!actionFound) {
-                            toggleWorkOrder(header);
+
+                        // Only toggle if the click was not inside the button container.
+                        if (!actionTaken && !target.closest('.wo-header-actions')) {
+                            toggleWorkOrder(headerForAction);
                         }
                     }
                     
