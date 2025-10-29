@@ -1043,7 +1043,6 @@
                 });
             }
             
-            // FIX: Add a flag to prevent double-opening the waybill tab
             let isOpeningWindow = false;
             function prepareForWaybill(workOrderName) {
                 if (isOpeningWindow) {
@@ -1079,7 +1078,7 @@
                     console.error("Error accessing localStorage or opening new window:", e);
                     alert("เกิดข้อผิดพลาดในการส่งข้อมูลไปยังแท็บใหม่ อาจเกิดจากข้อจำกัดของเบราว์เซอร์");
                 } finally {
-                    setTimeout(() => { isOpeningWindow = false; }, 1000); // 1-second cooldown
+                    setTimeout(() => { isOpeningWindow = false; }, 1000); 
                 }
             }
             
@@ -1698,7 +1697,6 @@
                 $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change'); 
                 $('#promotion').val(null).trigger('change');
                 adminUserInput.value = loggedInUsername;
-                // NEW: Reset slip status on form mode change
                 document.getElementById('slip-status').textContent = '';
 
                 if (mode === 'create') {
@@ -1745,6 +1743,8 @@
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-waiting-btn">อัปเดต (ยังรอลงข้อมูล)</button> <button type="button" class="btn btn-success" id="move-to-complete-btn">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
                     } else if (order.status === 'ลงข้อมูลเสร็จสิ้น') {
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-complete-btn">อัปเดตข้อมูล</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
+                    } else if (order.status === 'ใบงาน (กำลังผลิต)') { // MODIFIED: Added case for work-in-progress bills
+                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-work-order-bill-btn">อัปเดตข้อมูลบิล</button>`;
                     } else {
                         formActions.innerHTML = ``;
                     }
@@ -2126,6 +2126,18 @@
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
+                    // MODIFIED: Add confirmation for editing bills in production
+                    if (isUpdate) {
+                        const originalOrder = allOrdersData.find(o => o.id === currentEditingOrderId);
+                        if (originalOrder && originalOrder.status === 'ใบงาน (กำลังผลิต)') {
+                            const userConfirmed = confirm("กรุณาประสานงานฝ่ายที่เกี่ยวข้องก่อนกดยืนยันอัพเดทข้อมูล");
+                            if (!userConfirmed) {
+                                loadingOverlay.style.display = 'none';
+                                return; 
+                            }
+                        }
+                    }
+                    
                     const channelCode = container.querySelector('#channel_code').value;
                     if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
                     let billNo;
@@ -2331,7 +2343,8 @@
                     'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'),
                     'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'),
                     'update-complete-btn': () => saveOrUpdateOrder(null),
-                    'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก')
+                    'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'),
+                    'update-work-order-bill-btn': () => saveOrUpdateOrder(null) // MODIFIED: Added listener for the new button
                 };
                 for(const id in idMap) {
                     const btn = document.getElementById(id);
@@ -2712,7 +2725,6 @@
                         }
                     }
 
-                    // FIX: Revise work order header click logic for robustness
                     const headerForAction = target.closest('.work-order-header');
                     if (headerForAction) {
                         const classToAction = {
@@ -2727,14 +2739,13 @@
                         for (const className in classToAction) {
                             const btn = target.closest(`.${className}`);
                             if (btn) {
-                                event.stopPropagation(); // Prevent toggle
+                                event.stopPropagation(); 
                                 classToAction[className](btn);
                                 actionTaken = true;
                                 break;
                             }
                         }
 
-                        // Only toggle if the click was not inside the button container.
                         if (!actionTaken && !target.closest('.wo-header-actions')) {
                             toggleWorkOrder(headerForAction);
                         }
