@@ -2322,7 +2322,7 @@
                     return;
                 }
 
-                const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'ชั้นที่', 'สีหมึก', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
+                const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
                 const dataToExport = [];
 
                 ordersInWorkOrder.forEach(order => {
@@ -2333,8 +2333,8 @@
                                 item.bill_no,
                                 item.item_uid,
                                 item.product_name,
-                                item.product_type,
                                 item.ink_color,
+                                item.product_type,
                                 item.cartoon_pattern,
                                 item.line_pattern,
                                 item.font,
