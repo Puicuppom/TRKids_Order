@@ -352,27 +352,31 @@
                                     <button type="button" id="import-orders-btn" class="btn btn-success">📤 Import Orders from File</button>
                                 </div>
                                 <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
-                                <h3>ข้อมูลการชำระเงิน</h3>
-                                <div class="form-grid">
-                                    <div class="form-group"><label for="price">ราคา</label><input type="number" id="price" value="0" step="0.01"></div>
-                                    <div class="form-group"><label for="shipping_cost">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01"></div>
-                                    <div class="form-group"><label for="discount">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01"></div>
-                                    <div class="form-group"><label for="total_amount">ยอดสุทธิ</label><input type="number" id="total_amount" readonly></div>
-                                </div>
-                                <div class="form-grid" style="margin-top: 20px;">
-                                    <div class="form-group">
-                                        <label for="payment_method">วิธีการชำระ</label>
-                                        <select id="payment_method"><option value="โอน">โอน</option><option value="COD">COD</option></select>
+                                
+                                <div id="payment-info-section">
+                                    <h3>ข้อมูลการชำระเงิน</h3>
+                                    <div class="form-grid">
+                                        <div class="form-group"><label for="price">ราคา</label><input type="number" id="price" value="0" step="0.01"></div>
+                                        <div class="form-group"><label for="shipping_cost">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01"></div>
+                                        <div class="form-group"><label for="discount">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01"></div>
+                                        <div class="form-group"><label for="total_amount">ยอดสุทธิ</label><input type="number" id="total_amount" readonly></div>
                                     </div>
-                                    <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><select id="promotion" style="width: 100%;"></select></div>
-                                    <div class="form-group"><label for="payment_date">วันที่ชำระ</label><input type="date" id="payment_date"></div>
-                                    <div class="form-group"><label for="payment_time">เวลาที่ชำระ</label><input type="time" id="payment_time"></div>
+                                    <div class="form-grid" style="margin-top: 20px;">
+                                        <div class="form-group">
+                                            <label for="payment_method">วิธีการชำระ</label>
+                                            <select id="payment_method"><option value="โอน">โอน</option><option value="COD">COD</option></select>
+                                        </div>
+                                        <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><select id="promotion" style="width: 100%;"></select></div>
+                                        <div class="form-group"><label for="payment_date">วันที่ชำระ</label><input type="date" id="payment_date"></div>
+                                        <div class="form-group"><label for="payment_time">เวลาที่ชำระ</label><input type="time" id="payment_time"></div>
+                                    </div>
+                                    <!-- NEW: Slip uploader section -->
+                                    <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
+                                        <button type="button" id="upload-slip-btn" class="btn btn-info">อัพโหลดและตรวจสอบสลิป</button>
+                                        <span id="slip-status" style="font-weight: bold; font-size: 16px;"></span>
+                                    </div>
                                 </div>
-                                <!-- NEW: Slip uploader section -->
-                                <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
-                                    <button type="button" id="upload-slip-btn" class="btn btn-info">อัพโหลดและตรวจสอบสลิป</button>
-                                    <span id="slip-status" style="font-weight: bold; font-size: 16px;"></span>
-                                </div>
+
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
                         </div>
@@ -397,7 +401,11 @@
                         </div>
                         <div id="tab-shipped" class="tab-content">
                             <div class="tab-filter"><label for="filter-shipped">กรองตามช่องทาง:</label><select id="filter-shipped"></select><input type="text" id="search-shipped" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div>
-                            <div class="batch-actions"><button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button></div>
+                            <div class="batch-actions">
+                                <button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
+                                <!-- NEW CLAIM BUTTON -->
+                                <button id="claim-selected-shipped-btn" class="btn btn-info">เคลมบิลที่เลือก</button>
+                            </div>
                             <ul class="order-list"></ul>
                         </div>
                         <div id="tab-cancelled" class="tab-content"><div class="tab-filter"><label for="filter-cancelled">กรองตามช่องทาง:</label><select id="filter-cancelled"></select><input type="text" id="search-cancelled" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-cancelled-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="restore-to-waiting-btn" class="btn btn-warning">คืนไป "รอลงข้อมูล"</button><button id="restore-to-complete-btn" class="btn btn-info">คืนไป "ลงข้อมูลเสร็จสิ้น"</button></div><ul class="order-list"></ul></div>
@@ -908,6 +916,10 @@
 
                     if (channelsRes.error) throw new Error('Could not load channels');
                     channelList = channelsRes.data;
+                    // ADD CLAIM CHANNEL DYNAMICALLY
+                    channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' });
+                    channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
+
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
                     inkTypeList = inkTypesRes.data;
                     
@@ -1747,15 +1759,15 @@
             function openTab(evt, tabName) { container.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active')); container.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active')); container.querySelector(`#${tabName}`).classList.add('active'); evt.currentTarget.classList.add('active'); if (tabName === 'tab-create') { setFormMode('create'); } }
             
             function setFormMode(mode, order = null) {
+                const paymentSection = document.getElementById('payment-info-section');
+                paymentSection.style.display = 'block';
+
                 orderForm.reset(); itemsTbody.innerHTML = ''; currentEditingOrderId = null;
                 $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change'); 
                 $('#promotion').val(null).trigger('change');
                 adminUserInput.value = loggedInUsername;
                 document.getElementById('slip-status').textContent = '';
-                 // --- MODIFICATION START ---
-                // Reset the address label to default
                 container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า';
-                // --- MODIFICATION END ---
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
@@ -1782,12 +1794,12 @@
                         }
                     });
 
-                    // --- MODIFICATION START ---
-                    // Trigger the label change for ecommerce channels when editing an existing order
                     if (ecommerceChannels.includes(order.channel_code)) {
                         container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า / เลขพัสดุ';
                     }
-                    // --- MODIFICATION END ---
+                    if (order.channel_code === 'CLAIM') {
+                        paymentSection.style.display = 'none';
+                    }
 
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
 
@@ -1809,7 +1821,7 @@
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-waiting-btn">อัปเดต (ยังรอลงข้อมูล)</button> <button type="button" class="btn btn-success" id="move-to-complete-btn">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
                     } else if (order.status === 'ลงข้อมูลเสร็จสิ้น') {
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-complete-btn">อัปเดตข้อมูล</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
-                    } else if (order.status === 'ใบงาน (กำลังผลิต)') { // MODIFIED: Added case for work-in-progress bills
+                    } else if (order.status === 'ใบงาน (กำลังผลิต)') {
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-work-order-bill-btn">อัปเดตข้อมูลบิล</button>`;
                     } else {
                         formActions.innerHTML = ``;
@@ -2192,7 +2204,6 @@
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
-                    // MODIFIED: Add confirmation for editing bills in production
                     if (isUpdate) {
                         const originalOrder = allOrdersData.find(o => o.id === currentEditingOrderId);
                         if (originalOrder && originalOrder.status === 'ใบงาน (กำลังผลิต)') {
@@ -2227,12 +2238,9 @@
                         payment_time: paymentTimeValue ? paymentTimeValue : null,
                     };
                     
-                    // --- MODIFICATION START ---
-                    // Automatically populate tracking_number if it's an e-commerce channel
                     if (ecommerceChannels.includes(orderData.channel_code)) {
                         orderData.tracking_number = orderData.customer_address;
                     }
-                    // --- MODIFICATION END ---
                     
                     let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) {
@@ -2418,7 +2426,7 @@
                     'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'),
                     'update-complete-btn': () => saveOrUpdateOrder(null),
                     'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'),
-                    'update-work-order-bill-btn': () => saveOrUpdateOrder(null) // MODIFIED: Added listener for the new button
+                    'update-work-order-bill-btn': () => saveOrUpdateOrder(null)
                 };
                 for(const id in idMap) {
                     const btn = document.getElementById(id);
@@ -2728,25 +2736,93 @@
                 }
             }
 
+            async function handleClaimSelectedOrders() {
+                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
+                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการเคลม');
+                if (selectedIds.length > 1) return alert('กรุณาเลือกเพียง 1 ออร์เดอร์ต่อการเคลมหนึ่งครั้ง');
+                
+                const orderId = selectedIds[0];
+                const originalOrder = allOrdersData.find(o => String(o.id) === orderId);
+                if (!originalOrder) return alert('ไม่พบข้อมูลออร์เดอร์ที่เลือก');
+
+                const newBillNo = `C-${originalOrder.bill_no}`;
+                const existingClaim = allOrdersData.find(o => o.bill_no === newBillNo);
+                if (existingClaim) return alert(`ออร์เดอร์เคลมสำหรับ ${originalOrder.bill_no} มีอยู่แล้ว (เลขบิล: ${newBillNo})`);
+
+                if (!confirm(`คุณต้องการสร้างบิลเคลมสำหรับออร์เดอร์ ${originalOrder.bill_no} ใช่หรือไม่?\nเลขบิลใหม่จะเป็น: ${newBillNo}`)) return;
+
+                loadingOverlay.style.display = 'flex';
+                try {
+                    const claimOrderData = {
+                        ...originalOrder, channel_code: 'CLAIM', bill_no: newBillNo, status: 'รอลงข้อมูล',
+                        price: 0, shipping_cost: 0, discount: 0, total_amount: 0,
+                        payment_method: null, payment_date: null, payment_time: null, promotion: null,
+                        work_order_name: null, shipped_by: null, shipped_time: null, tracking_number: null,
+                        created_at: new Date().toISOString(), entry_date: new Date().toISOString().slice(0, 10),
+                        admin_user: loggedInUsername
+                    };
+                    delete claimOrderData.id;
+                    delete claimOrderData.order_items;
+
+                    const { data: insertedOrder, error: orderError } = await supabaseClient.from('orders').insert(claimOrderData).select().single();
+                    if (orderError) throw orderError;
+
+                    const originalItems = originalOrder.order_items || [];
+                    if (originalItems.length > 0) {
+                        let itemSequence = 1;
+                        const claimItemsToInsert = originalItems.map(item => {
+                            const newItem = { ...item };
+                            delete newItem.id;
+                            newItem.order_id = insertedOrder.id;
+                            newItem.bill_no = newBillNo;
+                            newItem.item_uid = `${newBillNo}-${itemSequence++}`;
+                            newItem.item_scan_time = null;
+                            newItem.packing_status = null;
+                            return newItem;
+                        });
+                        
+                        const { error: itemsError } = await supabaseClient.from('order_items').insert(claimItemsToInsert);
+                        if (itemsError) {
+                            await supabaseClient.from('orders').delete().eq('id', insertedOrder.id);
+                            throw itemsError;
+                        }
+                    }
+                    alert(`สร้างออร์เดอร์เคลมสำเร็จ!\nเลขบิลใหม่: ${newBillNo}\nออร์เดอร์ใหม่ถูกย้ายไปที่แท็บ "รอลงข้อมูล"`);
+                    await loadInitialData();
+                } catch (error) {
+                    console.error('Error creating claim order:', error);
+                    alert(`เกิดข้อผิดพลาดในการสร้างบิลเคลม: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
             function initializeEventListeners() {
                 trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
                 
-                // --- MODIFICATION START ---
                 container.querySelector('#channel_code').addEventListener('change', (e) => {
                     const selectedChannel = e.target.value;
                     const addressLabel = container.querySelector('label[for="customer_address"]');
-                    
-                    // Update font options based on channel
+                    const paymentSection = document.getElementById('payment-info-section');
+
                     updateAllFontDropdowns(selectedChannel);
 
-                    // Update address label based on channel
                     if (ecommerceChannels.includes(selectedChannel)) {
                         addressLabel.textContent = 'ที่อยู่ลูกค้า / เลขพัสดุ';
                     } else {
                         addressLabel.textContent = 'ที่อยู่ลูกค้า';
                     }
+                    
+                    if (selectedChannel === 'CLAIM') {
+                        paymentSection.style.display = 'none';
+                        container.querySelector('#price').value = 0;
+                        container.querySelector('#shipping_cost').value = 0;
+                        container.querySelector('#discount').value = 0;
+                        calculateTotal();
+                    } else {
+                        paymentSection.style.display = 'block';
+                    }
                 });
-                // --- MODIFICATION END ---
 
                 itemsTbody.addEventListener('paste', (e) => {
                     e.preventDefault();
@@ -2953,6 +3029,7 @@
                 document.getElementById('create-work-order-btn').addEventListener('click', createWorkOrder);
                 document.getElementById('cancel-selected-complete-btn').addEventListener('click', () => cancelSelectedOrders('complete'));
                 document.getElementById('select-all-shipped-btn').addEventListener('click', () => selectAll('shipped'));
+                document.getElementById('claim-selected-shipped-btn').addEventListener('click', () => handleClaimSelectedOrders());
                 document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled'));
                 document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล'));
                 document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
