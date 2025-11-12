@@ -861,6 +861,10 @@
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
             
+            // --- MODIFICATION START ---
+            const ecommerceChannels = ['SPTR', 'FSPTR', 'LZTR', 'TTTR'];
+            // --- MODIFICATION END ---
+
             async function initializeApp(username) {
                 adminUserInput.value = username;
 
@@ -1021,15 +1025,25 @@
                     });
                     billsHTML += '</ul>';
                     
+                    const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR'];
+                    const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
+
+                    const actionButtonsHTML = `
+                        <button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button>
+                        <button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button>
+                        ${isWaybillSortChannel ? 
+                            `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>` :
+                            `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button>
+                             <button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`
+                        }
+                        <button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกทั้งใบงาน</button>
+                    `;
+
                     groupEl.innerHTML = `
                         <div class="work-order-header"> 
                             <span class="wo-name">${wo.work_order_name} (จำนวน: ${billsInWorkOrder.length} บิล)${trackingStatusIcon}</span>
                             <div class="wo-header-actions">
-                                <button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button>
-                                <button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button>
-                                <button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button>
-                                <button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>
-                                <button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกทั้งใบงาน</button>
+                                ${actionButtonsHTML}
                             </div>
                         </div>
                         <div class="work-order-bills">
@@ -1066,9 +1080,17 @@
                         if (strField.includes(',') || strField.includes('"') || strField.includes('\n')) { return `"${strField.replace(/"/g, '""')}"`; }
                         return strField;
                     };
+
+                    // --- MODIFICATION START ---
+                    // For ecommerce channels, the address is actually the tracking number, so send an empty string for the address.
+                    const addressForExport = ecommerceChannels.includes(order.channel_code) ? '' : order.customer_address;
+                    // --- MODIFICATION END ---
+
                     return [
-                        escapeCsvField(order.bill_no), escapeCsvField(order.customer_address),
-                        escapeCsvField(order.payment_method), escapeCsvField(order.total_amount)
+                        escapeCsvField(order.bill_no), 
+                        escapeCsvField(addressForExport), // Use the modified address variable
+                        escapeCsvField(order.payment_method), 
+                        escapeCsvField(order.total_amount)
                     ].join(',');
                 });
                 const csvContent = [headers.join(','), ...rows].join('\n');
@@ -1372,6 +1394,14 @@
                                     admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10),
                                     items: []
                                 };
+                                
+                                // --- MODIFICATION START ---
+                                // Automatically populate tracking_number if it's an e-commerce channel
+                                if (ecommerceChannels.includes(channelCode)) {
+                                    currentOrder.tracking_number = currentOrder.customer_address;
+                                }
+                                // --- MODIFICATION END ---
+
                                 processedOrders.push(currentOrder);
                             }
 
@@ -1722,6 +1752,10 @@
                 $('#promotion').val(null).trigger('change');
                 adminUserInput.value = loggedInUsername;
                 document.getElementById('slip-status').textContent = '';
+                 // --- MODIFICATION START ---
+                // Reset the address label to default
+                container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า';
+                // --- MODIFICATION END ---
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
@@ -1747,6 +1781,14 @@
                             else { input.value = order[key]; }
                         }
                     });
+
+                    // --- MODIFICATION START ---
+                    // Trigger the label change for ecommerce channels when editing an existing order
+                    if (ecommerceChannels.includes(order.channel_code)) {
+                        container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า / เลขพัสดุ';
+                    }
+                    // --- MODIFICATION END ---
+
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
 
                     const itemGroups = {};
@@ -2184,6 +2226,14 @@
                         payment_date: paymentDateValue ? paymentDateValue : null,
                         payment_time: paymentTimeValue ? paymentTimeValue : null,
                     };
+                    
+                    // --- MODIFICATION START ---
+                    // Automatically populate tracking_number if it's an e-commerce channel
+                    if (ecommerceChannels.includes(orderData.channel_code)) {
+                        orderData.tracking_number = orderData.customer_address;
+                    }
+                    // --- MODIFICATION END ---
+                    
                     let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) {
                         const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId); if (error) throw error;
@@ -2650,13 +2700,53 @@
                 link.click();
                 document.body.removeChild(link);
             }
+            
+            function exportWaybillSortCsv(workOrderName) {
+                const ordersToExport = allOrdersData.filter(order => order.work_order_name === workOrderName);
+
+                if (ordersToExport.length === 0) {
+                    alert("ไม่พบออร์เดอร์ในใบงานนี้สำหรับ Export");
+                    return;
+                }
+
+                const header = 'เลขพัสดุที่ต้องพิมพ์';
+                const rows = ordersToExport.map(order => order.tracking_number || '');
+
+                const csvContent = [header, ...rows].join('\n');
+
+                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `Waybill_Sort_${workOrderName}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert("เบราว์เซอร์ของคุณไม่รองรับการดาวน์โหลดไฟล์โดยตรง");
+                }
+            }
 
             function initializeEventListeners() {
                 trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
                 
+                // --- MODIFICATION START ---
                 container.querySelector('#channel_code').addEventListener('change', (e) => {
-                    updateAllFontDropdowns(e.target.value);
+                    const selectedChannel = e.target.value;
+                    const addressLabel = container.querySelector('label[for="customer_address"]');
+                    
+                    // Update font options based on channel
+                    updateAllFontDropdowns(selectedChannel);
+
+                    // Update address label based on channel
+                    if (ecommerceChannels.includes(selectedChannel)) {
+                        addressLabel.textContent = 'ที่อยู่ลูกค้า / เลขพัสดุ';
+                    } else {
+                        addressLabel.textContent = 'ที่อยู่ลูกค้า';
+                    }
                 });
+                // --- MODIFICATION END ---
 
                 itemsTbody.addEventListener('paste', (e) => {
                     e.preventDefault();
@@ -2755,6 +2845,7 @@
                             'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName),
                             'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName),
                             'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName),
+                            'export-waybill-sort-btn': (btn) => exportWaybillSortCsv(btn.dataset.workOrderName),
                             'import-wo-csv-btn': () => trackingFileInput.click(),
                             'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName)
                         };
