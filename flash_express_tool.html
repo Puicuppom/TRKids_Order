@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Import CSV (Order.No, Address, ยอด COD) → Export Excel (หัวตามสเปค)</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<title>ตรวจสอบและ Export ใบปะหน้า</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;
+400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--primary:#2563eb;--bg:#f7fafc;--card:#fff;--muted:#6b7280;--border:#e5e7eb}
 *{box-sizing:border-box}
@@ -34,19 +35,13 @@ tr.missing td{ background:#ffe2e2 !important; }
 </head>
 <body>
 <header class="wrap">
-<h1>Import CSV (Order.No, Address, ยอด COD) → Excel (หัวตามสเปค)</h1>
-<div class="hint">
-เริ่มที่อยู่จากคีย์เวิร์ด/เลขบ้าน • สิ้นสุดที่อยู่เมื่อพบเบอร์/รหัสไปรษณีย์ (ล้างไม่ให้ย้อนกลับ) •
-แยกชื่อ+ที่อยู่ในบรรทัดเดียว • พรีวิว 7 คอลัมน์ • Payment = <b>payment by sender</b>
-</div>
+<h1>ตรวจสอบและ Export ใบปะหน้า</h1>
 </header>
 <div class="wrap">
 <section class="card">
 <div class="row">
-<input id="file" type="file" accept=".csv" />
 <button id="btnExport" disabled>Export เป็น Excel (.xlsx)</button>
-<button id="btnClear" secondary>ล้างตาราง</button>
-<span class="hint" id="status">ยังไม่ได้เลือกไฟล์</span>
+<span class="hint" id="status">กำลังรอข้อมูล...</span>
 </div>
 </section>
 <section class="card" style="margin-top:16px">
@@ -294,8 +289,6 @@ const tbody = document.getElementById("tbody");
 const countEl = document.getElementById("count");
 const statusEl= document.getElementById("status");
 const exportBtn = document.getElementById("btnExport");
-const fileInput = document.getElementById("file");
-const clearBtn = document.getElementById("btnClear");
 
 let currentRows = [];
 let inputFileName = "output";
@@ -333,7 +326,6 @@ if(rowHasMissingRequired(currentRows[idx])) tr.classList.add("missing");
 else tr.classList.remove("missing");
 });
 
-// START: MODIFIED FUNCTION
 function rowsFromCSVRecords(records) {
 const out = [];
 for (const r of records) {
@@ -387,27 +379,6 @@ out.push(row);
 }
 return out;
 }
-// END: MODIFIED FUNCTION
-
-fileInput.addEventListener("change", ()=>{
-const f=fileInput.files[0];
-if(!f){ statusEl.textContent="ยังไม่ได้เลือกไฟล์"; return; }
-statusEl.textContent=`กำลังอ่านไฟล์: ${f.name} ...`;
-inputFileName=f.name.replace(/\.[^.]+$/,"")||"output";
-Papa.parse(f,{
-header:true, skipEmptyLines:true,
-complete:(res)=>{
-if(!res.data||res.data.length===0){ statusEl.textContent="ไม่พบข้อมูลในไฟล์"; return; }
-try{
-currentRows=rowsFromCSVRecords(res.data);
-renderHeader(); renderBody();
-statusEl.textContent=`สำเร็จ: ${currentRows.length} แถว`;
-}catch(err){ console.error(err); statusEl.textContent="แปลงข้อมูลผิดพลาด (ดู console)"; }
-},
-error:(err)=>{ statusEl.textContent="อ่านไฟล์ไม่สำเร็จ: "+err.message; }
-});
-});
-clearBtn.addEventListener("click", ()=>{ currentRows=[]; renderHeader(); renderBody(); statusEl.textContent="ล้างตารางแล้ว"; });
 
 document.getElementById("btnExport").addEventListener("click", ()=>{
 if(currentRows.length===0) return;
