@@ -916,8 +916,10 @@
 
                     if (channelsRes.error) throw new Error('Could not load channels');
                     channelList = channelsRes.data;
-                    // ADD CLAIM CHANNEL DYNAMICALLY
-                    channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' });
+                    // ADD CLAIM CHANNEL DYNAMICALLY if it doesn't exist
+                    if (!channelList.some(ch => ch.channel_code === 'CLAIM')) {
+                        channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' });
+                    }
                     channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
 
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
@@ -1768,6 +1770,12 @@
                 adminUserInput.value = loggedInUsername;
                 document.getElementById('slip-status').textContent = '';
                 container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า';
+                
+                const channelDropdown = container.querySelector('#channel_code');
+                const claimOption = channelDropdown ? channelDropdown.querySelector('option[value="CLAIM"]') : null;
+                if (claimOption) {
+                    claimOption.style.display = (mode === 'create') ? 'none' : '';
+                }
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
@@ -2745,11 +2753,32 @@
                 const originalOrder = allOrdersData.find(o => String(o.id) === orderId);
                 if (!originalOrder) return alert('ไม่พบข้อมูลออร์เดอร์ที่เลือก');
 
-                const newBillNo = `C-${originalOrder.bill_no}`;
-                const existingClaim = allOrdersData.find(o => o.bill_no === newBillNo);
-                if (existingClaim) return alert(`ออร์เดอร์เคลมสำหรับ ${originalOrder.bill_no} มีอยู่แล้ว (เลขบิล: ${newBillNo})`);
+                // Find the base bill number, in case we are re-claiming a claim
+                const originalBillNo = originalOrder.bill_no.replace(/^C\d*-/, '');
 
-                if (!confirm(`คุณต้องการสร้างบิลเคลมสำหรับออร์เดอร์ ${originalOrder.bill_no} ใช่หรือไม่?\nเลขบิลใหม่จะเป็น: ${newBillNo}`)) return;
+                // Find all existing claims for this original bill number
+                const existingClaims = allOrdersData.filter(o =>
+                    o.bill_no.endsWith(`-${originalBillNo}`) && o.bill_no.startsWith('C')
+                );
+                const claimCount = existingClaims.length;
+                
+                // If there are existing claims, warn the user
+                if (claimCount > 0) {
+                    const confirmed = confirm(
+                        `ออร์เดอร์นี้เคยถูกเคลมแล้ว ${claimCount} ครั้ง\n` +
+                        `คุณต้องการสร้างบิลเคลมซ้ำเป็นครั้งที่ ${claimCount + 1} ใช่หรือไม่?`
+                    );
+                    if (!confirmed) {
+                        return; // User cancelled the action
+                    }
+                }
+
+                const nextClaimNumber = claimCount + 1;
+                const newBillNo = `C${nextClaimNumber}-${originalBillNo}`;
+
+                if (!confirm(`คุณต้องการสร้างบิลเคลมสำหรับออร์เดอร์ ${originalBillNo} ใช่หรือไม่?\nเลขบิลใหม่จะเป็น: ${newBillNo}`)) {
+                    return;
+                }
 
                 loadingOverlay.style.display = 'flex';
                 try {
