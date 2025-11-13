@@ -80,7 +80,7 @@
         .channel-summary-item:hover { background-color: #0056b3; }
         .channel-summary-placeholder { color: #6c757d; font-style: italic; }
         #order-system-container .quantity-input-group { display: flex; align-items: center; gap: 8px; }
-        #order-system-container .quantity-input-group input { width: 100px; text-align: center; }
+        #order-system-container .quantity-input-group input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
 
         /* --- PACKING SYSTEM SPECIFIC STYLES --- */
         #packing-system-container{padding:0}#packing-system-container .header{text-align:center;padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:0}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}#packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 100px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:#28a745}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}#packing-main-view .action-step{margin-bottom:15px}#packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}#packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto}#packing-main-view #item-scan-input{border-color:#0071e3}#packing-main-view #confirmation-input{border-color:#28a745}#packing-main-view input:disabled{background-color:#e9ecef;border-color:#ced4da;cursor:not-allowed}#packing-main-view #status-message{margin-top:15px;font-size:20px;font-weight:700;height:28px;text-align:center}#packing-main-view .status-success{color:#28a745}#packing-main-view .status-error{color:#dc3545}#packing-main-view #result-container{padding:25px;overflow-y:auto;flex-grow:1}#packing-main-view table{width:100%;border-collapse:collapse;margin-top:15px}#packing-main-view th,#packing-main-view td{padding:12px;border:1px solid #d2d2d7;text-align:left;transition:background-color .3s;white-space:nowrap}#packing-main-view thead{background-color:#f0f0f0}#packing-main-view tr.item-scanned{background-color:#e2f0e3}#packing-main-view tr.item-scanned td:first-child::before{content:"✅ "}
@@ -397,10 +397,9 @@
                             </div>
                             <div id="channel-summary-container" class="channel-summary"></div>
                             <div class="batch-actions">
-                                <button id="create-wo-from-all-filtered-btn" class="btn btn-info">สร้างใบงาน (ทั้งหมดที่กรอง)</button>
                                 <div class="quantity-input-group">
-                                    <input type="number" id="create-wo-by-quantity-input" placeholder="จำนวนบิล" min="1" class="form-control">
-                                    <button id="create-wo-by-quantity-btn" class="btn btn-primary">สร้างใบงานตามจำนวน</button>
+                                    <input type="number" id="create-wo-by-quantity-input" placeholder="จำนวนบิล (ถ้าไม่เลือก)" min="1" style="width: 180px;">
+                                    <button id="create-wo-smart-btn" class="btn btn-primary">สร้างใบงาน (ทั้งหมดที่กรอง)</button>
                                 </div>
                                 <hr style="flex-basis: 100%; border: none; margin: 5px 0;">
                                 <button id="move-to-waiting-btn" class="btn btn-warning">ย้ายไป "รอลงข้อมูล" (ที่เลือก)</button>
@@ -937,6 +936,7 @@
                     groupEl.innerHTML = `<div class="work-order-header"><span class="wo-name">${wo.work_order_name} (${billsInWorkOrder.length} บิล)${trackingStatusIcon}</span><div class="wo-header-actions">${actionButtonsHTML}</div></div><div class="work-order-bills"><div class="batch-actions"><button class="btn btn-secondary select-all-in-wo-btn">เลือกทั้งหมด</button><button class="btn btn-warning revert-to-waiting-btn" data-work-order-name="${wo.work_order_name}">คืนไป "รอลงข้อมูล"</button><button class="btn btn-info revert-to-complete-btn" data-work-order-name="${wo.work_order_name}">คืนไป "ลงข้อมูลเสร็จสิ้น"</button><button class="btn btn-danger cancel-bills-from-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกบิลที่เลือก</button></div>${billsHTML}</div>`;
                     workOrdersListContainer.appendChild(groupEl);
                 });
+                updateSmartWorkOrderButton();
             }
             
             let isOpeningWindow = false;
@@ -962,7 +962,39 @@
             
             function toggleWorkOrder(headerElement) { const content = headerElement.nextElementSibling; if (content) { content.classList.toggle('show'); } }
             function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped'), container.querySelector('#filter-work-orders') ]; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); }
-            function openTab(evt, tabName) { container.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active')); container.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active')); container.querySelector(`#${tabName}`).classList.add('active'); evt.currentTarget.classList.add('active'); if (tabName === 'tab-create') { setFormMode('create'); } }
+            
+            function updateSmartWorkOrderButton() {
+                const smartBtn = document.getElementById('create-wo-smart-btn');
+                const qtyInput = document.getElementById('create-wo-by-quantity-input');
+                if (!smartBtn || !qtyInput) return;
+
+                const checkedCount = container.querySelectorAll('#tab-complete .order-checkbox:checked').length;
+                const qtyValue = parseInt(qtyInput.value, 10);
+
+                if (checkedCount > 0) {
+                    smartBtn.textContent = `สร้างใบงาน (${checkedCount} รายการที่เลือก)`;
+                    smartBtn.className = 'btn btn-success';
+                    qtyInput.disabled = true;
+                    qtyInput.value = '';
+                } else if (qtyValue > 0) {
+                    smartBtn.textContent = `สร้างใบงานตามจำนวน (${qtyValue} บิล)`;
+                    smartBtn.className = 'btn btn-primary';
+                    qtyInput.disabled = false;
+                } else {
+                    smartBtn.textContent = 'สร้างใบงาน (ทั้งหมดที่กรอง)';
+                    smartBtn.className = 'btn btn-info';
+                    qtyInput.disabled = false;
+                }
+            }
+            
+            function openTab(evt, tabName) { 
+                container.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active')); 
+                container.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active')); 
+                container.querySelector(`#${tabName}`).classList.add('active'); 
+                evt.currentTarget.classList.add('active'); 
+                if (tabName === 'tab-create') { setFormMode('create'); }
+                if (tabName === 'tab-complete') { updateSmartWorkOrderButton(); }
+            }
             
             function setFormMode(mode, order = null) {
                 const paymentSection = document.getElementById('payment-info-section'); paymentSection.style.display = 'block'; orderForm.reset(); itemsTbody.innerHTML = ''; currentEditingOrderId = null;
@@ -1067,8 +1099,44 @@
 
             function initializeEventListeners() {
                 container.querySelector('#channel-summary-container').addEventListener('click', (e) => { if (e.target.matches('.channel-summary-item')) { const channel = e.target.dataset.channel; container.querySelector('#filter-complete').value = channel; renderAllTabs(); } });
-                document.getElementById('create-wo-from-all-filtered-btn').addEventListener('click', () => { const allFilteredIds = Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(item => item.dataset.orderId); if (allFilteredIds.length === 0) { alert('ไม่พบบิลตามเงื่อนไข'); return; } createWorkOrder(allFilteredIds); });
-                document.getElementById('create-wo-by-quantity-btn').addEventListener('click', () => { const input = document.getElementById('create-wo-by-quantity-input'); const quantity = parseInt(input.value, 10); if (isNaN(quantity) || quantity <= 0) { alert('กรุณาป้อนจำนวนที่ถูกต้อง'); return; } const visibleOrderIds = new Set(Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(li => li.dataset.orderId)); const filteredOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น' && visibleOrderIds.has(String(order.id))); if (quantity > filteredOrders.length) { if(!confirm(`ต้องการ ${quantity} บิล แต่มี ${filteredOrders.length} บิล\nต้องการสร้างใบงานจาก ${filteredOrders.length} บิล?`)) return; } const idsToProcess = filteredOrders.slice(0, quantity).map(order => String(order.id)); createWorkOrder(idsToProcess); input.value = ''; });
+                
+                document.getElementById('create-wo-smart-btn').addEventListener('click', () => {
+                    const checkedItems = Array.from(container.querySelectorAll('#tab-complete .order-checkbox:checked'))
+                                              .map(cb => cb.closest('.order-list-item').dataset.orderId);
+                    const qtyInput = document.getElementById('create-wo-by-quantity-input');
+                    const quantity = parseInt(qtyInput.value, 10);
+
+                    if (checkedItems.length > 0) {
+                        createWorkOrder(checkedItems);
+                    } else if (quantity > 0) {
+                        const visibleOrderIds = new Set(Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(li => li.dataset.orderId));
+                        const filteredOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น' && visibleOrderIds.has(String(order.id)));
+                        if (quantity > filteredOrders.length) {
+                            if(!confirm(`ต้องการ ${quantity} บิล แต่มี ${filteredOrders.length} บิล\nต้องการสร้างใบงานจาก ${filteredOrders.length} บิล?`)) return;
+                        }
+                        const idsToProcess = filteredOrders.slice(0, quantity).map(order => String(order.id));
+                        createWorkOrder(idsToProcess);
+                        qtyInput.value = '';
+                    } else {
+                        const allFilteredIds = Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(item => item.dataset.orderId);
+                        if (allFilteredIds.length === 0) {
+                            alert('ไม่พบบิลตามเงื่อนไข');
+                            return;
+                        }
+                        createWorkOrder(allFilteredIds);
+                    }
+                });
+
+                const completeTab = container.querySelector('#tab-complete');
+                if (completeTab) {
+                    completeTab.addEventListener('change', (e) => {
+                        if (e.target.classList.contains('order-checkbox')) {
+                            updateSmartWorkOrderButton();
+                        }
+                    });
+                }
+                document.getElementById('create-wo-by-quantity-input').addEventListener('input', updateSmartWorkOrderButton);
+
                 trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
                 container.querySelector('#channel_code').addEventListener('change', (e) => { const selectedChannel = e.target.value; const addressLabel = container.querySelector('label[for="customer_address"]'); const paymentSection = document.getElementById('payment-info-section'); updateAllFontDropdowns(selectedChannel); if (ecommerceChannels.includes(selectedChannel)) { addressLabel.textContent = 'เลขพัสดุ'; } else { addressLabel.textContent = 'ที่อยู่ลูกค้า'; } if (selectedChannel === 'CLAIM') { paymentSection.style.display = 'none'; container.querySelector('#price').value = 0; container.querySelector('#shipping_cost').value = 0; container.querySelector('#discount').value = 0; calculateTotal(); } else { paymentSection.style.display = 'block'; } });
                 itemsTbody.addEventListener('paste', (e) => { e.preventDefault(); const pasteData = (e.clipboardData || window.clipboardData).getData('text'); const rowsData = pasteData.split(/[\r\n]+/).filter(row => row.trim() !== ''); let targetCell = e.target.closest('td'); if (!targetCell) return; let startRowIndex = Array.from(itemsTbody.children).indexOf(targetCell.parentElement); let startCellIndex = targetCell.cellIndex; const modifiedRows = []; rowsData.forEach((rowData, rowIndex) => { const cellsData = rowData.split('\t'); let currentRow; const currentRowIndex = startRowIndex + rowIndex; if (currentRowIndex >= itemsTbody.rows.length) { if (itemsTbody.rows.length === 1 && $(itemsTbody.rows[0]).find('.item-product').val() === null) { currentRow = itemsTbody.rows[0]; } else { currentRow = addItemRow(); } } else { currentRow = itemsTbody.rows[currentRowIndex]; } if (!currentRow) return; cellsData.forEach((cellData, cellIndex) => { const targetCellIndex = startCellIndex + cellIndex; if (targetCellIndex < currentRow.cells.length - 1) { const input = currentRow.cells[targetCellIndex].querySelector('input, select'); if (input) { if (input.classList.contains('item-product')) { const pastedValue = cellData.trim().toLowerCase(); const product = fullProductList.find(p => p.product_code.toLowerCase() === pastedValue || p.product_name.toLowerCase() === pastedValue); if (product) { $(input).val(product.id).trigger('change.select2'); } else { $(input).val(null).trigger('change.select2'); } } else if (input.tagName === 'SELECT') { const trimmedCellData = cellData.trim().toLowerCase(); const matchedOption = [...input.options].find(opt => opt.text.toLowerCase() === trimmedCellData || opt.value.toLowerCase() === trimmedCellData); if (matchedOption) { input.value = matchedOption.value; } } else { input.value = cellData.trim(); } } } }); modifiedRows.push(currentRow); }); modifiedRows.forEach(row => { if (row) { checkAndApplyStampInkLogic(row); } }); });
