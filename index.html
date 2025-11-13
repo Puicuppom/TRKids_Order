@@ -409,6 +409,11 @@
                             <ul class="order-list"></ul>
                         </div>
                         <div id="tab-work-orders" class="tab-content">
+                            <div class="tab-filter">
+                                <label for="filter-work-orders">กรองตามช่องทาง:</label>
+                                <select id="filter-work-orders"></select>
+                                <input type="text" id="search-work-orders" placeholder="ค้นหาใบงาน, เลขบิล, ชื่อลูกค้า...">
+                            </div>
                             <div id="work-orders-list-container"></div>
                         </div>
                         <div id="tab-shipped" class="tab-content">
@@ -899,8 +904,8 @@
             }
             
             function renderAllTabs() {
-                const searchTerms = { waiting: (container.querySelector('#search-waiting')?.value || '').toLowerCase(), complete: (container.querySelector('#search-complete')?.value || '').toLowerCase(), cancelled: (container.querySelector('#search-cancelled')?.value || '').toLowerCase(), shipped: (container.querySelector('#search-shipped')?.value || '').toLowerCase(), };
-                const filters = { waiting: container.querySelector('#filter-waiting').value, complete: container.querySelector('#filter-complete').value, cancelled: container.querySelector('#filter-cancelled').value, shipped: container.querySelector('#filter-shipped').value };
+                const searchTerms = { waiting: (container.querySelector('#search-waiting')?.value || '').toLowerCase(), complete: (container.querySelector('#search-complete')?.value || '').toLowerCase(), cancelled: (container.querySelector('#search-cancelled')?.value || '').toLowerCase(), shipped: (container.querySelector('#search-shipped')?.value || '').toLowerCase(), work_orders: (container.querySelector('#search-work-orders')?.value || '').toLowerCase() };
+                const filters = { waiting: container.querySelector('#filter-waiting').value, complete: container.querySelector('#filter-complete').value, cancelled: container.querySelector('#filter-cancelled').value, shipped: container.querySelector('#filter-shipped').value, work_orders: container.querySelector('#filter-work-orders').value };
                 const lists = { 'รอลงข้อมูล': container.querySelector('#tab-waiting .order-list'), 'ลงข้อมูลเสร็จสิ้น': container.querySelector('#tab-complete .order-list'), 'ยกเลิก': container.querySelector('#tab-cancelled .order-list'), 'จัดส่งแล้ว': container.querySelector('#tab-shipped .order-list') };
                 const summaryContainer = container.querySelector('#channel-summary-container');
                 if (summaryContainer) { const completedOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น'); const channelCounts = completedOrders.reduce((acc, order) => { const channel = order.channel_code || 'N/A'; acc[channel] = (acc[channel] || 0) + 1; return acc; }, {}); summaryContainer.innerHTML = ''; const sortedChannels = Object.keys(channelCounts).sort(); if (sortedChannels.length > 0) { let summaryHTML = ''; for (const channel of sortedChannels) { summaryHTML += `<span class="channel-summary-item" data-channel="${channel}">${channel}: ${channelCounts[channel]} บิล</span>`; } summaryContainer.innerHTML = summaryHTML; } else { summaryContainer.innerHTML = `<span class="channel-summary-placeholder">ไม่มีบิลรอสร้างใบงาน</span>`; } }
@@ -915,8 +920,13 @@
                         if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) { const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; list.innerHTML += `<li class="order-list-item" data-order-id="${order.id}"><input type="checkbox" class="order-checkbox"><div class="order-info"><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong><span class="customer-info">${order.customer_name || 'N/A'}</span></div>${trackingHTML}</li>`; }
                     }
                 });
+
+                const workOrdersFilter = filters.work_orders; const workOrdersSearch = searchTerms.work_orders;
                 allWorkOrdersData.forEach(wo => {
                     const billsInWorkOrder = allOrdersData.filter(order => order.work_order_name === wo.work_order_name);
+                    if (workOrdersFilter !== 'all' && wo.channel_code !== workOrdersFilter) return;
+                    if (workOrdersSearch) { const woNameMatches = wo.work_order_name.toLowerCase().includes(workOrdersSearch); const anyBillMatches = billsInWorkOrder.some(bill => (bill.bill_no && bill.bill_no.toLowerCase().includes(workOrdersSearch)) || (bill.customer_name && bill.customer_name.toLowerCase().includes(workOrdersSearch)) || (bill.tracking_number && bill.tracking_number.toLowerCase().includes(workOrdersSearch))); if (!woNameMatches && !anyBillMatches) return; }
+                    
                     const allHaveTracking = billsInWorkOrder.length > 0 && billsInWorkOrder.every(bill => bill.tracking_number && bill.tracking_number.trim() !== '');
                     const trackingStatusIcon = allHaveTracking ? '<span style="color: green; font-weight: bold; margin-left: 8px;">✓</span>' : '';
                     const groupEl = document.createElement('div'); groupEl.className = 'work-order-group'; let billsHTML = '<ul class="order-list">';
@@ -951,7 +961,7 @@
             function handleSmartImport(file) { if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array', bookFiles: true }); const firstSheetName = workbook.SheetNames[0]; const worksheet = workbook.Sheets[firstSheetName]; const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }); if (jsonData.length === 0) throw new Error("ไฟล์ไม่มีข้อมูล"); const firstRow = jsonData[0]; const headers = Object.keys(firstRow); const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']); if (orderNumberHeader && String(firstRow[orderNumberHeader]).toUpperCase().startsWith('S2Y')) { console.log("PGTR detected."); handlePgtrImport(file); return; } const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']); if (billNoHeader && String(firstRow[billNoHeader]).toUpperCase().startsWith('WY')) { console.log("WY detected."); handleWyImport(file); return; } console.log("Standard detected."); handleExcelImport(file); } catch (err) { console.error('Error detecting file type:', err); alert("ไม่สามารถระบุประเภทไฟล์: " + err.message); importOrdersFileInput.value = ''; } }; reader.readAsArrayBuffer(file); }
             
             function toggleWorkOrder(headerElement) { const content = headerElement.nextElementSibling; if (content) { content.classList.toggle('show'); } }
-            function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped') ]; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); }
+            function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped'), container.querySelector('#filter-work-orders') ]; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); }
             function openTab(evt, tabName) { container.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active')); container.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active')); container.querySelector(`#${tabName}`).classList.add('active'); evt.currentTarget.classList.add('active'); if (tabName === 'tab-create') { setFormMode('create'); } }
             
             function setFormMode(mode, order = null) {
@@ -1077,8 +1087,8 @@
                 const pickingSlipModal = document.getElementById('picking-slip-modal'); document.getElementById('cancel-picking-slip-modal-btn').addEventListener('click', hidePickingSlipModal); pickingSlipModal.addEventListener('click', (e) => { if (e.target === pickingSlipModal) hidePickingSlipModal(); });
                 [container.querySelector('#price'), container.querySelector('#shipping_cost'), container.querySelector('#discount')].forEach(input => input.addEventListener('input', calculateTotal));
                 tabLinks.forEach(link => { link.addEventListener('click', (e) => openTab(e, e.target.dataset.tab)); });
-                ['filter-waiting', 'filter-complete', 'filter-cancelled', 'filter-shipped'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('change', renderAllTabs); });
-                ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('input', renderAllTabs); });
+                ['filter-waiting', 'filter-complete', 'filter-cancelled', 'filter-shipped', 'filter-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('change', renderAllTabs); });
+                ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled', 'search-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('input', renderAllTabs); });
                 document.getElementById('download-template-btn').addEventListener('click', downloadStandardOrderTemplate); document.getElementById('download-pgtr-template-btn')?.addEventListener('click', downloadPgtrTemplate); document.getElementById('download-wy-template-btn')?.addEventListener('click', downloadWyTemplate);
                 importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click()); importOrdersFileInput.addEventListener('change', (e) => handleSmartImport(e.target.files[0]));
                 document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล')); document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น')); document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting')); 
@@ -1158,5 +1168,3 @@
     </script>
 </body>
 </html>
-
-
