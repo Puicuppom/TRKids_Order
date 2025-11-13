@@ -964,7 +964,7 @@
                 else if (mode === 'edit' && order) {
                     container.querySelector('#form-title').textContent = `แก้ไข: ${order.bill_no}`; currentEditingOrderId = order.id;
                     Object.keys(order).forEach(key => { const input = container.querySelector(`#${key}`); if (input) { if (input.tagName === 'SELECT') { if (key === 'promotion') { if (order[key] && !$('#promotion').find(`option[value='${order[key]}']`).length) { var newOption = new Option(order[key], order[key], true, true); $('#promotion').append(newOption).trigger('change'); } $('#promotion').val(order[key]).trigger('change'); } else { $(input).val(order[key]).trigger('change'); } } else { input.value = order[key]; } } });
-                    if (ecommerceChannels.includes(order.channel_code)) { container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า / เลขพัสดุ'; }
+                    if (ecommerceChannels.includes(order.channel_code)) { container.querySelector('label[for="customer_address"]').textContent = 'เลขพัสดุ'; }
                     if (order.channel_code === 'CLAIM') { paymentSection.style.display = 'none'; }
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
                     const itemGroups = {}; (order.order_items || []).forEach(item => { const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes, item.file_attachment].join('||'); if (!itemGroups[key]) { itemGroups[key] = { ...item, quantity: 1 }; } else { itemGroups[key].quantity++; } });
@@ -1158,3 +1158,4 @@
     </script>
 </body>
 </html>
+
