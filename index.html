@@ -961,9 +961,15 @@
                     } else { actionButtonsHTML += `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button><button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`; }
                     if (currentUserRole === 'superadmin') { actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกทั้งใบงาน</button>`; }
                     
-                    const batchActionsHTML = `<div class="batch-actions"><button class="btn btn-secondary select-all-in-wo-btn">เลือกทั้งหมด</button><button class="btn btn-warning revert-to-waiting-btn" data-work-order-name="${wo.work_order_name}">คืนไป "รอลงข้อมูล"</button><button class="btn btn-info revert-to-complete-btn" data-work-order-name="${wo.work_order_name}">คืนไป "ลงข้อมูลเสร็จสิ้น"</button><button class="btn btn-danger cancel-bills-from-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกบิลที่เลือก</button></div>`;
+                    const batchActionsHTML = `
+                        <div class="batch-actions" ${currentUserRole !== 'superadmin' ? 'style="display: none;"' : ''}>
+                            <button class="btn btn-secondary select-all-in-wo-btn">เลือกทั้งหมด</button>
+                            <button class="btn btn-warning revert-to-waiting-btn" data-work-order-name="${wo.work_order_name}">คืนไป "รอลงข้อมูล"</button>
+                            <button class="btn btn-info revert-to-complete-btn" data-work-order-name="${wo.work_order_name}">คืนไป "ลงข้อมูลเสร็จสิ้น"</button>
+                            <button class="btn btn-danger cancel-bills-from-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกบิลที่เลือก</button>
+                        </div>`;
 
-                    groupEl.innerHTML = `<div class="work-order-header"><span class="wo-name">${wo.work_order_name} (${billsInWorkOrder.length} บิล)${trackingStatusIcon}</span><div class="wo-header-actions">${actionButtonsHTML}</div></div><div class="work-order-bills">${(currentUserRole === 'superadmin') ? batchActionsHTML : ''}${billsHTML}</div>`;
+                    groupEl.innerHTML = `<div class="work-order-header"><span class="wo-name">${wo.work_order_name} (${billsInWorkOrder.length} บิล)${trackingStatusIcon}</span><div class="wo-header-actions">${actionButtonsHTML}</div></div><div class="work-order-bills">${batchActionsHTML}${billsHTML}</div>`;
                     
                     workOrdersListContainer.appendChild(groupEl);
                 });
