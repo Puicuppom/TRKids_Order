@@ -296,6 +296,19 @@
         #job-editor-modal-container .modal-actions {
             margin-top: 30px;
         }
+        
+        /* --- SALES REPORT SYSTEM SPECIFIC STYLES --- */
+        #sales-report-system-container .report-controls { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; margin-bottom: 25px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; }
+        #sales-report-system-container .control-group { display: flex; flex-direction: column; }
+        #sales-report-system-container .control-group label { margin-bottom: 5px; font-size: 14px; font-weight: 600; color: #495057; }
+        #sales-report-system-container .control-group input[type="date"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        #sales-report-system-container .report-results-container { max-height: 65vh; overflow-y: auto; }
+        #sales-report-system-container #report-table { width: 100%; border-collapse: collapse; }
+        #sales-report-system-container #report-table th, #sales-report-system-container #report-table td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+        #sales-report-system-container #report-table th { background-color: #e9ecef; position: sticky; top: 0; z-index: 1; }
+        #sales-report-system-container #report-table tr:nth-child(even) { background-color: #f8f9fa; }
+        #sales-report-system-container #report-table td:last-child { font-weight: bold; text-align: center; }
+        #sales-report-system-container #report-placeholder { text-align: center; color: #6c757d; padding: 40px; font-style: italic; }
 
     </style>
 </head>
@@ -326,6 +339,7 @@
                     <li id="nav-planner"><a href="#" class="nav-link" data-target="planner-system-container"><span class="icon">🗓️</span><span class="nav-text">ใบงาน (Export)</span></a></li>
                     <li><a href="#" class="nav-link" data-target="packing-system-container"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
                     <li id="nav-product"><a href="#" class="nav-link" data-target="product-system-container"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
+                    <li id="nav-sales-report"><a href="#" class="nav-link" data-target="sales-report-system-container"><span class="icon">📈</span><span class="nav-text">รายงานยอดขาย</span></a></li>
                     <li id="nav-accounting"><a href="accounting.html" class="nav-link"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
             </nav>
@@ -527,6 +541,41 @@
                     </div>
                 </div>
 
+                <!-- ==================== SALES REPORT SYSTEM ==================== -->
+                <div id="sales-report-system-container" class="system-content">
+                    <div class="container">
+                        <h1>รายงานยอดขายตามสินค้า</h1>
+                        <div class="report-controls">
+                            <div class="control-group">
+                                <label for="report-start-date">ตั้งแต่วันที่</label>
+                                <input type="date" id="report-start-date">
+                            </div>
+                            <div class="control-group">
+                                <label for="report-end-date">ถึงวันที่</label>
+                                <input type="date" id="report-end-date">
+                            </div>
+                            <button id="generate-report-btn" class="btn btn-primary">สร้างรายงาน</button>
+                            <button id="export-report-btn" class="btn btn-success" style="display: none; margin-left: auto;">Export to Excel</button>
+                        </div>
+                        <div class="report-results-container">
+                            <table id="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>รหัสสินค้า</th>
+                                        <th>ชื่อสินค้า</th>
+                                        <th>จำนวนที่ขายได้</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-tbody">
+                                </tbody>
+                            </table>
+                            <div id="report-placeholder">
+                                กรุณาเลือกช่วงวันที่และกด "สร้างรายงาน"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
@@ -668,6 +717,7 @@
                     if (targetId === 'packing-system-container') { window.packingSystem.loadWorkOrdersForPacking(); }
                     else if (targetId === 'product-system-container' && loggedInUserRole === 'superadmin') { window.productSystem.initializeApp(); }
                     else if (targetId === 'planner-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production')) { window.plannerSystem.initializeApp(loggedInUserRole); }
+                    else if (targetId === 'sales-report-system-container' && loggedInUserRole === 'superadmin') { window.salesReportSystem.initializeApp(); }
                     if (window.innerWidth <= 768) { document.body.classList.add('sidebar-collapsed'); }
                 });
             }
@@ -686,6 +736,7 @@
                     if (target === 'packing') { window.packingSystem.loadWorkOrdersForPacking(); }
                     else if (target === 'product' && loggedInUserRole === 'superadmin') { window.productSystem.initializeApp(); }
                     else if (target === 'planner' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production')) { window.plannerSystem.initializeApp(loggedInUserRole); }
+                    else if (target === 'sales-report' && loggedInUserRole === 'superadmin') { window.salesReportSystem.initializeApp(); }
                 }
             }
             localStorage.removeItem('navigateTo');
@@ -702,9 +753,14 @@
                 document.getElementById('nav-product').style.display = isSuperAdmin ? '' : 'none';
                 document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none';
                 document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction) ? '' : 'none';
+                document.getElementById('nav-sales-report').style.display = isSuperAdmin ? '' : 'none';
                 loginOverlay.style.display = 'none'; mainAppContainer.style.display = 'flex';
                 await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
-                if (isSuperAdmin) { window.productSystem.initializeApp(); window.plannerSystem.initializeApp(loggedInUserRole); }
+                if (isSuperAdmin) { 
+                    window.productSystem.initializeApp(); 
+                    window.plannerSystem.initializeApp(loggedInUserRole);
+                    window.salesReportSystem.initializeApp();
+                }
                 else if (isProduction) {
                     document.querySelector('.nav-link.active')?.classList.remove('active');
                     document.querySelector('.system-content.active')?.classList.remove('active');
@@ -1582,7 +1638,11 @@
             const updateActiveNavItem = () => { container.querySelectorAll(".order-item").forEach(item => item.classList.toggle("active", parseInt(item.dataset.index) === currentIndex)); };
             const markNavItemAsComplete = (index, isComplete) => { const item = container.querySelector(`.order-item[data-index='${index}']`); if (item) { item.classList.toggle("completed", isComplete); item.querySelector('.tracking-id').innerHTML = `✅ ${item.querySelector('.tracking-id').textContent.split(' ').pop()}`; } updateCounter(); };
             const updateStatus = (text, type) => { statusMessage.textContent = text; statusMessage.className = `status-${type}`; };
-            searchInput.addEventListener("input", filterNavList); itemScanInput.addEventListener("change", scanItem); parcelScanInput.addEventListener("change", handleParcelScan); backBtn.addEventListener('click', () => showPackingView('selection')); resetBtn.addEventListener("click", resetCurrentOrderPacking);
+            searchInput.addEventListener("input", filterNavList);
+            itemScanInput.addEventListener("change", scanItem);
+            parcelScanInput.addEventListener("change", handleParcelScan);
+            backBtn.addEventListener('click', () => showPackingView('selection')); 
+            resetBtn.addEventListener("click", resetCurrentOrderPacking);
             return { loadWorkOrdersForPacking };
         })();
 
@@ -1802,6 +1862,159 @@
             function showJobEditor(jobId) { const job = state.jobs.find(j => j.id == jobId); if (!job) return; const formContainer = document.createElement('div'); formContainer.id = 'job-editor-modal-container'; formContainer.innerHTML = `<div class="modal-overlay" style="display: flex;"><div class="modal-content" style="max-width: 600px;"><h2 id="job-editor-title">แก้ไขใบงาน: ${job.name}</h2><div id="job-editor-form"><div class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;"><div class="planner-form-group"><label for="edit_j_date">วันที่</label><input type="date" id="edit_j_date" value="${job.date}"></div><div class="planner-form-group"><label for="edit_j_cut">เวลาตัด</label><input type="time" id="edit_j_cut" value="${job.cut || ''}"></div></div><h3 class="planner-section-title">จำนวนต่อแผนก</h3><div id="edit_j_qty" class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px 20px;"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="edit_j_cancel">ยกเลิก</button><button type="button" class="btn btn-primary" id="edit_j_save">บันทึก</button></div></div></div></div>`; document.body.appendChild(formContainer); const qtyHost = formContainer.querySelector('#edit_j_qty'); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const qty = job.qty?.[d] || 0; const div = cel('div', { class: 'planner-qty-group' }); div.innerHTML = `<label>${d}</label><input type="number" class="edit-qty" data-dept="${d}" value="${qty}" min="0">`; qtyHost.appendChild(div); }); const closeModal = () => document.body.removeChild(formContainer); formContainer.querySelector('#edit_j_save').onclick = async () => { const newQty = {}; qtyHost.querySelectorAll('.edit-qty').forEach(inp => { newQty[inp.dataset.dept] = parseInt(inp.value, 10) || 0; }); const updates = { date: formContainer.querySelector('#edit_j_date').value, cut: formContainer.querySelector('#edit_j_cut').value, qty: newQty, }; loadingOverlay.style.display = 'flex'; const { error } = await supabaseClient.from('jobs').update(updates).eq('id', jobId); loadingOverlay.style.display = 'none'; if (error) { alert('อัปเดตล้มเหลว: ' + error.message); } else { alert('อัปเดตสำเร็จ'); closeModal(); } }; formContainer.querySelector('#edit_j_cancel').onclick = closeModal; formContainer.querySelector('.modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); }); }
             function exportJobsForSorting() { const qDate = el('#j_date').value; const qStr = (el('#j_search').value || '').toLowerCase(); const filteredJobs = state.jobs.filter(j => !qDate || sameDay(j.date, qDate)).filter(j => !qStr || j.name.toLowerCase().includes(qStr)).sort((a, b) => (a.date.localeCompare(b.date)) || (a.order_index - b.order_index)); if (filteredJobs.length === 0) { alert('ไม่พบใบงานสำหรับ Export'); return; } const headers = ['date', 'name', 'cut', 'STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; const dataToExport = filteredJobs.map(job => { const qty = job.qty || {}; return [ job.date, job.name, job.cut || '', qty.STAMP || 0, qty.STK || 0, qty.CTT || 0, qty.LASER || 0, qty.TUBE || 0, qty.PACK || 0 ]; }); const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs"); const today = new Date().toISOString().slice(0, 10); XLSX.writeFile(workbook, `Jobs_For_Sorting_${today}.xlsx`); }
             function setupRealtimeSubscriptions() { const jobChannel = supabaseClient.channel('public:jobs'); jobChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, async (payload) => { await internal_load(); }).subscribe(); }
+            return { initializeApp };
+        })();
+        
+        // --- SALES REPORT SYSTEM MODULE ---
+        window.salesReportSystem = (() => {
+            let isInitialized = false;
+            let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportPlaceholder;
+            let reportData = [];
+
+            function initializeApp() {
+                if (isInitialized) return;
+
+                container = document.getElementById('sales-report-system-container');
+                startDateInput = container.querySelector('#report-start-date');
+                endDateInput = container.querySelector('#report-end-date');
+                generateBtn = container.querySelector('#generate-report-btn');
+                exportBtn = container.querySelector('#export-report-btn');
+                reportTbody = container.querySelector('#report-tbody');
+                reportPlaceholder = container.querySelector('#report-placeholder');
+
+                // Set default dates (e.g., this month)
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
+                endDateInput.value = today.toISOString().split('T')[0];
+                
+                generateBtn.addEventListener('click', generateReport);
+                exportBtn.addEventListener('click', exportToExcel);
+
+                isInitialized = true;
+            }
+
+            async function generateReport() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                if (!startDate || !endDate) {
+                    alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด');
+                    return;
+                }
+
+                loadingOverlay.style.display = 'flex';
+                reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
+                reportTbody.innerHTML = '';
+                exportBtn.style.display = 'none';
+
+                try {
+                    // Fetch orders with relevant statuses within the date range, including their items and product details
+                    const { data, error } = await supabaseClient
+                        .from('orders')
+                        .select('order_items(*, products(product_code))')
+                        // --- CHANGE HERE: Include more statuses ---
+                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
+                        // --- CHANGE HERE: Filter by entry_date instead of shipped_time ---
+                        .gte('entry_date', startDate)
+                        .lte('entry_date', endDate);
+
+                    if (error) throw error;
+
+                    // Aggregate the data
+                    const productCounts = new Map();
+                    data.forEach(order => {
+                        (order.order_items || []).forEach(item => {
+                            if (item.products) { // Ensure product data exists
+                                const productId = item.product_id;
+                                if (!productCounts.has(productId)) {
+                                    productCounts.set(productId, {
+                                        code: item.products.product_code,
+                                        name: item.product_name,
+                                        quantity: 0
+                                    });
+                                }
+                                productCounts.get(productId).quantity += 1;
+                            }
+                        });
+                    });
+
+                    reportData = Array.from(productCounts.values());
+                    renderReportTable();
+
+                } catch (err) {
+                    console.error('Error generating report:', err);
+                    reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
+                    alert('เกิดข้อผิดพลาด: ' + err.message);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
+            function renderReportTable() {
+                reportTbody.innerHTML = '';
+                
+                if (reportData.length === 0) {
+                    reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก';
+                    reportPlaceholder.style.display = 'block';
+                    exportBtn.style.display = 'none';
+                    return;
+                }
+
+                // Sort by quantity descending
+                reportData.sort((a, b) => b.quantity - a.quantity);
+                
+                let totalItems = 0;
+                reportData.forEach(product => {
+                    const row = `<tr>
+                        <td>${product.code || 'N/A'}</td>
+                        <td>${product.name}</td>
+                        <td>${product.quantity}</td>
+                    </tr>`;
+                    reportTbody.insertAdjacentHTML('beforeend', row);
+                    totalItems += product.quantity;
+                });
+
+                // Add summary row
+                const summaryRow = `
+                    <tr style="background-color: #343a40; color: white; font-weight: bold;">
+                        <td colspan="2" style="text-align: right;">รวมทั้งหมด</td>
+                        <td>${totalItems}</td>
+                    </tr>`;
+                reportTbody.insertAdjacentHTML('beforeend', summaryRow);
+
+
+                reportPlaceholder.style.display = 'none';
+                exportBtn.style.display = 'inline-block';
+            }
+            
+            function exportToExcel() {
+                if (reportData.length === 0) {
+                    alert('ไม่มีข้อมูลสำหรับ Export');
+                    return;
+                }
+
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                const headers = ["รหัสสินค้า", "ชื่อสินค้า", "จำนวนที่ขายได้"];
+                const dataToExport = reportData.map(item => [item.code, item.name, item.quantity]);
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
+
+                // Auto-size columns
+                const colWidths = headers.map((_, i) => ({
+                    wch: dataToExport.reduce((w, r) => Math.max(w, String(r[i] || '').length), headers[i].length)
+                }));
+                 // Set a minimum width for the name column
+                colWidths[1].wch = Math.max(colWidths[1].wch, 40);
+                worksheet['!cols'] = colWidths;
+
+                XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`);
+            }
+
             return { initializeApp };
         })();
         
