@@ -105,7 +105,8 @@
                     <li><a href="#" class="nav-link" id="nav-planner"><span class="icon">🗓️</span><span class="nav-text">ใบงาน (Export)</span></a></li>
                     <li><a href="#" class="nav-link" id="nav-packing"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
                     <li><a href="#" class="nav-link" id="nav-product"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
-                    <li><a href="#" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
+                    <li><a href="#" class="nav-link" id="nav-sales-report"><span class="icon">📈</span><span class="nav-text">รายงานยอดขาย</span></a></li>
+                    <li><a href="accounting.html" class="nav-link active"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
             </nav>
         </div>
@@ -260,6 +261,7 @@
             document.getElementById('nav-planner').addEventListener('click', (e) => { e.preventDefault(); navigateTo('planner-system-container'); });
             document.getElementById('nav-packing').addEventListener('click', (e) => { e.preventDefault(); navigateTo('packing-system-container'); });
             document.getElementById('nav-product').addEventListener('click', (e) => { e.preventDefault(); navigateTo('product-system-container'); });
+            document.getElementById('nav-sales-report').addEventListener('click', (e) => { e.preventDefault(); navigateTo('sales-report-system-container'); });
 
             channelFilterSelect.select2({ placeholder: "ทุกช่องทาง", allowClear: true });
             
