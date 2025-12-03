@@ -1,3 +1,5 @@
+<!-- START OF FILE accounting.html -->
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -5,12 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TR Kids - ระบบบัญชี</title>
 
+    <!-- Select2 CSS/JS removed as it's no longer needed for the filter, 
+         but kept in case you want to use it elsewhere or for future features. 
+         If completely unused, you can remove the Select2 CDN links below. -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- Library for creating PNG from HTML -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -20,15 +25,26 @@
         
         /* --- Accounting Page Specific Styles --- */
         :root { --card-bg: #ffffff; --text-color: #333; --muted-color: #6c757d; --border-color: #dee2e6; --success-color: #28a745; --danger-color: #dc3545; --info-color: #17a2b8; --secondary-color: #007bff; }
-        .container { max-width: 1600px; margin: 0 auto; padding: 0; }
-        .card { background-color: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+        .card { background-color: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 0; }
         h1, h2 { color: var(--primary-color); text-align: center; }
         .filters { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; justify-content: center;}
         .filter-group { display: flex; flex-direction: column; }
         .filter-group label { font-weight: 600; margin-bottom: 5px; font-size: 14px; }
-        .filter-group input, .filter-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 16px; }
-        .filter-group .select2-container { min-width: 250px; }
-        .btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; color: #fff; }
+        
+        /* === FIX: Standardize Input Heights === */
+        /* Force standard inputs to be 45px */
+        .filter-group input, .filter-group select { 
+            padding: 10px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            font-size: 16px; 
+            height: 45px !important; 
+            box-sizing: border-box;
+            line-height: normal;
+        }
+
+        .btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; color: #fff; height: 45px; }
         .btn-primary { background-color: var(--primary-color); }
         .btn-success { background-color: var(--success-color); }
         .btn-info { background-color: var(--info-color); }
@@ -120,14 +136,20 @@
                 </div>
             </header>
             <main class="main-content">
-                <div class="container">
+                <div class="container" id="main-container">
                     <!-- Section 1: Sales Report -->
-                    <div class="card">
+                    <div class="card" id="sales-report-card">
                         <h2>สรุปยอดขาย (ตามวันที่ชำระเงิน)</h2>
                         <div class="filters">
                             <div class="filter-group"> <label for="start-date">จากวันที่ชำระ</label> <input type="date" id="start-date"> </div>
                             <div class="filter-group"> <label for="end-date">ถึงวันที่ชำระ</label> <input type="date" id="end-date"> </div>
-                            <div class="filter-group"> <label for="channel-filter">ช่องทาง</label> <select id="channel-filter" multiple="multiple"></select> </div>
+                            
+                            <!-- Channel Search removed here -->
+
+                            <!-- Search Filters -->
+                            <div class="filter-group"> <label for="customer-search">ลูกค้า</label> <input type="text" id="customer-search" placeholder="ชื่อลูกค้า"> </div>
+                            <div class="filter-group"> <label for="amount-search">ยอดสุทธิ</label> <input type="number" id="amount-search" placeholder="จำนวนเงิน" step="0.01"> </div>
+                            
                             <button id="generate-report-btn" class="btn btn-primary">สร้างรายงาน</button>
                             <button id="export-xlsx-btn" class="btn btn-success" disabled>Export to XLSX</button>
                             <button id="export-png-btn" class="btn btn-info" disabled>Export to PNG</button>
@@ -137,8 +159,8 @@
                         </div>
                     </div>
 
-                    <!-- Section 2: Reconciliation Tool -->
-                    <div class="card">
+                    <!-- Section 2: Reconciliation Tool (ID added for ordering) -->
+                    <div class="card" id="reconciliation-card">
                         <h2><i class="fa-solid fa-wand-magic-sparkles"></i> ระบบกระทบยอด Statement</h2>
                         <div class="workflow">
                             <div class="step-card">
@@ -175,8 +197,8 @@
                         </div>
                     </div>
                     
-                    <!-- Section 3: Data Tables -->
-                    <div class="card">
+                    <!-- Section 3: Data Tables (ID added for ordering) -->
+                    <div class="card" id="data-table-card">
                         <h2><i class="fa-solid fa-table-list"></i> ตารางข้อมูล</h2>
                         <div id="results-container" class="table-container">
                             <p id="loading-message">ผลลัพธ์จาก "สร้างรายงาน" หรือ "กระทบยอด" จะแสดงที่นี่</p>
@@ -197,10 +219,31 @@
             let currentReportData = [];
             let channelMap = {}; 
 
+            // --- Layout Management ---
+            const mainContainer = document.getElementById('main-container');
+            const reportCard = document.getElementById('sales-report-card');
+            const reconciliationCard = document.getElementById('reconciliation-card');
+            const dataTableCard = document.getElementById('data-table-card');
+
+            function moveTablePosition(mode) {
+                if (mode === 'report') {
+                    // Move Table to sit after Report Card
+                    if (mainContainer.contains(dataTableCard) && mainContainer.contains(reconciliationCard)) {
+                        mainContainer.insertBefore(dataTableCard, reconciliationCard);
+                    }
+                } else if (mode === 'reconciliation') {
+                    // Move Table to the end (default position)
+                    mainContainer.appendChild(dataTableCard);
+                }
+            }
+
             // --- Sales Report Elements ---
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
-            const channelFilterSelect = $('#channel-filter');
+            // Removed: channelFilterSelect reference
+            const customerSearchInput = document.getElementById('customer-search');
+            const amountSearchInput = document.getElementById('amount-search');
+
             const generateBtn = document.getElementById('generate-report-btn');
             const exportXlsxBtn = document.getElementById('export-xlsx-btn');
             const exportPngBtn = document.getElementById('export-png-btn');
@@ -263,7 +306,7 @@
             document.getElementById('nav-product').addEventListener('click', (e) => { e.preventDefault(); navigateTo('product-system-container'); });
             document.getElementById('nav-sales-report').addEventListener('click', (e) => { e.preventDefault(); navigateTo('sales-report-system-container'); });
 
-            channelFilterSelect.select2({ placeholder: "ทุกช่องทาง", allowClear: true });
+            // Removed: Select2 initialization for channel filter
             
             const today = new Date().toISOString().slice(0, 10);
             startDateInput.value = today;
@@ -274,29 +317,34 @@
                 if (error) { console.error('Error loading channels:', error); return; }
                 
                 channelMap = {};
-                channelFilterSelect.empty();
+                // Removed: channelFilterSelect clearing
                 const matchChannelContainer = document.getElementById('match-channel-checkbox-container');
                 matchChannelContainer.innerHTML = '';
 
                 data.forEach(ch => {
                     channelMap[ch.channel_code] = { name: ch.channel_name, account: ch.bank_account || 'ไม่ระบุ' };
-                    // For Sales Report Filter
-                    const option = new Option(`${ch.channel_name} (${ch.channel_code})`, ch.channel_code, false, false);
-                    channelFilterSelect.append(option);
                     
-                    // For Reconciliation Checkboxes
+                    // Removed: Logic to append option to the channel select filter
+                    
+                    // For Reconciliation Checkboxes (Kept intact)
                     const wrapper = document.createElement('div');
                     wrapper.className = 'checkbox-wrapper';
                     wrapper.innerHTML = `<input type="checkbox" id="match-ch-${ch.channel_code}" value="${ch.channel_code}"><label for="match-ch-${ch.channel_code}">${ch.channel_code}</label>`;
                     matchChannelContainer.appendChild(wrapper);
                 });
-                channelFilterSelect.trigger('change');
+                // Removed: channelFilterSelect trigger change
             }
 
             // --- === SECTION 1: SALES REPORT LOGIC === ---
             async function generateReport() {
+                // *** MOVE TABLE UP ***
+                moveTablePosition('report');
+
                 const startDate = startDateInput.value;
                 const endDate = endDateInput.value;
+                const customerKeyword = customerSearchInput.value.trim();
+                const amountKeyword = amountSearchInput.value.trim();
+
                 if (!startDate || !endDate) { alert('กรุณาเลือกช่วงวันที่ให้ครบถ้วน'); return; }
                 
                 generateBtn.disabled = true;
@@ -307,17 +355,24 @@
                 summaryContainer.innerHTML = '';
 
                 try {
-                    const selectedChannels = channelFilterSelect.val();
+                    // Removed: const selectedChannels = channelFilterSelect.val();
+                    
                     let query = supabaseClient.from('orders').select('*')
                         .gte('payment_date', startDate)
                         .lte('payment_date', endDate)
                         .not('status', 'eq', 'ยกเลิก')
                         .not('payment_date', 'is', null);
 
-                    if (selectedChannels && selectedChannels.length > 0) {
-                        query = query.in('channel_code', selectedChannels);
+                    // Removed: Filtering logic for channel_code based on dropdown
+
+                    if (customerKeyword) {
+                        query = query.ilike('customer_name', `%${customerKeyword}%`);
                     }
-                    
+
+                    if (amountKeyword) {
+                        query = query.eq('total_amount', amountKeyword);
+                    }
+
                     const { data: orders, error } = await query.order('payment_date', { ascending: false });
                     if (error) throw error;
                     
@@ -477,6 +532,9 @@
             }
 
             function loadCSV(file) {
+                // *** MOVE TABLE DOWN ***
+                moveTablePosition('reconciliation');
+
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     totalStatementItems = 0; totalStatementSum = 0;
@@ -581,6 +639,9 @@
             }
 
             async function matchData() {
+                // Ensure table is in the reconciliation position
+                moveTablePosition('reconciliation');
+
                 const tableRows = document.querySelectorAll("#statementTable tbody tr");
                 if (tableRows.length === 0) { alert("ไม่มีข้อมูล Statement ให้จับคู่"); return; }
                 
