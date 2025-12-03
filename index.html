@@ -1865,159 +1865,231 @@
             return { initializeApp };
         })();
         
-        // --- SALES REPORT SYSTEM MODULE ---
-        window.salesReportSystem = (() => {
-            let isInitialized = false;
-            let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportPlaceholder;
-            let reportData = [];
+// --- SALES REPORT SYSTEM MODULE (UPDATED) ---
+window.salesReportSystem = (() => {
+    let isInitialized = false;
+    let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder;
+    let reportData = [];
+    let allChannels = []; // เก็บรายชื่อ channel ทั้งหมดที่พบเพื่อทำหัวตาราง
 
-            function initializeApp() {
-                if (isInitialized) return;
+    function initializeApp() {
+        if (isInitialized) return;
 
-                container = document.getElementById('sales-report-system-container');
-                startDateInput = container.querySelector('#report-start-date');
-                endDateInput = container.querySelector('#report-end-date');
-                generateBtn = container.querySelector('#generate-report-btn');
-                exportBtn = container.querySelector('#export-report-btn');
-                reportTbody = container.querySelector('#report-tbody');
-                reportPlaceholder = container.querySelector('#report-placeholder');
+        container = document.getElementById('sales-report-system-container');
+        startDateInput = container.querySelector('#report-start-date');
+        endDateInput = container.querySelector('#report-end-date');
+        generateBtn = container.querySelector('#generate-report-btn');
+        exportBtn = container.querySelector('#export-report-btn');
+        // เราต้องเข้าถึง thead เพื่อแก้หัวตารางด้วย
+        reportTableHead = container.querySelector('#report-table thead');
+        reportTbody = container.querySelector('#report-tbody');
+        reportPlaceholder = container.querySelector('#report-placeholder');
 
-                // Set default dates (e.g., this month)
-                const today = new Date();
-                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
-                endDateInput.value = today.toISOString().split('T')[0];
-                
-                generateBtn.addEventListener('click', generateReport);
-                exportBtn.addEventListener('click', exportToExcel);
-
-                isInitialized = true;
-            }
-
-            async function generateReport() {
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-
-                if (!startDate || !endDate) {
-                    alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด');
-                    return;
-                }
-
-                loadingOverlay.style.display = 'flex';
-                reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
-                reportTbody.innerHTML = '';
-                exportBtn.style.display = 'none';
-
-                try {
-                    // Fetch orders with relevant statuses within the date range, including their items and product details
-                    const { data, error } = await supabaseClient
-                        .from('orders')
-                        .select('order_items(*, products(product_code))')
-                        // --- CHANGE HERE: Include more statuses ---
-                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
-                        // --- CHANGE HERE: Filter by entry_date instead of shipped_time ---
-                        .gte('entry_date', startDate)
-                        .lte('entry_date', endDate);
-
-                    if (error) throw error;
-
-                    // Aggregate the data
-                    const productCounts = new Map();
-                    data.forEach(order => {
-                        (order.order_items || []).forEach(item => {
-                            if (item.products) { // Ensure product data exists
-                                const productId = item.product_id;
-                                if (!productCounts.has(productId)) {
-                                    productCounts.set(productId, {
-                                        code: item.products.product_code,
-                                        name: item.product_name,
-                                        quantity: 0
-                                    });
-                                }
-                                productCounts.get(productId).quantity += 1;
-                            }
-                        });
-                    });
-
-                    reportData = Array.from(productCounts.values());
-                    renderReportTable();
-
-                } catch (err) {
-                    console.error('Error generating report:', err);
-                    reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
-                    alert('เกิดข้อผิดพลาด: ' + err.message);
-                } finally {
-                    loadingOverlay.style.display = 'none';
-                }
-            }
-
-            function renderReportTable() {
-                reportTbody.innerHTML = '';
-                
-                if (reportData.length === 0) {
-                    reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก';
-                    reportPlaceholder.style.display = 'block';
-                    exportBtn.style.display = 'none';
-                    return;
-                }
-
-                // Sort by quantity descending
-                reportData.sort((a, b) => b.quantity - a.quantity);
-                
-                let totalItems = 0;
-                reportData.forEach(product => {
-                    const row = `<tr>
-                        <td>${product.code || 'N/A'}</td>
-                        <td>${product.name}</td>
-                        <td>${product.quantity}</td>
-                    </tr>`;
-                    reportTbody.insertAdjacentHTML('beforeend', row);
-                    totalItems += product.quantity;
-                });
-
-                // Add summary row
-                const summaryRow = `
-                    <tr style="background-color: #343a40; color: white; font-weight: bold;">
-                        <td colspan="2" style="text-align: right;">รวมทั้งหมด</td>
-                        <td>${totalItems}</td>
-                    </tr>`;
-                reportTbody.insertAdjacentHTML('beforeend', summaryRow);
-
-
-                reportPlaceholder.style.display = 'none';
-                exportBtn.style.display = 'inline-block';
-            }
-            
-            function exportToExcel() {
-                if (reportData.length === 0) {
-                    alert('ไม่มีข้อมูลสำหรับ Export');
-                    return;
-                }
-
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-
-                const headers = ["รหัสสินค้า", "ชื่อสินค้า", "จำนวนที่ขายได้"];
-                const dataToExport = reportData.map(item => [item.code, item.name, item.quantity]);
-
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
-
-                // Auto-size columns
-                const colWidths = headers.map((_, i) => ({
-                    wch: dataToExport.reduce((w, r) => Math.max(w, String(r[i] || '').length), headers[i].length)
-                }));
-                 // Set a minimum width for the name column
-                colWidths[1].wch = Math.max(colWidths[1].wch, 40);
-                worksheet['!cols'] = colWidths;
-
-                XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`);
-            }
-
-            return { initializeApp };
-        })();
+        // Set default dates
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
+        endDateInput.value = today.toISOString().split('T')[0];
         
+        generateBtn.addEventListener('click', generateReport);
+        exportBtn.addEventListener('click', exportToExcel);
+
+        isInitialized = true;
+    }
+
+    async function generateReport() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+
+        if (!startDate || !endDate) {
+            alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด');
+            return;
+        }
+
+        loadingOverlay.style.display = 'flex';
+        reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
+        reportTbody.innerHTML = '';
+        exportBtn.style.display = 'none';
+
+        try {
+            // Fetch orders: ต้องดึง channel_code มาด้วย
+            const { data, error } = await supabaseClient
+                .from('orders')
+                .select('channel_code, order_items(*, products(product_code))') 
+                .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
+                .gte('entry_date', startDate)
+                .lte('entry_date', endDate);
+
+            if (error) throw error;
+
+            // 1. หา Channel ทั้งหมดที่มีในช่วงเวลานี้ และเตรียมโครงสร้างข้อมูล
+            const productMap = new Map();
+            const channelSet = new Set();
+
+            data.forEach(order => {
+                // จัดการกรณีไม่มี channel หรือเป็นค่าว่าง
+                const channel = (order.channel_code || 'N/A').toUpperCase();
+                channelSet.add(channel);
+
+                (order.order_items || []).forEach(item => {
+                    if (item.products) { 
+                        const productId = item.product_id;
+                        
+                        if (!productMap.has(productId)) {
+                            productMap.set(productId, {
+                                code: item.products.product_code,
+                                name: item.product_name,
+                                channels: {}, // เก็บยอดแยกตาม channel { 'FB': 5, 'SHOPEE': 10 }
+                                total: 0
+                            });
+                        }
+                        
+                        const pData = productMap.get(productId);
+                        
+                        // เพิ่มยอดให้ Channel นั้นๆ
+                        pData.channels[channel] = (pData.channels[channel] || 0) + 1;
+                        
+                        // เพิ่มยอดรวม
+                        pData.total += 1;
+                    }
+                });
+            });
+
+            // เรียงชื่อ Channel ตามตัวอักษรเพื่อความสวยงาม
+            allChannels = Array.from(channelSet).sort();
+            reportData = Array.from(productMap.values());
+
+            renderReportTable();
+
+        } catch (err) {
+            console.error('Error generating report:', err);
+            reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
+            alert('เกิดข้อผิดพลาด: ' + err.message);
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    function renderReportTable() {
+        reportTbody.innerHTML = '';
+        reportTableHead.innerHTML = ''; // ล้างหัวตารางเดิม
+        
+        if (reportData.length === 0) {
+            reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก';
+            reportPlaceholder.style.display = 'block';
+            exportBtn.style.display = 'none';
+            // คืนค่าหัวตารางเปล่าๆ เพื่อความสวยงาม
+            reportTableHead.innerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>จำนวนที่ขายได้</th></tr>';
+            return;
+        }
+
+        // 1. สร้างหัวตาราง (Dynamic Header)
+        let headerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th>';
+        allChannels.forEach(channel => {
+            headerHTML += `<th style="text-align: center;">${channel}</th>`;
+        });
+        headerHTML += '<th style="text-align: center; background-color: #e2e3e5;">รวมทั้งหมด</th></tr>';
+        reportTableHead.innerHTML = headerHTML;
+
+        // 2. เรียงลำดับตามยอดรวมมากไปน้อย
+        reportData.sort((a, b) => b.total - a.total);
+        
+        // ตัวแปรสำหรับเก็บยอดรวมของแต่ละคอลัมน์ (Footer)
+        const columnTotals = {};
+        allChannels.forEach(ch => columnTotals[ch] = 0);
+        let grandTotal = 0;
+
+        // 3. สร้างแถวข้อมูล
+        reportData.forEach(product => {
+            let rowHTML = `
+                <tr>
+                    <td>${product.code || 'N/A'}</td>
+                    <td>${product.name}</td>
+            `;
+
+            // วนลูปสร้างเซลล์ตามจำนวน Channel
+            allChannels.forEach(channel => {
+                const qty = product.channels[channel] || 0;
+                // บวกยอดรวมคอลัมน์
+                columnTotals[channel] += qty;
+                
+                // ถ้าเป็น 0 ให้แสดงจางๆ หรือเป็นขีด เพื่อให้อ่านง่าย
+                const displayQty = qty === 0 ? '<span style="color:#ccc;">-</span>' : `<b>${qty}</b>`;
+                rowHTML += `<td style="text-align: center;">${displayQty}</td>`;
+            });
+
+            // คอลัมน์รวมสุดท้าย
+            grandTotal += product.total;
+            rowHTML += `<td style="text-align: center; font-weight: bold; background-color: #f8f9fa;">${product.total}</td></tr>`;
+            
+            reportTbody.insertAdjacentHTML('beforeend', rowHTML);
+        });
+
+        // 4. สร้างแถวสรุปยอดรวม (Footer Summary Row)
+        let summaryRowHTML = `
+            <tr style="background-color: #343a40; color: white; font-weight: bold; border-top: 2px solid #000;">
+                <td colspan="2" style="text-align: right;">รวมทั้งหมด</td>
+        `;
+        
+        allChannels.forEach(channel => {
+            summaryRowHTML += `<td style="text-align: center;">${columnTotals[channel]}</td>`;
+        });
+
+        summaryRowHTML += `<td style="text-align: center; font-size: 1.1em; background-color: #212529;">${grandTotal}</td></tr>`;
+        reportTbody.insertAdjacentHTML('beforeend', summaryRowHTML);
+
+        reportPlaceholder.style.display = 'none';
+        exportBtn.style.display = 'inline-block';
+    }
+    
+    function exportToExcel() {
+        if (reportData.length === 0) {
+            alert('ไม่มีข้อมูลสำหรับ Export');
+            return;
+        }
+
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+
+        // เตรียม Headers
+        const headers = ["รหัสสินค้า", "ชื่อสินค้า", ...allChannels, "รวมทั้งหมด"];
+        
+        // เตรียม Data Rows
+        const dataToExport = reportData.map(item => {
+            const row = [item.code, item.name];
+            allChannels.forEach(ch => {
+                row.push(item.channels[ch] || 0);
+            });
+            row.push(item.total);
+            return row;
+        });
+
+        // เพิ่มแถว Summary ใน Excel ด้วย
+        const summaryRow = ["", "รวมทั้งหมด"];
+        allChannels.forEach(ch => {
+            // คำนวณยอดรวมแนวดิ่งใหม่อีกครั้ง หรือจะเก็บ state ไว้ก็ได้
+            const sum = reportData.reduce((acc, item) => acc + (item.channels[ch] || 0), 0);
+            summaryRow.push(sum);
+        });
+        const grandSum = reportData.reduce((acc, item) => acc + item.total, 0);
+        summaryRow.push(grandSum);
+        dataToExport.push(summaryRow);
+
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
+
+        // จัดความกว้างคอลัมน์
+        const colWidths = headers.map((_, i) => ({
+            wch: 15 // default width
+        }));
+        colWidths[1].wch = 40; // ชื่อสินค้ากว้างหน่อย
+        worksheet['!cols'] = colWidths;
+
+        XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`);
+    }
+    return { initializeApp };
+})();
         // --- INITIAL LOAD ---
         checkAuth();
         window.addEventListener('pageshow', function (event) { if (event.persisted) { console.log("Page loaded from bfcache. Re-initializing."); checkAuth(); } });
