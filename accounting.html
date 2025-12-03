@@ -373,7 +373,7 @@
                         query = query.eq('total_amount', amountKeyword);
                     }
 
-                    const { data: orders, error } = await query.order('payment_date', { ascending: false });
+                    const { data: orders, error } = await query.order('bill_no', { ascending: true });
                     if (error) throw error;
                     
                     currentReportData = orders;
