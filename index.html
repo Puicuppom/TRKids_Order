@@ -1281,9 +1281,18 @@
                 loadingOverlay.style.display = 'flex'; const isUpdate = !!currentEditingOrderId;
                 try {
                     const channelCode = container.querySelector('#channel_code').value; if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
+                    
+                    // --- START: ADDED VALIDATION ---
+                    const customerAddressValue = container.querySelector('#customer_address').value.trim();
+                    if (!customerAddressValue) {
+                        const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
+                        throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}"`);
+                    }
+                    // --- END: ADDED VALIDATION ---
+
                     let billNo; if (!isUpdate) { billNo = await generateNextBillNo(channelCode); } else { const order = allOrdersData.find(o => o.id === currentEditingOrderId); billNo = order.bill_no; }
                     const paymentDateValue = container.querySelector('#payment_date').value; const paymentTimeValue = container.querySelector('#payment_time').value;
-                    const orderData = { channel_code: channelCode, bill_no: billNo, status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status, entry_date: new Date().toISOString().slice(0, 10), customer_name: container.querySelector('#customer_name').value.trim(), price: parseFloat(container.querySelector('#price').value), shipping_cost: parseFloat(container.querySelector('#shipping_cost').value), discount: parseFloat(container.querySelector('#discount').value), total_amount: parseFloat(container.querySelector('#total_amount').value), payment_method: container.querySelector('#payment_method').value, admin_user: adminUserInput.value, customer_address: container.querySelector('#customer_address').value.trim(), promotion: ($('#promotion').val() || '').trim(), payment_date: paymentDateValue ? paymentDateValue : null, payment_time: paymentTimeValue ? paymentTimeValue : null, };
+                    const orderData = { channel_code: channelCode, bill_no: billNo, status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status, entry_date: new Date().toISOString().slice(0, 10), customer_name: container.querySelector('#customer_name').value.trim(), price: parseFloat(container.querySelector('#price').value), shipping_cost: parseFloat(container.querySelector('#shipping_cost').value), discount: parseFloat(container.querySelector('#discount').value), total_amount: parseFloat(container.querySelector('#total_amount').value), payment_method: container.querySelector('#payment_method').value, admin_user: adminUserInput.value, customer_address: customerAddressValue, promotion: ($('#promotion').val() || '').trim(), payment_date: paymentDateValue ? paymentDateValue : null, payment_time: paymentTimeValue ? paymentTimeValue : null, };
                     if (ecommerceChannels.includes(orderData.channel_code)) { orderData.tracking_number = orderData.customer_address.replace(/\s/g, ''); }
                     let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) { const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId); if (error) throw error;
