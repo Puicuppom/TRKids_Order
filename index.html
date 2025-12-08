@@ -1281,14 +1281,23 @@
                 loadingOverlay.style.display = 'flex'; const isUpdate = !!currentEditingOrderId;
                 try {
                     const channelCode = container.querySelector('#channel_code').value; if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
-                    
-                    // --- START: ADDED VALIDATION ---
                     const customerAddressValue = container.querySelector('#customer_address').value.trim();
                     if (!customerAddressValue) {
                         const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
                         throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}"`);
                     }
-                    // --- END: ADDED VALIDATION ---
+
+                    // --- START: UPDATED ITEM VALIDATION ---
+                    const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
+                        const selectedData = $(row).find('.item-product').select2('data')[0];
+                        return selectedData && selectedData.id;
+                    });
+                    
+                    // The condition is now applied to ALL channels
+                    if (!hasAtLeastOneItem) {
+                        throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ");
+                    }
+                    // --- END: UPDATED ITEM VALIDATION ---
 
                     let billNo; if (!isUpdate) { billNo = await generateNextBillNo(channelCode); } else { const order = allOrdersData.find(o => o.id === currentEditingOrderId); billNo = order.bill_no; }
                     const paymentDateValue = container.querySelector('#payment_date').value; const paymentTimeValue = container.querySelector('#payment_time').value;
