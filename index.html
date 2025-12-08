@@ -92,7 +92,6 @@
         #packing-main-view .action-step{margin-bottom:0}
         #packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}
         
-        /* UPDATED: Added text-transform: uppercase */
         #packing-main-view .action-step input{font-size:16px;padding:10px;text-align:center;border:2px solid;border-radius:8px;max-width:400px;width:100%;display:block;margin:0 auto; text-transform: uppercase;}
         
         #packing-main-view #parcel-scan-input{border-color:#28a745}
@@ -1287,17 +1286,14 @@
                         throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}"`);
                     }
 
-                    // --- START: UPDATED ITEM VALIDATION ---
                     const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
                         const selectedData = $(row).find('.item-product').select2('data')[0];
                         return selectedData && selectedData.id;
                     });
                     
-                    // The condition is now applied to ALL channels
                     if (!hasAtLeastOneItem) {
                         throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ");
                     }
-                    // --- END: UPDATED ITEM VALIDATION ---
 
                     let billNo; if (!isUpdate) { billNo = await generateNextBillNo(channelCode); } else { const order = allOrdersData.find(o => o.id === currentEditingOrderId); billNo = order.bill_no; }
                     const paymentDateValue = container.querySelector('#payment_date').value; const paymentTimeValue = container.querySelector('#payment_time').value;
@@ -1451,6 +1447,30 @@
             const finalizeWoBtn = container.querySelector("#finalize-wo-btn");
             let allOrdersForPacking = []; let aggregatedData = []; let completedIndices = new Set(); let currentIndex = -1; let currentWorkOrderName = null; let packingState = {};
             
+            function naturalSortCompare(a, b) {
+                const re = /(\d+)/g;
+                const aParts = String(a).split(re);
+                const bParts = String(b).split(re);
+                
+                for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+                    const partA = aParts[i];
+                    const partB = bParts[i];
+
+                    if (i % 2 === 1) { // It's a number part
+                        const numA = parseInt(partA, 10);
+                        const numB = parseInt(partB, 10);
+                        if (numA !== numB) {
+                            return numA - numB;
+                        }
+                    } else { // It's a string part
+                        if (partA !== partB) {
+                            return partA.localeCompare(partB);
+                        }
+                    }
+                }
+                return aParts.length - bParts.length;
+            }
+            
             function savePackingState() { try { sessionStorage.setItem('packingState', JSON.stringify(packingState)); } catch (e) { console.error('Failed to save state:', e); } }
             function loadPackingState() { try { const savedState = sessionStorage.getItem('packingState'); if (savedState) { packingState = JSON.parse(savedState); } else { packingState = {}; } } catch (e) { console.error('Failed to load state:', e); packingState = {}; } }
             
@@ -1597,8 +1617,10 @@
                 const orderGroup = aggregatedData[index];
                 
                 orderGroup.sort((a, b) => {
-                    if (a.scanned === b.scanned) return (a.item_uid || '').localeCompare(b.item_uid || '');
-                    return a.scanned ? 1 : -1;
+                    if (a.scanned !== b.scanned) {
+                        return a.scanned ? 1 : -1;
+                    }
+                    return naturalSortCompare(a.item_uid || '', b.item_uid || '');
                 });
 
                 const totalItems = orderGroup.length;
@@ -1640,11 +1662,10 @@
                         if (packingState[currentWorkOrderName].parcelScannedFor) {
                             delete packingState[currentWorkOrderName].parcelScannedFor[currentIndex];
                         }
-                        // FIXED: Remove the index from completedIndices when resetting
                         if (completedIndices.has(currentIndex)) {
                             completedIndices.delete(currentIndex);
                             packingState[currentWorkOrderName].completedIndices = Array.from(completedIndices);
-                            markNavItemAsComplete(currentIndex, false); // Update the UI
+                            markNavItemAsComplete(currentIndex, false); 
                         }
                     }
                     savePackingState(); 
@@ -1675,7 +1696,7 @@
                 updateStatus("✅ จัดส่งสำเร็จ!", "success"); 
                 successSound.play(); 
                 setTimeout(async () => { 
-                    updateFinalizeButtonVisibility(); // Check if the button should be shown
+                    updateFinalizeButtonVisibility(); 
                     if (completedIndices.size === aggregatedData.length) { 
                         updateStatus("🎉 จัดส่งครบ! กดปุ่มเขียวเพื่อยืนยัน", "success"); 
                         actionPanel.style.display = "none"; 
@@ -1740,7 +1761,6 @@
                 }
             };
             
-            // FIXED: New function to control visibility of the finalize button
             function updateFinalizeButtonVisibility() {
                 if (currentWorkOrderName && aggregatedData.length > 0 && completedIndices.size === aggregatedData.length) {
                     finalizeWoBtn.style.display = 'inline-block';
@@ -1754,7 +1774,7 @@
                     currentWorkOrderName = null; 
                     selectionView.style.display = "block"; 
                     mainView.style.display = "none";
-                    finalizeWoBtn.style.display = 'none'; // Hide when going back to selection
+                    finalizeWoBtn.style.display = 'none'; 
                 } else { 
                     selectionView.style.display = "none"; 
                     mainView.style.display = "block"; 
@@ -1769,7 +1789,6 @@
                 if (item) { 
                     item.classList.toggle("completed", isComplete); 
                     const trackingSpan = item.querySelector('.tracking-id');
-                    // FIXED: Correctly reconstruct the text content
                     const trackingIdText = trackingSpan.textContent.split(' ').pop();
                     trackingSpan.innerHTML = `${isComplete ? '✅' : '📦'} ${trackingIdText}`;
                 } 
@@ -1783,7 +1802,6 @@
             parcelScanInput.addEventListener("change", handleParcelScan);
             backBtn.addEventListener('click', () => showPackingView('selection')); 
             resetBtn.addEventListener("click", resetCurrentOrderPacking);
-            // FIXED: Add event listener for the new button
             finalizeWoBtn.addEventListener('click', () => {
                 if (confirm(`ยืนยันย้ายใบงาน "${currentWorkOrderName}" เป็น "จัดส่งแล้ว"?`)) {
                     finalizeWorkOrderAndMoveStatus(currentWorkOrderName);
