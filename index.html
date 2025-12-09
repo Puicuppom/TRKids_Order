@@ -1277,38 +1277,150 @@
             async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกทั้งใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
             async function saveOrUpdateOrder(status) {
-                loadingOverlay.style.display = 'flex'; const isUpdate = !!currentEditingOrderId;
+                loadingOverlay.style.display = 'flex';
+                const isUpdate = !!currentEditingOrderId;
                 try {
-                    const channelCode = container.querySelector('#channel_code').value; if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
+                    // --- START OF VALIDATION ---
+                    const channelCode = container.querySelector('#channel_code').value;
+                    const customerName = container.querySelector('#customer_name').value.trim();
                     const customerAddressValue = container.querySelector('#customer_address').value.trim();
+                    const priceValue = container.querySelector('#price').value; // Check before parsing
+                    const paymentMethod = container.querySelector('#payment_method').value;
+                    const paymentDateValue = container.querySelector('#payment_date').value;
+                    const paymentTimeValue = container.querySelector('#payment_time').value;
+
+                    // 1. ช่องทาง
+                    if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
+                    
+                    // 2. ชื่อลูกค้า
+                    if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า");
+
+                    // 3. ที่อยู่ลูกค้า
                     if (!customerAddressValue) {
                         const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
                         throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}"`);
                     }
 
+                    // 4. ชื่อสินค้า (at least one item)
                     const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
                         const selectedData = $(row).find('.item-product').select2('data')[0];
                         return selectedData && selectedData.id;
                     });
-                    
                     if (!hasAtLeastOneItem) {
                         throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ");
                     }
+                    
+                    // Validation for payment fields, will be skipped if channel is 'CLAIM'
+                    if (channelCode !== 'CLAIM') {
+                        // 5. ราคา
+                        if (priceValue === '' || priceValue === null) {
+                             throw new Error("กรุณากรอกราคา");
+                        }
 
-                    let billNo; if (!isUpdate) { billNo = await generateNextBillNo(channelCode); } else { const order = allOrdersData.find(o => o.id === currentEditingOrderId); billNo = order.bill_no; }
-                    const paymentDateValue = container.querySelector('#payment_date').value; const paymentTimeValue = container.querySelector('#payment_time').value;
-                    const orderData = { channel_code: channelCode, bill_no: billNo, status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status, entry_date: new Date().toISOString().slice(0, 10), customer_name: container.querySelector('#customer_name').value.trim(), price: parseFloat(container.querySelector('#price').value), shipping_cost: parseFloat(container.querySelector('#shipping_cost').value), discount: parseFloat(container.querySelector('#discount').value), total_amount: parseFloat(container.querySelector('#total_amount').value), payment_method: container.querySelector('#payment_method').value, admin_user: adminUserInput.value, customer_address: customerAddressValue, promotion: ($('#promotion').val() || '').trim(), payment_date: paymentDateValue ? paymentDateValue : null, payment_time: paymentTimeValue ? paymentTimeValue : null, };
-                    if (ecommerceChannels.includes(orderData.channel_code)) { orderData.tracking_number = orderData.customer_address.replace(/\s/g, ''); }
+                        // 6. วิธีการชำระ
+                        if (!paymentMethod) {
+                            throw new Error("กรุณาเลือกวิธีการชำระ");
+                        }
+
+                        // 7. วันที่ชำระ
+                        if (!paymentDateValue) {
+                            throw new Error("กรุณาเลือกวันที่ชำระ");
+                        }
+
+                        // 8. เวลาที่ชำระ
+                        if (!paymentTimeValue) {
+                            throw new Error("กรุณากรอกเวลาที่ชำระ");
+                        }
+                    }
+                    // --- END OF VALIDATION ---
+
+                    let billNo;
+                    if (!isUpdate) {
+                        billNo = await generateNextBillNo(channelCode);
+                    } else {
+                        const order = allOrdersData.find(o => o.id === currentEditingOrderId);
+                        billNo = order.bill_no;
+                    }
+                    
+                    const orderData = {
+                        channel_code: channelCode,
+                        bill_no: billNo,
+                        status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status,
+                        entry_date: new Date().toISOString().slice(0, 10),
+                        customer_name: customerName,
+                        price: parseFloat(priceValue),
+                        shipping_cost: parseFloat(container.querySelector('#shipping_cost').value),
+                        discount: parseFloat(container.querySelector('#discount').value),
+                        total_amount: parseFloat(container.querySelector('#total_amount').value),
+                        payment_method: paymentMethod,
+                        admin_user: adminUserInput.value,
+                        customer_address: customerAddressValue,
+                        promotion: ($('#promotion').val() || '').trim(),
+                        payment_date: paymentDateValue ? paymentDateValue : null,
+                        payment_time: paymentTimeValue ? paymentTimeValue : null,
+                    };
+                    
+                    if (ecommerceChannels.includes(orderData.channel_code)) {
+                        orderData.tracking_number = orderData.customer_address.replace(/\s/g, '');
+                    }
+                    
                     let upsertedOrderId = currentEditingOrderId;
-                    if (isUpdate) { const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId); if (error) throw error;
-                    } else { const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single(); if (error) throw error; upsertedOrderId = insertedOrder.id; }
+                    if (isUpdate) {
+                        const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
+                        if (error) throw error;
+                    } else {
+                        const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single();
+                        if (error) throw error;
+                        upsertedOrderId = insertedOrder.id;
+                    }
+                    
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
-                    let allItemsToInsert = []; let itemSequence = 1;
-                    for (const row of itemsTbody.rows) { const selectedData = $(row).find('.item-product').select2('data')[0]; if (!selectedData || !selectedData.id) continue; const originalProduct = fullProductList.find(p => p.id == selectedData.id); if (!originalProduct) continue; const quantity = parseInt(row.querySelector('.item-quantity').value) || 1; const baseItemData = { order_id: upsertedOrderId, bill_no: billNo, product_id: originalProduct.id, product_name: originalProduct.product_name, ink_color: row.querySelector('.item-ink_color').value.trim(), product_type: row.querySelector('.item-shelf_location').value.trim(), cartoon_pattern: row.querySelector('.item-cartoon_pattern').value.trim(), line_pattern: row.querySelector('.item-line_pattern').value.trim(), font: row.querySelector('.item-font').value.trim(), line_1: row.querySelector('.item-line_1').value.trim(), line_2: row.querySelector('.item-line_2').value.trim(), line_3: row.querySelector('.item-line_3').value.trim(), notes: row.querySelector('.item-notes').value.trim(), file_attachment: row.querySelector('.item-file_attachment').value.trim() }; for (let i = 0; i < quantity; i++) { allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` }); } }
-                    if (allItemsToInsert.length > 0) { const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert); if (itemsError) throw itemsError; }
+                    
+                    let allItemsToInsert = [];
+                    let itemSequence = 1;
+                    for (const row of itemsTbody.rows) {
+                        const selectedData = $(row).find('.item-product').select2('data')[0];
+                        if (!selectedData || !selectedData.id) continue;
+                        const originalProduct = fullProductList.find(p => p.id == selectedData.id);
+                        if (!originalProduct) continue;
+                        const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
+                        const baseItemData = {
+                            order_id: upsertedOrderId,
+                            bill_no: billNo,
+                            product_id: originalProduct.id,
+                            product_name: originalProduct.product_name,
+                            ink_color: row.querySelector('.item-ink_color').value.trim(),
+                            product_type: row.querySelector('.item-shelf_location').value.trim(),
+                            cartoon_pattern: row.querySelector('.item-cartoon_pattern').value.trim(),
+                            line_pattern: row.querySelector('.item-line_pattern').value.trim(),
+                            font: row.querySelector('.item-font').value.trim(),
+                            line_1: row.querySelector('.item-line_1').value.trim(),
+                            line_2: row.querySelector('.item-line_2').value.trim(),
+                            line_3: row.querySelector('.item-line_3').value.trim(),
+                            notes: row.querySelector('.item-notes').value.trim(),
+                            file_attachment: row.querySelector('.item-file_attachment').value.trim()
+                        };
+                        for (let i = 0; i < quantity; i++) {
+                            allItemsToInsert.push({ ...baseItemData,
+                                item_uid: `${billNo}-${itemSequence++}`
+                            });
+                        }
+                    }
+                    
+                    if (allItemsToInsert.length > 0) {
+                        const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
+                        if (itemsError) throw itemsError;
+                    }
+                    
                     alert(isUpdate ? 'อัปเดตสำเร็จ!' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
                     setFormMode('create');
-                } catch (error) { console.error('Error saving order:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; }
+                    
+                } catch (error) {
+                    console.error('Error saving order:', error);
+                    alert(`เกิดพลาด: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
             }
             
             function enterTrackingEditMode(trackingSpan) { 
