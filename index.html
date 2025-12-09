@@ -1280,60 +1280,50 @@
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
-                    // --- START OF VALIDATION ---
+                    // ดึงข้อมูลจากฟอร์มทั้งหมดมาก่อน
                     const channelCode = container.querySelector('#channel_code').value;
                     const customerName = container.querySelector('#customer_name').value.trim();
                     const customerAddressValue = container.querySelector('#customer_address').value.trim();
-                    const priceValue = container.querySelector('#price').value; // Check before parsing
+                    const priceValue = container.querySelector('#price').value;
                     const paymentMethod = container.querySelector('#payment_method').value;
                     const paymentDateValue = container.querySelector('#payment_date').value;
                     const paymentTimeValue = container.querySelector('#payment_time').value;
 
-                    // 1. ช่องทาง
-                    if (!channelCode) throw new Error("กรุณาเลือกช่องทาง");
+                    // --- VALIDATION ---
                     
-                    // 2. ชื่อลูกค้า
-                    if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า");
+                    // 1. บังคับกรอก "ช่องทาง" เสมอ ไม่ว่าจะกดปุ่มไหน
+                    if (!channelCode) throw new Error("กรุณาเลือกช่องทาง (จำเป็นสำหรับการสร้างเลขบิล)");
 
-                    // 3. ที่อยู่ลูกค้า
-                    if (!customerAddressValue) {
-                        const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
-                        throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}"`);
-                    }
-
-                    // 4. ชื่อสินค้า (at least one item)
-                    const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
-                        const selectedData = $(row).find('.item-product').select2('data')[0];
-                        return selectedData && selectedData.id;
-                    });
-                    if (!hasAtLeastOneItem) {
-                        throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ");
-                    }
-                    
-                    // Validation for payment fields, will be skipped if channel is 'CLAIM'
-                    if (channelCode !== 'CLAIM') {
-                        // 5. ราคา
-                        if (priceValue === '' || priceValue === null) {
-                             throw new Error("กรุณากรอกราคา");
+                    // 2. ตรวจสอบข้อมูลทั้งหมด เฉพาะเมื่อกด "บันทึก (ข้อมูลครบ)" เท่านั้น
+                    if (status === 'ลงข้อมูลเสร็จสิ้น') {
+                        // ชื่อลูกค้า
+                        if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า ก่อนบันทึกเป็น 'ข้อมูลครบ'");
+                        
+                        // ที่อยู่ลูกค้า
+                        if (!customerAddressValue) {
+                            const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
+                            throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}" ก่อนบันทึกเป็น 'ข้อมูลครบ'`);
                         }
 
-                        // 6. วิธีการชำระ
-                        if (!paymentMethod) {
-                            throw new Error("กรุณาเลือกวิธีการชำระ");
+                        // รายการสินค้า
+                        const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
+                            const selectedData = $(row).find('.item-product').select2('data')[0];
+                            return selectedData && selectedData.id;
+                        });
+                        if (!hasAtLeastOneItem) {
+                            throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         }
 
-                        // 7. วันที่ชำระ
-                        if (!paymentDateValue) {
-                            throw new Error("กรุณาเลือกวันที่ชำระ");
-                        }
-
-                        // 8. เวลาที่ชำระ
-                        if (!paymentTimeValue) {
-                            throw new Error("กรุณากรอกเวลาที่ชำระ");
+                        // ข้อมูลการชำระเงิน (ยกเว้นช่องทาง CLAIM)
+                        if (channelCode !== 'CLAIM') {
+                            if (priceValue === '' || priceValue === null) throw new Error("กรุณากรอกราคา ก่อนบันทึกเป็น 'ข้อมูลครบ'");
+                            if (!paymentMethod) throw new Error("กรุณาเลือกวิธีการชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
+                            if (!paymentDateValue) throw new Error("กรุณาเลือกวันที่ชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
+                            if (!paymentTimeValue) throw new Error("กรุณากรอกเวลาที่ชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         }
                     }
-                    // --- END OF VALIDATION ---
 
+                    // --- ส่วนที่เหลือของฟังก์ชัน (การบันทึกข้อมูล) ---
                     let billNo;
                     if (!isUpdate) {
                         billNo = await generateNextBillNo(channelCode);
@@ -1341,7 +1331,6 @@
                         const order = allOrdersData.find(o => o.id === currentEditingOrderId);
                         billNo = order.bill_no;
                     }
-                    
                     const orderData = {
                         channel_code: channelCode,
                         bill_no: billNo,
@@ -1359,23 +1348,24 @@
                         payment_date: paymentDateValue ? paymentDateValue : null,
                         payment_time: paymentTimeValue ? paymentTimeValue : null,
                     };
-                    
                     if (ecommerceChannels.includes(orderData.channel_code)) {
                         orderData.tracking_number = orderData.customer_address.replace(/\s/g, '');
                     }
-                    
                     let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) {
-                        const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
+                        const {
+                            error
+                        } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
                         if (error) throw error;
                     } else {
-                        const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single();
+                        const {
+                            data: insertedOrder,
+                            error
+                        } = await supabaseClient.from('orders').insert(orderData).select().single();
                         if (error) throw error;
                         upsertedOrderId = insertedOrder.id;
                     }
-                    
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
-                    
                     let allItemsToInsert = [];
                     let itemSequence = 1;
                     for (const row of itemsTbody.rows) {
@@ -1406,15 +1396,14 @@
                             });
                         }
                     }
-                    
                     if (allItemsToInsert.length > 0) {
-                        const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
+                        const {
+                            error: itemsError
+                        } = await supabaseClient.from('order_items').insert(allItemsToInsert);
                         if (itemsError) throw itemsError;
                     }
-                    
                     alert(isUpdate ? 'อัปเดตสำเร็จ!' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
                     setFormMode('create');
-                    
                 } catch (error) {
                     console.error('Error saving order:', error);
                     alert(`เกิดพลาด: ${error.message}`);
