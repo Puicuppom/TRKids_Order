@@ -1988,7 +1988,46 @@ async function resetCurrentOrderPacking() {
                     finalizeWorkOrderAndMoveStatus(currentWorkOrderName);
                 }
             });
+async function finalizeWorkOrderAndMoveStatus(workOrderName) {
+                loadingOverlay.style.display = 'flex';
+                try {
+                    // 1. อัปเดตสถานะของ Work Order เป็น "จัดส่งแล้ว"
+                    const { error: woError } = await supabaseClient
+                        .from('work_orders')
+                        .update({ status: 'จัดส่งแล้ว' })
+                        .eq('work_order_name', workOrderName);
 
+                    if (woError) throw woError;
+
+                    // 2. อัปเดตสถานะของ Orders ทั้งหมดในใบงานนั้นเป็น "จัดส่งแล้ว"
+                    const { error: ordersError } = await supabaseClient
+                        .from('orders')
+                        .update({ status: 'จัดส่งแล้ว' })
+                        .eq('work_order_name', workOrderName);
+
+                    if (ordersError) throw ordersError;
+
+                    // 3. ลบใบงานออกจาก Planner (jobs) เนื่องจากผลิตและส่งเสร็จแล้ว
+                    const { error: jobError } = await supabaseClient
+                        .from('jobs')
+                        .delete()
+                        .eq('name', workOrderName);
+                    
+                    if (jobError) console.warn("Could not delete job from planner:", jobError);
+
+                    alert(`ย้ายใบงาน "${workOrderName}" ไปยัง "จัดส่งแล้ว" เรียบร้อย!`);
+                    
+                    // 4. รีเซ็ตหน้าจอ
+                    showPackingView('selection');
+                    loadWorkOrdersForPacking();
+
+                } catch (err) {
+                    console.error(err);
+                    alert('เกิดข้อผิดพลาดในการย้ายสถานะ: ' + err.message);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
             return { loadWorkOrdersForPacking };
         })();
         
