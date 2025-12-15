@@ -1529,7 +1529,22 @@ html
                     if (headerForAction) { const classToAction = { 'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName), 'export-waybill-sort-btn': (btn) => window.waybillSorter.start(btn.dataset.workOrderName, allOrdersData), 'import-wo-csv-btn': () => trackingFileInput.click(), 'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName) }; let actionTaken = false; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { event.stopPropagation(); classToAction[className](btn); actionTaken = true; break; } } if (!actionTaken && !target.closest('.wo-header-actions')) { toggleWorkOrder(headerForAction); } }
                     const billsContainer = target.closest('.work-order-bills'); if(billsContainer) { const classToAction = { 'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn), 'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'), 'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'), 'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn) }; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { classToAction[className](btn); break; } } }
                 });
-                addItemBtn.addEventListener('click', () => addItemRow());
+                addItemBtn.addEventListener('click', () => {
+    let itemToCopy = null;
+    const lastRow = itemsTbody.querySelector('tr:last-child');
+    
+    if (lastRow) {
+        // ดึง ID ของสินค้าที่ถูกเลือกในแถวสุดท้าย
+        const lastProductId = $(lastRow).find('.item-product').val();
+        if (lastProductId) {
+            // เตรียมข้อมูลที่จะคัดลอก (เฉพาะ product_id)
+            itemToCopy = { product_id: lastProductId };
+        }
+    }
+    
+    // เรียกฟังก์ชันเพิ่มแถว โดยส่งข้อมูลที่คัดลอกไปด้วย (ถ้ามี)
+    addItemRow(itemToCopy);
+});
                 $(itemsTbody).on('select2:select', '.item-product', function(e) { const row = e.target.closest('tr'); if (!row.dataset.isAutoAdded) { handleCondoStampExpansion(row); checkAndApplyStampInkLogic(row); } });
                 itemsTbody.addEventListener('change', (e) => { if (e.target.classList.contains('item-ink_color')) { const row = e.target.closest('tr'); if (!row.dataset.isAutoAdded) { checkAndApplyStampInkLogic(row); } } });
                 itemsTbody.addEventListener('click', (e) => { if (e.target.classList.contains('remove-item-btn')) { const rowToRemove = e.target.closest('tr'); const linkedInkRowUid = rowToRemove.dataset.linkedInkRowUid; if (linkedInkRowUid) { const inkRow = itemsTbody.querySelector(`tr[data-row-uid="${linkedInkRowUid}"]`); if (inkRow) { $(inkRow).find('.item-product').select2('destroy'); inkRow.remove(); } } $(rowToRemove).find('.item-product').select2('destroy'); rowToRemove.remove(); } });
