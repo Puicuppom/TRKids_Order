@@ -381,7 +381,7 @@
                                     <div class="form-group"><label for="customer_name">ชื่อลูกค้า</label><input type="text" id="customer_name" required></div>
                                     <div class="form-group full-width"><label for="customer_address">ที่อยู่ลูกค้า</label><textarea id="customer_address" rows="4" required></textarea></div>
                                 </div>
-                                <hr>
+<hr>
                                 <h3>รายการสินค้า</h3>
                                 <div class="batch-actions">
                                     <button type="button" id="download-template-btn" class="btn btn-info">📥 Template (Standard)</button>
@@ -713,8 +713,7 @@
             </div>
         </div>
     </div>
-
-
+html
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & GLOBAL STATE ---
@@ -958,7 +957,9 @@
                 adminUserInput.value = username;
                 currentUserRole = role;
                 $('#promotion').select2({ tags: true, placeholder: 'เลือกหรือพิมพ์โปรโมชันใหม่', tokenSeparators: [','] });
-                await loadInitialData(); setFormMode('create'); initializeEventListeners();
+                await loadInitialData(); 
+                setFormMode('create'); 
+                initializeEventListeners();
                 setupRealtimeSubscriptions();
                 document.getElementById('upload-slip-btn').addEventListener('click', () => document.getElementById('slip-file-input').click());
                 document.getElementById('slip-file-input').addEventListener('change', (e) => slipProcessor.process(e.target.files[0]));
@@ -968,18 +969,20 @@
                 const channel = supabaseClient.channel('public:orders_and_items');
                 channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
                     console.log('Realtime change on orders detected:', payload);
-                    loadInitialData();
+                    loadInitialData(true); // Call in silent mode
                 }).on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, (payload) => {
                     console.log('Realtime change on order_items detected:', payload);
-                    loadInitialData();
+                    loadInitialData(true); // Call in silent mode
                 }).subscribe();
             }
 
-            async function loadInitialData() {
+            async function loadInitialData(isSilent = false) {
                 if (window.isLoadingData) return;
                 window.isLoadingData = true;
 
-                loadingOverlay.style.display = 'flex';
+                if (!isSilent) {
+                    loadingOverlay.style.display = 'flex';
+                }
                 try {
                     const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
@@ -989,31 +992,52 @@
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
                         supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
                     ]);
+
                     if (productsRes.error) throw new Error('Could not load products');
                     fullProductList = productsRes.data;
-                    // Filter productList to only include active products for dropdowns
                     productList = productsRes.data
-                        .filter(p => p.is_active !== false) // Handles true and null (for old data)
+                        .filter(p => p.is_active !== false)
                         .map(p => ({ id: p.id, text: p.product_name }));
-
+                    
                     if (channelsRes.error) throw new Error('Could not load channels');
                     channelList = channelsRes.data; if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
                     channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
+                    
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
                     inkTypeList = inkTypesRes.data;
-                    if (promotionsRes.error) throw new Error('Could not load promotions');
-                    const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
-                    const promotionSelect = $('#promotion'); promotionSelect.empty();
-                    uniquePromotions.forEach(promo => { const option = new Option(promo, promo, false, false); promotionSelect.append(option); });
-                    promotionSelect.trigger('change');
-                    populateChannelDropdowns();
+
+                    // *** MODIFICATION START ***
+                    // Check if this is a silent update while the user is on the create/edit tab.
+                    const isEditingOrder = isSilent && container.querySelector('#tab-create')?.classList.contains('active');
+
+                    // Only repopulate dropdowns if it's NOT a silent update on the create tab.
+                    if (!isEditingOrder) {
+                        if (promotionsRes.error) throw new Error('Could not load promotions');
+                        const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
+                        const promotionSelect = $('#promotion'); 
+                        const currentValue = promotionSelect.val(); // Save current value
+                        promotionSelect.empty();
+                        uniquePromotions.forEach(promo => { const option = new Option(promo, promo, false, false); promotionSelect.append(option); });
+                        promotionSelect.val(currentValue).trigger('change'); // Restore current value
+                        
+                        populateChannelDropdowns();
+                    }
+                    // *** MODIFICATION END ***
+
                     if (ordersRes.error) throw new Error('Could not load orders');
                     allOrdersData = ordersRes.data;
+                    
                     if (workOrdersRes.error) throw new Error('Could not load work orders');
                     allWorkOrdersData = workOrdersRes.data;
+                    
                     renderAllTabs();
                 } catch(err) { console.error(err); alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); }
-                finally { loadingOverlay.style.display = 'none'; setTimeout(() => { window.isLoadingData = false; }, 500); }
+                finally { 
+                    if (!isSilent) {
+                        loadingOverlay.style.display = 'none'; 
+                    }
+                    setTimeout(() => { window.isLoadingData = false; }, 500); 
+                }
             }
             
             function renderAllTabs() {
@@ -1097,7 +1121,7 @@
             function handleSmartImport(file) { if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array', bookFiles: true }); const firstSheetName = workbook.SheetNames[0]; const worksheet = workbook.Sheets[firstSheetName]; const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }); if (jsonData.length === 0) throw new Error("ไฟล์ไม่มีข้อมูล"); const firstRow = jsonData[0]; const headers = Object.keys(firstRow); const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']); if (orderNumberHeader && String(firstRow[orderNumberHeader]).toUpperCase().startsWith('S2Y')) { console.log("PGTR detected."); handlePgtrImport(file); return; } const billNoHeader = findHeader(headers, ['เลขบิล', 'bill_no', 'เลขที่บิล']); if (billNoHeader && String(firstRow[billNoHeader]).toUpperCase().startsWith('WY')) { console.log("WY detected."); handleWyImport(file); return; } console.log("Standard detected."); handleExcelImport(file); } catch (err) { console.error('Error detecting file type:', err); alert("ไม่สามารถระบุประเภทไฟล์ได้: " + err.message); importOrdersFileInput.value = ''; } }; reader.readAsArrayBuffer(file); }
             
             function toggleWorkOrder(headerElement) { const content = headerElement.nextElementSibling; if (content) { content.classList.toggle('show'); } }
-            function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped'), container.querySelector('#filter-work-orders') ]; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); }
+            function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped'), container.querySelector('#filter-work-orders') ]; const currentFormChannel = container.querySelector('#channel_code').value; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); container.querySelector('#channel_code').value = currentFormChannel; }
             
             function updateSmartWorkOrderButton() {
                 const smartBtn = document.getElementById('create-wo-smart-btn');
@@ -1280,7 +1304,6 @@
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
-                    // ดึงข้อมูลจากฟอร์มทั้งหมดมาก่อน
                     const channelCode = container.querySelector('#channel_code').value;
                     const customerName = container.querySelector('#customer_name').value.trim();
                     const customerAddressValue = container.querySelector('#customer_address').value.trim();
@@ -1289,32 +1312,19 @@
                     const paymentDateValue = container.querySelector('#payment_date').value;
                     const paymentTimeValue = container.querySelector('#payment_time').value;
 
-                    // --- VALIDATION ---
-                    
-                    // 1. บังคับกรอก "ช่องทาง" เสมอ ไม่ว่าจะกดปุ่มไหน
                     if (!channelCode) throw new Error("กรุณาเลือกช่องทาง (จำเป็นสำหรับการสร้างเลขบิล)");
 
-                    // 2. ตรวจสอบข้อมูลทั้งหมด เฉพาะเมื่อกด "บันทึก (ข้อมูลครบ)" เท่านั้น
                     if (status === 'ลงข้อมูลเสร็จสิ้น') {
-                        // ชื่อลูกค้า
                         if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                        
-                        // ที่อยู่ลูกค้า
                         if (!customerAddressValue) {
                             const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
                             throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}" ก่อนบันทึกเป็น 'ข้อมูลครบ'`);
                         }
-
-                        // รายการสินค้า
                         const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
                             const selectedData = $(row).find('.item-product').select2('data')[0];
                             return selectedData && selectedData.id;
                         });
-                        if (!hasAtLeastOneItem) {
-                            throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                        }
-
-                        // ข้อมูลการชำระเงิน (ยกเว้นช่องทาง CLAIM)
+                        if (!hasAtLeastOneItem) throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         if (channelCode !== 'CLAIM') {
                             if (priceValue === '' || priceValue === null) throw new Error("กรุณากรอกราคา ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                             if (!paymentMethod) throw new Error("กรุณาเลือกวิธีการชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
@@ -1322,8 +1332,7 @@
                             if (!paymentTimeValue) throw new Error("กรุณากรอกเวลาที่ชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         }
                     }
-
-                    // --- ส่วนที่เหลือของฟังก์ชัน (การบันทึกข้อมูล) ---
+                    
                     let billNo;
                     if (!isUpdate) {
                         billNo = await generateNextBillNo(channelCode);
@@ -1969,7 +1978,6 @@ async function resetCurrentOrderPacking() {
         })();
         
         // --- PRODUCT SYSTEM MODULE ---
-        // [This module remains unchanged]
         window.productSystem = (() => {
             let isInitialized = false; const addBtn = document.getElementById('add-product-btn'); const importBtn = document.getElementById('import-product-btn'); const importInput = document.getElementById('import-product-input'); const downloadTemplateBtn = document.getElementById('download-product-template-btn'); const searchInput = document.getElementById('search-product-input'); const tableBody = document.getElementById('products-tbody'); const modal = document.getElementById('product-modal'); const modalTitle = document.getElementById('product-modal-title'); const productForm = document.getElementById('product-form'); const cancelModalBtn = document.getElementById('cancel-product-modal-btn'); const categoryInput = document.getElementById('product-category-input'); const rubberCodeGroup = document.getElementById('rubber-code-group');
             let allProductsData = [];
@@ -1987,7 +1995,6 @@ async function resetCurrentOrderPacking() {
         })();
 
         // --- PLANNER SYSTEM MODULE ---
-        // [This module remains unchanged]
         window.plannerSystem = (() => {
             let isInitialized = false; let container = null; let currentUserRole = null; let state = { jobs: [] };
             const el = (sel, context = document) => context.querySelector(sel); const cel = (tag, attrs = {}) => { const n = document.createElement(tag); for (const k in attrs) { if (k === 'text') n.textContent = attrs[k]; else n.setAttribute(k, attrs[k]); } return n; }; const sameDay = (d1, d2) => d1 === d2;
@@ -2007,7 +2014,6 @@ async function resetCurrentOrderPacking() {
         })();
         
         // --- SALES REPORT SYSTEM MODULE ---
-        // [This module remains unchanged]
         window.salesReportSystem = (() => {
             let isInitialized = false;
             let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder;
