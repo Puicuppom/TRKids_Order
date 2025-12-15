@@ -1542,11 +1542,11 @@
             return { initializeApp, loadInitialData };
         })();
 
-        // --- PACKING SYSTEM MODULE (FIXED) ---
+        // --- PACKING SYSTEM MODULE (REVISED FOR PERSISTENT STATE) ---
         window.packingSystem = (() => {
             const container = document.getElementById("packing-system-container"); const selectionView = container.querySelector("#work-order-selection-view"); const workOrderList = container.querySelector("#work-order-list"); const mainView = container.querySelector("#packing-main-view"); const resetBtn = container.querySelector("#reset-packing-btn"); const searchInput = container.querySelector("#search-input"); const orderList = container.querySelector("#order-list"); const orderCounter = container.querySelector("#order-counter"); const resultContainer = container.querySelector("#result-container"); const actionPanel = container.querySelector("#action-panel"); const itemScanInput = container.querySelector("#item-scan-input"); const parcelScanInput = container.querySelector("#parcel-scan-input"); const statusMessage = container.querySelector("#status-message"); const successSound = container.querySelector("#success-sound"); const errorSound = container.querySelector("#error-sound"); const headerTitle = container.querySelector("#packing-header-title"); const backBtn = container.querySelector("#back-to-wo-selection");
             const finalizeWoBtn = container.querySelector("#finalize-wo-btn");
-            let allOrdersForPacking = []; let aggregatedData = []; let completedIndices = new Set(); let currentIndex = -1; let currentWorkOrderName = null; let packingState = {};
+            let allOrdersForPacking = []; let aggregatedData = []; let completedIndices = new Set(); let currentIndex = -1; let currentWorkOrderName = null;
             
             function naturalSortCompare(a, b) {
                 const re = /(\d+)/g;
@@ -1572,22 +1572,19 @@
                 return aParts.length - bParts.length;
             }
             
-            function savePackingState() { try { sessionStorage.setItem('packingState', JSON.stringify(packingState)); } catch (e) { console.error('Failed to save state:', e); } }
-            function loadPackingState() { try { const savedState = sessionStorage.getItem('packingState'); if (savedState) { packingState = JSON.parse(savedState); } else { packingState = {}; } } catch (e) { console.error('Failed to load state:', e); packingState = {}; } }
-            
             async function loadWorkOrdersForPacking() {
-                loadPackingState(); showPackingView("selection"); workOrderList.innerHTML = "<li>กำลังโหลด...</li>";
+                showPackingView("selection"); workOrderList.innerHTML = "<li>กำลังโหลด...</li>";
                 const { data: workOrders, error: woError } = await supabaseClient.from("work_orders").select("*").eq('status', 'กำลังผลิต').order("created_at", { ascending: false });
                 if (woError) { workOrderList.innerHTML = "<li>โหลดผิดพลาด</li>"; return; }
                 if (!workOrders || workOrders.length === 0) { workOrderList.innerHTML = "<li>ไม่พบใบงาน</li>"; return; }
                 
-                const { data: allProductionOrders, error: orderError } = await supabaseClient.from("orders").select("work_order_name, tracking_number, order_items(packing_status)").in('work_order_name', workOrders.map(wo => wo.work_order_name));
+                const { data: allProductionOrders, error: orderError } = await supabaseClient.from("orders").select("work_order_name, tracking_number, packing_meta, order_items(packing_status)").in('work_order_name', workOrders.map(wo => wo.work_order_name));
                 
                 workOrderList.innerHTML = "";
                 workOrders.forEach(wo => {
                     const ordersInWo = allProductionOrders.filter(o => o.work_order_name === wo.work_order_name);
                     const hasTracking = ordersInWo.some(o => o.tracking_number);
-                    const isPartiallyPacked = ordersInWo.some(o => o.order_items.some(oi => oi.packing_status === 'สแกนแล้ว')) || Object.keys(packingState[wo.work_order_name]?.items || {}).length > 0;
+                    const isPartiallyPacked = ordersInWo.some(o => o.packing_meta?.parcelScanned || o.order_items.some(oi => oi.packing_status === 'สแกนแล้ว'));
                     
                     let statusIcon = '📦'; let statusClass = ''; let statusText = '';
                     if (!hasTracking) { statusIcon = '⚠️'; statusClass = 'no-tracking'; statusText = ' (รอเลขพัสดุ)'; }
@@ -1609,14 +1606,11 @@
 
             async function loadPackingData(workOrderName) {
                 loadingOverlay.style.display = "flex";
-                if (currentWorkOrderName !== workOrderName) {
-                    packingState[workOrderName] = packingState[workOrderName] || { completedIndices: [], items: {}, parcelScannedFor: {} };
-                }
                 currentWorkOrderName = workOrderName;
 
                 const { data, error } = await supabaseClient
                     .from("orders")
-                    .select("*, order_items(*)")
+                    .select("*, order_items(*)") // Select all nested items
                     .eq("work_order_name", workOrderName)
                     .order('bill_no', { ascending: true }); 
                 
@@ -1628,11 +1622,11 @@
                 
                 const ordersWithTracking = data.filter(order => order.tracking_number && order.tracking_number.trim() !== "");
                 if (data.length > 0 && ordersWithTracking.length === 0) {
-                    alert("ยังไม่มีเลขพัสดุ");
+                    alert("ยังไม่มีเลขพัสดุในใบงานนี้");
                     return;
                 }
                 if (data.length > ordersWithTracking.length) {
-                    alert(`มี ${data.length - ordersWithTracking.length} ออร์เดอร์ไม่มีเลขพัสดุ`);
+                    alert(`แจ้งเตือน: มี ${data.length - ordersWithTracking.length} ออร์เดอร์ในใบงานนี้ที่ยังไม่มีเลขพัสดุ`);
                 }
                 
                 prepareDataForPacking(ordersWithTracking);
@@ -1644,46 +1638,40 @@
                     const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i));
                     displayOrder(nextIndex !== -1 ? nextIndex : 0);
                 } else {
-                    alert("ไม่พบออร์เดอร์มีเลขพัสดุ");
+                    alert("ไม่พบออร์เดอร์ที่มีเลขพัสดุในใบงานนี้");
                 }
             }
 
-            async function finalizeWorkOrderAndMoveStatus(workOrderName) { 
-                if (!workOrderName) return;
-                loadingOverlay.style.display = 'flex'; 
-                try { 
-                    const { error: updateOrdersError } = await supabaseClient.from('orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', workOrderName); 
-                    if (updateOrdersError) throw updateOrdersError; 
-                    const { error: updateWOError } = await supabaseClient.from('work_orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', workOrderName); 
-                    if (updateWOError) throw updateWOError; 
-                    delete packingState[workOrderName]; 
-                    savePackingState(); 
-                    alert(`ย้ายใบงาน "${workOrderName}" เป็น "จัดส่งแล้ว"`); 
-                } catch (err) { 
-                    alert('พลาด: ' + err.message); 
-                } finally { 
-                    loadingOverlay.style.display = 'none'; 
-                    showPackingView('selection'); 
-                    loadWorkOrdersForPacking();
-                } 
-            }
-            
             function prepareDataForPacking(orders) {
                 let flatData = [];
-                const woState = packingState[currentWorkOrderName] || { completedIndices: [], items: {}, parcelScannedFor: {} };
-                completedIndices = new Set(woState.completedIndices);
-                
+                completedIndices.clear();
+
                 orders.forEach(order => {
+                    const isOrderComplete = order.shipped_time != null;
+                    const isParcelScanned = order.packing_meta?.parcelScanned || false;
+
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
-                            const isScanned = item.packing_status === 'สแกนแล้ว' || (woState.items[item.item_uid] ? woState.items[item.item_uid].scanned : false);
-                            const scanTime = item.item_scan_time || (woState.items[item.item_uid] ? woState.items[item.item_uid].itemScanTime : "");
-                            if (isScanned && !woState.items[item.item_uid]) {
-                                if(!packingState[currentWorkOrderName]) packingState[currentWorkOrderName] = { completedIndices: [], items: {}, parcelScannedFor: {} };
-                                packingState[currentWorkOrderName].items[item.item_uid] = { scanned: true, itemScanTime: scanTime };
-                                savePackingState();
-                            }
-                            flatData.push({ 'tracking_number': order.tracking_number, 'customer_name': order.customer_name, 'order_id': order.id, 'product_name': item.product_name, 'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 'font': item.font, 'ink_color': item.ink_color, 'notes': item.notes, 'shelf_location': item.product_type, 'cartoon_pattern': item.cartoon_pattern, 'line_pattern': item.line_pattern, 'file_attachment': item.file_attachment, 'item_uid': item.item_uid, scanned: isScanned, 'itemScanTime': scanTime, 'bill_no': order.bill_no });
+                            flatData.push({ 
+                                'tracking_number': order.tracking_number, 
+                                'customer_name': order.customer_name, 
+                                'order_id': order.id, 
+                                'product_name': item.product_name, 
+                                'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
+                                'font': item.font, 
+                                'ink_color': item.ink_color, 
+                                'notes': item.notes, 
+                                'shelf_location': item.product_type, 
+                                'cartoon_pattern': item.cartoon_pattern, 
+                                'line_pattern': item.line_pattern, 
+                                'file_attachment': item.file_attachment, 
+                                'item_uid': item.item_uid, 
+                                'scanned': item.packing_status === 'สแกนแล้ว', // Step 2 state from DB
+                                'itemScanTime': item.item_scan_time,
+                                'parcelScanned': isParcelScanned, // Step 1 state from DB
+                                'bill_no': order.bill_no,
+                                'isOrderComplete': isOrderComplete
+                            });
                         });
                     }
                 });
@@ -1704,6 +1692,13 @@
 
                 aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
                 
+                // Determine completed indices from the start
+                aggregatedData.forEach((group, index) => {
+                    if (group[0].isOrderComplete) {
+                        completedIndices.add(index);
+                    }
+                });
+
                 currentIndex = -1;
                 searchInput.value = '';
                 updateFinalizeButtonVisibility();
@@ -1742,38 +1737,40 @@
                 
                 orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
             }
-
-            async function resetCurrentOrderPacking() { 
+async function resetCurrentOrderPacking() { 
                 if (currentIndex < 0 || !currentWorkOrderName) return; 
-                if (!confirm('รีเซ็ตการแพ็คสำหรับออร์เดอร์นี้?')) return; 
+                if (!confirm('ยืนยัน "แพ็คใหม่"?\nการสแกนทั้งหมดของออร์เดอร์นี้จะถูกล้าง')) return; 
+
                 loadingOverlay.style.display = 'flex'; 
                 try { 
                     const currentOrderGroup = aggregatedData[currentIndex]; 
                     const itemUidsToReset = currentOrderGroup.map(item => item.item_uid); 
-                    const { error } = await supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', itemUidsToReset); 
-                    if (error) throw error; 
+                    const orderIdToReset = currentOrderGroup[0].order_id;
+
+                    // Clear Step 2: Reset item statuses in the database
+                    const { error: itemError } = await supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', itemUidsToReset); 
+                    if (itemError) throw itemError; 
+
+                    // Clear Step 1: Reset parcel scan status in the database
+                    const { error: orderError } = await supabaseClient.from('orders').update({ packing_meta: null, shipped_by: null, shipped_time: null }).eq('id', orderIdToReset);
+                    if (orderError) throw orderError;
+                    
+                    // Update local data to reflect the changes instantly
                     currentOrderGroup.forEach(item => { 
                         item.scanned = false; 
                         item.itemScanTime = null; 
-                        if (packingState[currentWorkOrderName] && packingState[currentWorkOrderName].items) { 
-                            delete packingState[currentWorkOrderName].items[item.item_uid]; 
-                        } 
+                        item.parcelScanned = false;
+                        item.isOrderComplete = false;
                     }); 
-                    if (packingState[currentWorkOrderName]) {
-                        if (packingState[currentWorkOrderName].parcelScannedFor) {
-                            delete packingState[currentWorkOrderName].parcelScannedFor[currentIndex];
-                        }
-                        if (completedIndices.has(currentIndex)) {
-                            completedIndices.delete(currentIndex);
-                            packingState[currentWorkOrderName].completedIndices = Array.from(completedIndices);
-                            markNavItemAsComplete(currentIndex, false); 
-                        }
+                    if (completedIndices.has(currentIndex)) {
+                        completedIndices.delete(currentIndex);
+                        markNavItemAsComplete(currentIndex, false); 
                     }
-                    savePackingState(); 
+                    
                     alert('รีเซ็ตสำเร็จ'); 
-                    displayOrder(currentIndex); 
+                    displayOrder(currentIndex); // Re-render the current order view
                 } catch (err) { 
-                    alert('พลาด: ' + err.message); 
+                    alert('เกิดข้อผิดพลาดในการรีเซ็ต: ' + err.message); 
                 } finally { 
                     loadingOverlay.style.display = 'none'; 
                 } 
@@ -1784,47 +1781,67 @@
                 const currentOrderGroup = aggregatedData[currentIndex]; 
                 const currentOrderId = currentOrderGroup[0].order_id; 
                 const timestamp = new Date().toISOString(); 
+
+                // Finalize the order by setting shipped_by and shipped_time
                 const { error } = await supabaseClient.from('orders').update({ shipped_by: loggedInUsername, shipped_time: timestamp }).eq('id', currentOrderId); 
-                if (error) { alert('บันทึกพลาด: ' + error.message); errorSound.play(); return; } 
-                completedIndices.add(currentIndex); 
-                if (packingState[currentWorkOrderName]) { 
-                    packingState[currentWorkOrderName].completedIndices = Array.from(completedIndices); 
-                    currentOrderGroup.forEach(item => { delete packingState[currentWorkOrderName].items[item.item_uid]; }); 
-                    if (packingState[currentWorkOrderName].parcelScannedFor) { delete packingState[currentWorkOrderName].parcelScannedFor[currentIndex]; } 
-                    savePackingState(); 
-                } 
+                if (error) { alert('บันทึกข้อมูลการจัดส่งไม่สำเร็จ: ' + error.message); errorSound.play(); return; } 
+
+                completedIndices.add(currentIndex);
+                currentOrderGroup.forEach(item => item.isOrderComplete = true);
+                
                 markNavItemAsComplete(currentIndex, true); 
                 updateStatus("✅ จัดส่งสำเร็จ!", "success"); 
                 successSound.play(); 
-                setTimeout(async () => { 
+                
+                setTimeout(() => { 
                     updateFinalizeButtonVisibility(); 
                     if (completedIndices.size === aggregatedData.length) { 
-                        updateStatus("🎉 จัดส่งครบ! กดปุ่มเขียวเพื่อยืนยัน", "success"); 
-                        actionPanel.style.display = "none"; 
+                        updateStatus("🎉 จัดส่งครบทุกออร์เดอร์ในใบงานนี้แล้ว! กดปุ่มเขียว 'ย้ายไป จัดส่งแล้ว' เพื่อปิดใบงาน", "success"); 
+                        actionPanel.style.display = "none";
+                        resultContainer.innerHTML = `<div style="text-align:center; padding: 40px;"><h2>ยอดเยี่ยม!</h2><p>จัดของครบทุกรายการในใบงาน <strong>${currentWorkOrderName}</strong> แล้ว</p></div>`;
                     } else { 
-                        searchInput.value = ''; 
-                        filterNavList(); 
                         const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i)); 
-                        if (nextIndex !== -1) { displayOrder(nextIndex); } 
+                        if (nextIndex !== -1) { 
+                            displayOrder(nextIndex); 
+                        } else {
+                            // This case shouldn't be reached, but as a fallback:
+                            actionPanel.style.display = "none";
+                            resultContainer.innerHTML = `<div style="text-align:center; padding: 40px;"><h2>ไม่มีออร์เดอร์ถัดไป</h2></div>`;
+                        }
                     } 
                 }, 1200); 
             }
             
-            function handleParcelScan() {
+            async function handleParcelScan() {
                 const scanValue = parcelScanInput.value.trim().toUpperCase();
                 if (!scanValue || currentIndex < 0) return;
-                const currentTrackingId = String(aggregatedData[currentIndex][0].tracking_number).trim().toUpperCase();
+                
+                const currentOrderGroup = aggregatedData[currentIndex];
+                const currentTrackingId = String(currentOrderGroup[0].tracking_number).trim().toUpperCase();
+                
                 if (scanValue === currentTrackingId) {
+                    const orderId = currentOrderGroup[0].order_id;
+                    const newMeta = { parcelScanned: true, scannedBy: loggedInUsername, scanTime: new Date().toISOString() };
+                    
+                    // Update the database
+                    const { error } = await supabaseClient.from('orders').update({ packing_meta: newMeta }).eq('id', orderId);
+                    
+                    if (error) {
+                        alert('เกิดข้อผิดพลาดในการบันทึกสถานะสแกนพัสดุ: ' + error.message);
+                        errorSound.play();
+                        return;
+                    }
+                    
+                    // Update local state
+                    currentOrderGroup.forEach(item => item.parcelScanned = true);
+
                     successSound.play();
                     updateStatus("สแกนพัสดุสำเร็จ! กรุณาสแกนสินค้า", "success");
-                    if(!packingState[currentWorkOrderName].parcelScannedFor) packingState[currentWorkOrderName].parcelScannedFor = {};
-                    packingState[currentWorkOrderName].parcelScannedFor[currentIndex] = true;
-                    savePackingState();
                     parcelScanInput.value = "";
                     updateInputStates();
                 } else {
                     errorSound.play();
-                    updateStatus("❌ เลขพัสดุไม่ตรง", "error");
+                    updateStatus("❌ เลขพัสดุไม่ตรงกับออร์เดอร์ที่เลือก", "error");
                     parcelScanInput.select();
                 }
             }
@@ -1832,32 +1849,42 @@
             async function scanItem() {
                 const scanValue = itemScanInput.value.trim().toUpperCase();
                 if (!scanValue || currentIndex < 0) return;
+
                 const currentOrderGroup = aggregatedData[currentIndex];
                 const itemToScan = currentOrderGroup.find(item => !item.scanned && item.item_uid === scanValue);
+
                 if (itemToScan) {
                     itemScanInput.value = "";
                     const timestamp = new Date().toISOString();
+                    
+                    // Update item in database
                     const { error } = await supabaseClient.from('order_items').update({ item_scan_time: timestamp, packing_status: 'สแกนแล้ว' }).eq('item_uid', itemToScan.item_uid);
                     if (error) { alert('บันทึกเวลาสแกนพลาด: ' + error.message); errorSound.play(); return; }
+                    
                     successSound.play();
+                    
+                    // Update local state
                     itemToScan.scanned = true;
                     itemToScan.itemScanTime = timestamp;
-                    if(!packingState[currentWorkOrderName]) packingState[currentWorkOrderName] = { completedIndices: [], items: {}, parcelScannedFor: {} };
-                    if(!packingState[currentWorkOrderName].items) packingState[currentWorkOrderName].items = {};
-                    packingState[currentWorkOrderName].items[itemToScan.item_uid] = { scanned: true, itemScanTime: timestamp };
-                    savePackingState();
+
+                    // Re-render the specific row and counter
                     const row = resultContainer.querySelector(`tr[data-item-uid="${itemToScan.item_uid}"]`);
                     if(row) { row.classList.add('item-scanned'); row.parentElement.appendChild(row); }
+                    
                     const totalItems = currentOrderGroup.length;
                     const scannedItems = currentOrderGroup.filter(item => item.scanned).length;
                     const counterEl = resultContainer.querySelector('#packing-item-counter');
                     if (counterEl) { counterEl.textContent = `${scannedItems}/${totalItems}`; }
-                    const allItemsScanned = currentOrderGroup.every(item => item.scanned);
-                    if (allItemsScanned) { finalizeAndProceed(); } else { updateInputStates(); }
+                    
+                    if (scannedItems === totalItems) {
+                        finalizeAndProceed();
+                    } else {
+                        updateInputStates();
+                    }
                 } else {
                     errorSound.play();
                     const alreadyScanned = currentOrderGroup.find(item => item.scanned && item.item_uid === scanValue);
-                    updateStatus(alreadyScanned ? "❌ สแกนแล้ว!" : "❌ Item UID ไม่ถูกต้อง!", "error");
+                    updateStatus(alreadyScanned ? "❌ สินค้ารายการนี้ถูกสแกนไปแล้ว!" : "❌ Item UID ไม่ถูกต้อง หรือ ไม่ใช่ของออร์เดอร์นี้!", "error");
                     itemScanInput.select();
                 }
             };
@@ -1882,7 +1909,31 @@
                 } 
             }
             const filterNavList = () => { const filter = searchInput.value.toLowerCase(); orderList.querySelectorAll(".order-item").forEach(item => { const trackingId = item.dataset.trackingId.toLowerCase(); item.style.display = trackingId.includes(filter) ? "" : "none"; }); };
-            const updateInputStates = () => { if (currentIndex < 0) return; const woState = packingState[currentWorkOrderName] || {}; const isParcelScanned = woState.parcelScannedFor && woState.parcelScannedFor[currentIndex]; const allItemsScanned = aggregatedData[currentIndex].every(item => item.scanned); parcelScanInput.disabled = isParcelScanned; itemScanInput.disabled = !isParcelScanned || allItemsScanned; if (!isParcelScanned) { updateStatus(`รอสแกนเลขพัสดุ...`, ""); parcelScanInput.focus(); } else if (allItemsScanned) { updateStatus("✅ สินค้าครบ! จัดส่งสำเร็จ", "success"); } else { const remaining = aggregatedData[currentIndex].filter(i => !i.scanned).length; updateStatus(`รอสแกน ${remaining} ชิ้น...`, ""); itemScanInput.focus(); } };
+            const updateInputStates = () => { 
+                if (currentIndex < 0) return; 
+                const orderGroup = aggregatedData[currentIndex];
+                const isParcelScanned = orderGroup[0].parcelScanned;
+                const allItemsScanned = orderGroup.every(item => item.scanned);
+                
+                parcelScanInput.disabled = isParcelScanned; 
+                itemScanInput.disabled = !isParcelScanned || allItemsScanned; 
+
+                if (completedIndices.has(currentIndex)) {
+                    updateStatus("✅ จัดส่งสำเร็จแล้ว", "success");
+                    parcelScanInput.disabled = true;
+                    itemScanInput.disabled = true;
+                } else if (!isParcelScanned) { 
+                    updateStatus(`รอสแกนเลขพัสดุ...`, ""); 
+                    parcelScanInput.focus(); 
+                } else if (allItemsScanned) { 
+                    // This state is temporary before finalizeAndProceed takes over
+                    updateStatus("✅ สินค้าครบ! กำลังบันทึก...", "success"); 
+                } else { 
+                    const remaining = orderGroup.length - orderGroup.filter(i => i.scanned).length;
+                    updateStatus(`รอสแกน ${remaining} ชิ้น...`, ""); 
+                    itemScanInput.focus(); 
+                } 
+            };
             const updateCounter = () => { orderCounter.textContent = `สำเร็จ ${completedIndices.size} / ${aggregatedData.length}`; };
             const updateActiveNavItem = () => { container.querySelectorAll(".order-item").forEach(item => item.classList.toggle("active", parseInt(item.dataset.index) === currentIndex)); };
             const markNavItemAsComplete = (index, isComplete) => { 
@@ -1890,8 +1941,10 @@
                 if (item) { 
                     item.classList.toggle("completed", isComplete); 
                     const trackingSpan = item.querySelector('.tracking-id');
-                    const trackingIdText = trackingSpan.textContent.split(' ').pop();
-                    trackingSpan.innerHTML = `${isComplete ? '✅' : '📦'} ${trackingIdText}`;
+                    if (trackingSpan) {
+                       const trackingIdText = trackingSpan.textContent.split(' ').pop();
+                       trackingSpan.innerHTML = `${isComplete ? '✅' : '📦'} ${trackingIdText}`;
+                    }
                 } 
                 updateCounter(); 
                 updateFinalizeButtonVisibility();
@@ -1901,7 +1954,10 @@
             searchInput.addEventListener("input", filterNavList);
             itemScanInput.addEventListener("change", scanItem);
             parcelScanInput.addEventListener("change", handleParcelScan);
-            backBtn.addEventListener('click', () => showPackingView('selection')); 
+            backBtn.addEventListener('click', () => {
+                showPackingView('selection');
+                loadWorkOrdersForPacking(); // Reload to get fresh status
+            }); 
             resetBtn.addEventListener("click", resetCurrentOrderPacking);
             finalizeWoBtn.addEventListener('click', () => {
                 if (confirm(`ยืนยันย้ายใบงาน "${currentWorkOrderName}" เป็น "จัดส่งแล้ว"?`)) {
@@ -1911,153 +1967,27 @@
 
             return { loadWorkOrdersForPacking };
         })();
-
-
+        
         // --- PRODUCT SYSTEM MODULE ---
+        // [This module remains unchanged]
         window.productSystem = (() => {
             let isInitialized = false; const addBtn = document.getElementById('add-product-btn'); const importBtn = document.getElementById('import-product-btn'); const importInput = document.getElementById('import-product-input'); const downloadTemplateBtn = document.getElementById('download-product-template-btn'); const searchInput = document.getElementById('search-product-input'); const tableBody = document.getElementById('products-tbody'); const modal = document.getElementById('product-modal'); const modalTitle = document.getElementById('product-modal-title'); const productForm = document.getElementById('product-form'); const cancelModalBtn = document.getElementById('cancel-product-modal-btn'); const categoryInput = document.getElementById('product-category-input'); const rubberCodeGroup = document.getElementById('rubber-code-group');
             let allProductsData = [];
             function initializeApp() { if(isInitialized) return; addBtn.addEventListener('click', () => showProductModal()); importBtn.addEventListener('click', () => importInput.click()); importInput.addEventListener('change', (e) => handleProductImport(e.target.files[0])); downloadTemplateBtn.addEventListener('click', downloadProductTemplate); cancelModalBtn.addEventListener('click', hideProductModal); modal.addEventListener('click', (e) => { if(e.target === modal) hideProductModal(); }); productForm.addEventListener('submit', saveProduct); tableBody.addEventListener('click', handleTableClick); searchInput.addEventListener('input', () => renderProductTable(searchInput.value)); categoryInput.addEventListener('input', (e) => { const isStamp = (e.target.value || '').toUpperCase().includes('STAMP'); rubberCodeGroup.style.display = isStamp ? 'block' : 'none'; }); loadProducts(); isInitialized = true; }
             async function loadProducts() { loadingOverlay.style.display = 'flex'; try { const { data, error } = await supabaseClient.from('products').select('*').order('product_code'); if (error) throw error; allProductsData = data; renderProductTable(); } catch (err) { alert('โหลดข้อมูลสินค้าผิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
-            
-            function renderProductTable(searchTerm = '') { 
-                tableBody.innerHTML = ''; 
-                const lowercasedFilter = searchTerm.toLowerCase(); 
-                const filteredData = allProductsData.filter(p => (p.product_code || '').toLowerCase().includes(lowercasedFilter) || (p.product_name || '').toLowerCase().includes(lowercasedFilter)); 
-                if (filteredData.length === 0) { 
-                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">ไม่พบข้อมูล</td></tr>'; return; 
-                } 
-                filteredData.forEach(product => { 
-                    const inactiveStyle = product.is_active === false ? 'style="color: #999; text-decoration: line-through;"' : '';
-                    const row = `<tr ${inactiveStyle}>
-                        <td>${product.product_code || ''}</td>
-                        <td>${product.product_name || ''}</td>
-                        <td>${product.product_category || ''}</td>
-                        <td>${product.product_type || ''}</td>
-                        <td>${product.rubber_code || ''}</td>
-                        <td>${product.storage_location || ''}</td>
-                        <td class="action-cell-buttons"><button class="btn btn-warning btn-sm edit-product-btn" data-product-code="${product.product_code}">แก้ไข</button><button class="btn btn-danger btn-sm delete-product-btn" data-product-code="${product.product_code}">ลบ</button></td>
-                    </tr>`; 
-                    tableBody.insertAdjacentHTML('beforeend', row); 
-                }); 
-            }
-
+            function renderProductTable(searchTerm = '') { tableBody.innerHTML = ''; const lowercasedFilter = searchTerm.toLowerCase(); const filteredData = allProductsData.filter(p => (p.product_code || '').toLowerCase().includes(lowercasedFilter) || (p.product_name || '').toLowerCase().includes(lowercasedFilter)); if (filteredData.length === 0) { tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">ไม่พบข้อมูล</td></tr>'; return; } filteredData.forEach(product => { const inactiveStyle = product.is_active === false ? 'style="color: #999; text-decoration: line-through;"' : ''; const row = `<tr ${inactiveStyle}><td>${product.product_code || ''}</td><td>${product.product_name || ''}</td><td>${product.product_category || ''}</td><td>${product.product_type || ''}</td><td>${product.rubber_code || ''}</td><td>${product.storage_location || ''}</td><td class="action-cell-buttons"><button class="btn btn-warning btn-sm edit-product-btn" data-product-code="${product.product_code}">แก้ไข</button><button class="btn btn-danger btn-sm delete-product-btn" data-product-code="${product.product_code}">ลบ</button></td></tr>`; tableBody.insertAdjacentHTML('beforeend', row); }); }
             function showProductModal(product = null) { productForm.reset(); if (product) { modalTitle.textContent = 'แก้ไขข้อมูลสินค้า'; document.getElementById('product-id-input').value = product.id; document.getElementById('product-code-input').value = product.product_code; document.getElementById('product-code-input').readOnly = true; document.getElementById('product-name-input').value = product.product_name; document.getElementById('product-category-input').value = product.product_category || ''; document.getElementById('product-type-input').value = product.product_type || ''; document.getElementById('product-rubber-code-input').value = product.rubber_code || ''; document.getElementById('storage-location-input').value = product.storage_location || ''; } else { modalTitle.textContent = 'เพิ่มสินค้าใหม่'; document.getElementById('product-code-input').readOnly = false; } const isStamp = (categoryInput.value || '').toUpperCase().includes('STAMP'); rubberCodeGroup.style.display = isStamp ? 'block' : 'none'; modal.style.display = 'flex'; }
             function hideProductModal() { modal.style.display = 'none'; }
-            
-            async function saveProduct(e) { 
-                e.preventDefault(); 
-                loadingOverlay.style.display = 'flex'; 
-                const productData = { 
-                    product_code: document.getElementById('product-code-input').value.trim(), 
-                    product_name: document.getElementById('product-name-input').value.trim(), 
-                    product_category: document.getElementById('product-category-input').value.trim() || null, 
-                    product_type: document.getElementById('product-type-input').value.trim() || null, 
-                    rubber_code: document.getElementById('product-rubber-code-input').value.trim() || null, 
-                    storage_location: document.getElementById('storage-location-input').value.trim() || null, 
-                    is_active: true // Always set as active on manual save/edit
-                }; 
-                if (!productData.product_code || !productData.product_name) { 
-                    alert('กรุณากรอกรหัสและชื่อสินค้า'); 
-                    loadingOverlay.style.display = 'none'; 
-                    return; 
-                } 
-                try { 
-                    const { error } = await supabaseClient.from('products').upsert(productData, { onConflict: 'product_code' }); 
-                    if (error) throw error; 
-                    alert('บันทึกสำเร็จ!'); 
-                    hideProductModal(); 
-                    await window.orderSystem.loadInitialData(); // Reload order system data as well
-                    await loadProducts(); 
-                } catch (err) { 
-                    alert('เกิดพลาด: ' + err.message); 
-                } finally { 
-                    loadingOverlay.style.display = 'none'; 
-                } 
-            }
-
+            async function saveProduct(e) { e.preventDefault(); loadingOverlay.style.display = 'flex'; const productData = { product_code: document.getElementById('product-code-input').value.trim(), product_name: document.getElementById('product-name-input').value.trim(), product_category: document.getElementById('product-category-input').value.trim() || null, product_type: document.getElementById('product-type-input').value.trim() || null, rubber_code: document.getElementById('product-rubber-code-input').value.trim() || null, storage_location: document.getElementById('storage-location-input').value.trim() || null, is_active: true }; if (!productData.product_code || !productData.product_name) { alert('กรุณากรอกรหัสและชื่อสินค้า'); loadingOverlay.style.display = 'none'; return; } try { const { error } = await supabaseClient.from('products').upsert(productData, { onConflict: 'product_code' }); if (error) throw error; alert('บันทึกสำเร็จ!'); hideProductModal(); await window.orderSystem.loadInitialData(); await loadProducts(); } catch (err) { alert('เกิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
             async function deleteProduct(productCode) { if (!confirm(`ต้องการลบสินค้า "${productCode}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('products').delete().eq('product_code', productCode); if (error) throw error; alert('ลบสำเร็จ!'); await loadProducts(); await window.orderSystem.loadInitialData(); } catch (err) { alert('เกิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
             function handleTableClick(e) { if (e.target.classList.contains('edit-product-btn')) { const productCode = e.target.dataset.productCode; const productToEdit = allProductsData.find(p => p.product_code === productCode); if (productToEdit) showProductModal(productToEdit); } if (e.target.classList.contains('delete-product-btn')) { const productCode = e.target.dataset.productCode; deleteProduct(productCode); } }
             function downloadProductTemplate() { const headers = ["product_code", "product_name", "product_category", "product_type", "rubber_code", "storage_location"]; const sampleData = [ ["P001", "สติกเกอร์กันน้ำ", "STK", "FINISHPRODUCT", "", "3Aชั้น2แถว2"], ["S001", "ตรายาง E1 เป็ด", "FANCY STAMP", "FINISHPRODUCT", "R-E1", "4Aชั้น4แถว3"], ]; const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "ProductTemplate"); XLSX.writeFile(workbook, "Product_Import_Template.xlsx"); }
-            
-            function handleProductImport(file) {
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[firstSheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                        if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์");
-
-                        // De-duplicate products from file, taking the first one encountered
-                        const uniqueProductsMap = new Map();
-                        jsonData.forEach(row => {
-                            const productCode = String(row.product_code || '').trim();
-                            if (productCode && !uniqueProductsMap.has(productCode)) {
-                                uniqueProductsMap.set(productCode, {
-                                    product_code: productCode,
-                                    product_name: String(row.product_name || '').trim(),
-                                    product_category: String(row.product_category || '').trim() || null,
-                                    product_type: String(row.product_type || '').trim() || null,
-                                    rubber_code: String(row.rubber_code || '').trim() || null,
-                                    storage_location: String(row.storage_location || '').trim() || null,
-                                    is_active: true // Always set to active on import
-                                });
-                            }
-                        });
-
-                        const productsToUpsert = Array.from(uniqueProductsMap.values()).filter(p => p.product_code && p.product_name);
-                        const productCodesFromFile = Array.from(uniqueProductsMap.keys());
-
-                        if (productsToUpsert.length === 0) throw new Error("ไม่พบข้อมูลสินค้าที่ถูกต้องสำหรับนำเข้า");
-                        if (!confirm(`พบสินค้า ${productsToUpsert.length} รายการ (ไม่ซ้ำกัน)\n- สินค้าใหม่จะถูกเพิ่ม\n- สินค้าเดิมจะถูกอัปเดต\n- สินค้าที่ไม่มีในไฟล์นี้จะถูกตั้งเป็น "ไม่ใช้งาน" (Inactive)\n\nดำเนินการต่อหรือไม่?`)) {
-                            importInput.value = '';
-                            return;
-                        }
-                        
-                        loadingOverlay.style.display = 'flex';
-                        
-                        // Step 1: Upsert all products from the file
-                        const { error: upsertError } = await supabaseClient
-                            .from('products')
-                            .upsert(productsToUpsert, { onConflict: 'product_code' });
-                        
-                        if (upsertError) throw upsertError;
-
-                        // Step 2: Call the database function to set active/inactive status for ALL products
-                        const { error: statusUpdateError } = await supabaseClient
-                            .rpc('update_products_status_from_import', {
-                                imported_codes: productCodesFromFile
-                            });
-
-                        if (statusUpdateError) {
-                           console.error("Error updating product statuses:", statusUpdateError);
-                           throw new Error("เกิดข้อผิดพลาดในการอัปเดตสถานะ Active/Inactive: " + statusUpdateError.message);
-                        }
-
-                        alert(`นำเข้าและอัปเดตสถานะสินค้าสำเร็จ! (${productsToUpsert.length} รายการ)`);
-                        await window.orderSystem.loadInitialData(); // Reload order system data
-                        await loadProducts(); // Reload product list in this system
-
-                    } catch (err) {
-                        console.error('Import Error:', err);
-                        alert('นำเข้าพลาด: ' + err.message);
-                    } finally {
-                        loadingOverlay.style.display = 'none';
-                        importInput.value = '';
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            }
-
+            function handleProductImport(file) { if (!file) return; const reader = new FileReader(); reader.onload = async (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheetName = workbook.SheetNames[0]; const worksheet = workbook.Sheets[firstSheetName]; const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }); if (jsonData.length === 0) throw new Error("ไม่พบข้อมูลในไฟล์"); const uniqueProductsMap = new Map(); jsonData.forEach(row => { const productCode = String(row.product_code || '').trim(); if (productCode && !uniqueProductsMap.has(productCode)) { uniqueProductsMap.set(productCode, { product_code: productCode, product_name: String(row.product_name || '').trim(), product_category: String(row.product_category || '').trim() || null, product_type: String(row.product_type || '').trim() || null, rubber_code: String(row.rubber_code || '').trim() || null, storage_location: String(row.storage_location || '').trim() || null, is_active: true }); } }); const productsToUpsert = Array.from(uniqueProductsMap.values()).filter(p => p.product_code && p.product_name); const productCodesFromFile = Array.from(uniqueProductsMap.keys()); if (productsToUpsert.length === 0) throw new Error("ไม่พบข้อมูลสินค้าที่ถูกต้องสำหรับนำเข้า"); if (!confirm(`พบสินค้า ${productsToUpsert.length} รายการ (ไม่ซ้ำกัน)\n- สินค้าใหม่จะถูกเพิ่ม\n- สินค้าเดิมจะถูกอัปเดต\n- สินค้าที่ไม่มีในไฟล์นี้จะถูกตั้งเป็น "ไม่ใช้งาน" (Inactive)\n\nดำเนินการต่อหรือไม่?`)) { importInput.value = ''; return; } loadingOverlay.style.display = 'flex'; const { error: upsertError } = await supabaseClient.from('products').upsert(productsToUpsert, { onConflict: 'product_code' }); if (upsertError) throw upsertError; const { error: statusUpdateError } = await supabaseClient.rpc('update_products_status_from_import', { imported_codes: productCodesFromFile }); if (statusUpdateError) { console.error("Error updating product statuses:", statusUpdateError); throw new Error("เกิดข้อผิดพลาดในการอัปเดตสถานะ Active/Inactive: " + statusUpdateError.message); } alert(`นำเข้าและอัปเดตสถานะสินค้าสำเร็จ! (${productsToUpsert.length} รายการ)`); await window.orderSystem.loadInitialData(); await loadProducts(); } catch (err) { console.error('Import Error:', err); alert('นำเข้าพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; importInput.value = ''; } }; reader.readAsArrayBuffer(file); }
             return { initializeApp };
         })();
 
         // --- PLANNER SYSTEM MODULE ---
+        // [This module remains unchanged]
         window.plannerSystem = (() => {
             let isInitialized = false; let container = null; let currentUserRole = null; let state = { jobs: [] };
             const el = (sel, context = document) => context.querySelector(sel); const cel = (tag, attrs = {}) => { const n = document.createElement(tag); for (const k in attrs) { if (k === 'text') n.textContent = attrs[k]; else n.setAttribute(k, attrs[k]); } return n; }; const sameDay = (d1, d2) => d1 === d2;
@@ -2066,64 +1996,8 @@
             async function internal_load() { try { const { data: jobsData, error: jobsError } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false }); if (jobsError) throw new Error('โหลดใบงานไม่ได้: ' + jobsError.message); state.jobs = jobsData || []; } catch (e) { console.error("Planner load error:", e); alert('โหลดข้อมูลไม่ได้! ' + e.message); state.jobs = []; } renderAll(); }
             function updateAccessControls() { const unlocked = currentUserRole === 'superadmin'; container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => { elem.disabled = !unlocked; }); renderAll(); }
             function renderAll() { if (!container) return; populateJobDateFilter(); renderJobs(); }
-            
-            function populateJobDateFilter() {
-                const dateSelect = el('#j_date');
-                if (!dateSelect) return;
-
-                const today = new Date().toISOString().slice(0, 10);
-                const jobDates = state.jobs.map(j => j.date);
-                const allDates = [...new Set([today, ...jobDates])].sort().reverse();
-                
-                dateSelect.innerHTML = '<option value="">ทุกวัน</option>';
-                allDates.forEach(d => dateSelect.add(new Option(d, d)));
-                
-                dateSelect.value = today; // Set default to today
-            }
-
-            function renderJobs() {
-                const tbody = el('#tableJobs tbody');
-                if (!tbody) return;
-                tbody.innerHTML = '';
-                const qDate = el('#j_date').value;
-                const qStr = (el('#j_search').value || '').toLowerCase();
-                
-                const filteredJobs = state.jobs.filter(j => {
-                    const dateMatch = !qDate || sameDay(j.date, qDate);
-                    const searchMatch = !qStr || j.name.toLowerCase().includes(qStr);
-                    return dateMatch && searchMatch;
-                });
-                
-                if (filteredJobs.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">ไม่พบใบงานสำหรับวันที่เลือก</td></tr>`;
-                    return;
-                }
-                
-                filteredJobs.forEach(j => {
-                    const tr = cel('tr');
-                    tr.dataset.jobId = j.id;
-                    tr.innerHTML = `<td class="checkbox-cell"><input type="checkbox" class="job-checkbox" data-id="${j.id}"></td>`;
-                    const qtyCell = cel('td');
-                    const qtyContainer = cel('div', { class: 'qty-pills-container' });
-                    const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
-                    depts.forEach(d => {
-                        const q = j.qty?.[d] || 0;
-                        if (q > 0) qtyContainer.appendChild(cel('span', { class: 'pill', text: `${d}: ${q}` }));
-                    });
-                    qtyCell.appendChild(qtyContainer);
-                    let cutTimeText = j.cut || '-';
-                    if (cutTimeText && cutTimeText.length > 5) cutTimeText = cutTimeText.substring(0, 5);
-                    const nameCell = cel('td');
-                    nameCell.innerHTML = `<strong>${j.name}</strong>`;
-                    const dateCell = cel('td', { text: j.date });
-                    const cutCell = cel('td', { text: cutTimeText });
-                    const tdAct = cel('td', { class: 'action-cell-buttons'});
-                    tdAct.innerHTML = `<button class="btn btn-warning btn-sm edit-job-btn" data-job-id="${j.id}">แก้ไข</button><button class="btn btn-danger btn-sm delete-job-btn" data-job-id="${j.id}">ลบ</button>`;
-                    tr.append(nameCell, dateCell, cutCell, qtyCell, tdAct);
-                    tbody.appendChild(tr);
-                });
-            }
-
+            function populateJobDateFilter() { const dateSelect = el('#j_date'); if (!dateSelect) return; const today = new Date().toISOString().slice(0, 10); const jobDates = state.jobs.map(j => j.date); const allDates = [...new Set([today, ...jobDates])].sort().reverse(); dateSelect.innerHTML = '<option value="">ทุกวัน</option>'; allDates.forEach(d => dateSelect.add(new Option(d, d))); dateSelect.value = today; }
+            function renderJobs() { const tbody = el('#tableJobs tbody'); if (!tbody) return; tbody.innerHTML = ''; const qDate = el('#j_date').value; const qStr = (el('#j_search').value || '').toLowerCase(); const filteredJobs = state.jobs.filter(j => { const dateMatch = !qDate || sameDay(j.date, qDate); const searchMatch = !qStr || j.name.toLowerCase().includes(qStr); return dateMatch && searchMatch; }); if (filteredJobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">ไม่พบใบงานสำหรับวันที่เลือก</td></tr>`; return; } filteredJobs.forEach(j => { const tr = cel('tr'); tr.dataset.jobId = j.id; tr.innerHTML = `<td class="checkbox-cell"><input type="checkbox" class="job-checkbox" data-id="${j.id}"></td>`; const qtyCell = cel('td'); const qtyContainer = cel('div', { class: 'qty-pills-container' }); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const q = j.qty?.[d] || 0; if (q > 0) qtyContainer.appendChild(cel('span', { class: 'pill', text: `${d}: ${q}` })); }); qtyCell.appendChild(qtyContainer); let cutTimeText = j.cut || '-'; if (cutTimeText && cutTimeText.length > 5) cutTimeText = cutTimeText.substring(0, 5); const nameCell = cel('td'); nameCell.innerHTML = `<strong>${j.name}</strong>`; const dateCell = cel('td', { text: j.date }); const cutCell = cel('td', { text: cutTimeText }); const tdAct = cel('td', { class: 'action-cell-buttons'}); tdAct.innerHTML = `<button class="btn btn-warning btn-sm edit-job-btn" data-job-id="${j.id}">แก้ไข</button><button class="btn btn-danger btn-sm delete-job-btn" data-job-id="${j.id}">ลบ</button>`; tr.append(nameCell, dateCell, cutCell, qtyCell, tdAct); tbody.appendChild(tr); }); }
             function handleTableClick(e) { const target = e.target; if (target.classList.contains('edit-job-btn')) { const jobId = target.dataset.jobId; showJobEditor(jobId); } if (target.classList.contains('delete-job-btn')) { const jobId = target.dataset.jobId; deleteJob(jobId); } }
             async function deleteJob(jobId) { const jobToDelete = state.jobs.find(j => j.id == jobId); if(!jobToDelete) return; if (!confirm(`ต้องการลบใบงาน "${jobToDelete.name}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('jobs').delete().eq('id', jobId); if (error) throw error; alert('ลบสำเร็จ'); } catch(err) { alert('เกิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
             function showJobEditor(jobId) { const job = state.jobs.find(j => j.id == jobId); if (!job) return; const formContainer = document.createElement('div'); formContainer.id = 'job-editor-modal-container'; formContainer.innerHTML = `<div class="modal-overlay" style="display: flex;"><div class="modal-content" style="max-width: 600px;"><h2 id="job-editor-title">แก้ไขใบงาน: ${job.name}</h2><div id="job-editor-form"><div class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;"><div class="planner-form-group"><label for="edit_j_date">วันที่</label><input type="date" id="edit_j_date" value="${job.date}"></div><div class="planner-form-group"><label for="edit_j_cut">เวลาตัด</label><input type="time" id="edit_j_cut" value="${job.cut || ''}"></div></div><h3 class="planner-section-title">จำนวนต่อแผนก</h3><div id="edit_j_qty" class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px 20px;"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="edit_j_cancel">ยกเลิก</button><button type="button" class="btn btn-primary" id="edit_j_save">บันทึก</button></div></div></div></div>`; document.body.appendChild(formContainer); const qtyHost = formContainer.querySelector('#edit_j_qty'); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const qty = job.qty?.[d] || 0; const div = cel('div', { class: 'planner-qty-group' }); div.innerHTML = `<label>${d}</label><input type="number" class="edit-qty" data-dept="${d}" value="${qty}" min="0">`; qtyHost.appendChild(div); }); const closeModal = () => document.body.removeChild(formContainer); formContainer.querySelector('#edit_j_save').onclick = async () => { const newQty = {}; qtyHost.querySelectorAll('.edit-qty').forEach(inp => { newQty[inp.dataset.dept] = parseInt(inp.value, 10) || 0; }); const updates = { date: formContainer.querySelector('#edit_j_date').value, cut: formContainer.querySelector('#edit_j_cut').value, qty: newQty, }; loadingOverlay.style.display = 'flex'; const { error } = await supabaseClient.from('jobs').update(updates).eq('id', jobId); loadingOverlay.style.display = 'none'; if (error) { alert('อัปเดตล้มเหลว: ' + error.message); } else { alert('อัปเดตสำเร็จ'); closeModal(); } }; formContainer.querySelector('#edit_j_cancel').onclick = closeModal; formContainer.querySelector('.modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); }); }
@@ -2133,158 +2007,16 @@
         })();
         
         // --- SALES REPORT SYSTEM MODULE ---
+        // [This module remains unchanged]
         window.salesReportSystem = (() => {
             let isInitialized = false;
             let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder;
             let reportData = [];
             let allChannels = [];
-
-            function initializeApp() {
-                if (isInitialized) return;
-                container = document.getElementById('sales-report-system-container');
-                startDateInput = container.querySelector('#report-start-date');
-                endDateInput = container.querySelector('#report-end-date');
-                generateBtn = container.querySelector('#generate-report-btn');
-                exportBtn = container.querySelector('#export-report-btn');
-                reportTableHead = container.querySelector('#report-table thead');
-                reportTbody = container.querySelector('#report-tbody');
-                reportPlaceholder = container.querySelector('#report-placeholder');
-                const today = new Date();
-                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
-                endDateInput.value = today.toISOString().split('T')[0];
-                generateBtn.addEventListener('click', generateReport);
-                exportBtn.addEventListener('click', exportToExcel);
-                isInitialized = true;
-            }
-
-            async function generateReport() {
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-                if (!startDate || !endDate) {
-                    alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด');
-                    return;
-                }
-                loadingOverlay.style.display = 'flex';
-                reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
-                reportTbody.innerHTML = '';
-                exportBtn.style.display = 'none';
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('orders')
-                        .select('channel_code, order_items(*, products(product_code))') 
-                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
-                        .gte('entry_date', startDate)
-                        .lte('entry_date', endDate);
-                    if (error) throw error;
-                    const productMap = new Map();
-                    const channelSet = new Set();
-                    data.forEach(order => {
-                        const channel = (order.channel_code || 'N/A').toUpperCase();
-                        channelSet.add(channel);
-                        (order.order_items || []).forEach(item => {
-                            if (item.products) { 
-                                const productId = item.product_id;
-                                if (!productMap.has(productId)) {
-                                    productMap.set(productId, {
-                                        code: item.products.product_code,
-                                        name: item.product_name,
-                                        channels: {},
-                                        total: 0
-                                    });
-                                }
-                                const pData = productMap.get(productId);
-                                pData.channels[channel] = (pData.channels[channel] || 0) + 1;
-                                pData.total += 1;
-                            }
-                        });
-                    });
-                    allChannels = Array.from(channelSet).sort();
-                    reportData = Array.from(productMap.values());
-                    renderReportTable();
-                } catch (err) {
-                    console.error('Error generating report:', err);
-                    reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
-                    alert('เกิดข้อผิดพลาด: ' + err.message);
-                } finally {
-                    loadingOverlay.style.display = 'none';
-                }
-            }
-
-            function renderReportTable() {
-                reportTbody.innerHTML = '';
-                reportTableHead.innerHTML = '';
-                if (reportData.length === 0) {
-                    reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก';
-                    reportPlaceholder.style.display = 'block';
-                    exportBtn.style.display = 'none';
-                    reportTableHead.innerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>จำนวนที่ขายได้</th></tr>';
-                    return;
-                }
-                let headerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th>';
-                allChannels.forEach(channel => {
-                    headerHTML += `<th style="text-align: center;">${channel}</th>`;
-                });
-                headerHTML += '<th style="text-align: center; background-color: #e2e3e5;">รวมทั้งหมด</th></tr>';
-                reportTableHead.innerHTML = headerHTML;
-                reportData.sort((a, b) => b.total - a.total);
-                const columnTotals = {};
-                allChannels.forEach(ch => columnTotals[ch] = 0);
-                let grandTotal = 0;
-                reportData.forEach(product => {
-                    let rowHTML = `<tr><td>${product.code || 'N/A'}</td><td>${product.name}</td>`;
-                    allChannels.forEach(channel => {
-                        const qty = product.channels[channel] || 0;
-                        columnTotals[channel] += qty;
-                        const displayQty = qty === 0 ? '<span style="color:#ccc;">-</span>' : `<b>${qty}</b>`;
-                        rowHTML += `<td style="text-align: center;">${displayQty}</td>`;
-                    });
-                    grandTotal += product.total;
-                    rowHTML += `<td style="text-align: center; font-weight: bold; background-color: #f8f9fa;">${product.total}</td></tr>`;
-                    reportTbody.insertAdjacentHTML('beforeend', rowHTML);
-                });
-                let summaryRowHTML = `<tr style="background-color: #343a40; color: white; font-weight: bold; border-top: 2px solid #000;"><td colspan="2" style="text-align: right;">รวมทั้งหมด</td>`;
-                allChannels.forEach(channel => {
-                    summaryRowHTML += `<td style="text-align: center;">${columnTotals[channel]}</td>`;
-                });
-                summaryRowHTML += `<td style="text-align: center; font-size: 1.1em; background-color: #212529;">${grandTotal}</td></tr>`;
-                reportTbody.insertAdjacentHTML('beforeend', summaryRowHTML);
-                reportPlaceholder.style.display = 'none';
-                exportBtn.style.display = 'inline-block';
-            }
-            
-            function exportToExcel() {
-                if (reportData.length === 0) {
-                    alert('ไม่มีข้อมูลสำหรับ Export');
-                    return;
-                }
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-                const headers = ["รหัสสินค้า", "ชื่อสินค้า", ...allChannels, "รวมทั้งหมด"];
-                const dataToExport = reportData.map(item => {
-                    const row = [item.code, item.name];
-                    allChannels.forEach(ch => {
-                        row.push(item.channels[ch] || 0);
-                    });
-                    row.push(item.total);
-                    return row;
-                });
-                const summaryRow = ["", "รวมทั้งหมด"];
-                allChannels.forEach(ch => {
-                    const sum = reportData.reduce((acc, item) => acc + (item.channels[ch] || 0), 0);
-                    summaryRow.push(sum);
-                });
-                const grandSum = reportData.reduce((acc, item) => acc + item.total, 0);
-                summaryRow.push(grandSum);
-                dataToExport.push(summaryRow);
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
-                const colWidths = headers.map((_, i) => ({ wch: 15 }));
-                colWidths[1].wch = 40;
-                worksheet['!cols'] = colWidths;
-                XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`);
-            }
+            function initializeApp() { if (isInitialized) return; container = document.getElementById('sales-report-system-container'); startDateInput = container.querySelector('#report-start-date'); endDateInput = container.querySelector('#report-end-date'); generateBtn = container.querySelector('#generate-report-btn'); exportBtn = container.querySelector('#export-report-btn'); reportTableHead = container.querySelector('#report-table thead'); reportTbody = container.querySelector('#report-tbody'); reportPlaceholder = container.querySelector('#report-placeholder'); const today = new Date(); const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1); startDateInput.value = firstDayOfMonth.toISOString().split('T')[0]; endDateInput.value = today.toISOString().split('T')[0]; generateBtn.addEventListener('click', generateReport); exportBtn.addEventListener('click', exportToExcel); isInitialized = true; }
+            async function generateReport() { const startDate = startDateInput.value; const endDate = endDateInput.value; if (!startDate || !endDate) { alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด'); return; } loadingOverlay.style.display = 'flex'; reportPlaceholder.textContent = 'กำลังดึงข้อมูล...'; reportTbody.innerHTML = ''; exportBtn.style.display = 'none'; try { const { data, error } = await supabaseClient.from('orders').select('channel_code, order_items(*, products(product_code))') .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate); if (error) throw error; const productMap = new Map(); const channelSet = new Set(); data.forEach(order => { const channel = (order.channel_code || 'N/A').toUpperCase(); channelSet.add(channel); (order.order_items || []).forEach(item => { if (item.products) { const productId = item.product_id; if (!productMap.has(productId)) { productMap.set(productId, { code: item.products.product_code, name: item.product_name, channels: {}, total: 0 }); } const pData = productMap.get(productId); pData.channels[channel] = (pData.channels[channel] || 0) + 1; pData.total += 1; } }); }); allChannels = Array.from(channelSet).sort(); reportData = Array.from(productMap.values()); renderReportTable(); } catch (err) { console.error('Error generating report:', err); reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message; alert('เกิดข้อผิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
+            function renderReportTable() { reportTbody.innerHTML = ''; reportTableHead.innerHTML = ''; if (reportData.length === 0) { reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก'; reportPlaceholder.style.display = 'block'; exportBtn.style.display = 'none'; reportTableHead.innerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>จำนวนที่ขายได้</th></tr>'; return; } let headerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th>'; allChannels.forEach(channel => { headerHTML += `<th style="text-align: center;">${channel}</th>`; }); headerHTML += '<th style="text-align: center; background-color: #e2e3e5;">รวมทั้งหมด</th></tr>'; reportTableHead.innerHTML = headerHTML; reportData.sort((a, b) => b.total - a.total); const columnTotals = {}; allChannels.forEach(ch => columnTotals[ch] = 0); let grandTotal = 0; reportData.forEach(product => { let rowHTML = `<tr><td>${product.code || 'N/A'}</td><td>${product.name}</td>`; allChannels.forEach(channel => { const qty = product.channels[channel] || 0; columnTotals[channel] += qty; const displayQty = qty === 0 ? '<span style="color:#ccc;">-</span>' : `<b>${qty}</b>`; rowHTML += `<td style="text-align: center;">${displayQty}</td>`; }); grandTotal += product.total; rowHTML += `<td style="text-align: center; font-weight: bold; background-color: #f8f9fa;">${product.total}</td></tr>`; reportTbody.insertAdjacentHTML('beforeend', rowHTML); }); let summaryRowHTML = `<tr style="background-color: #343a40; color: white; font-weight: bold; border-top: 2px solid #000;"><td colspan="2" style="text-align: right;">รวมทั้งหมด</td>`; allChannels.forEach(channel => { summaryRowHTML += `<td style="text-align: center;">${columnTotals[channel]}</td>`; }); summaryRowHTML += `<td style="text-align: center; font-size: 1.1em; background-color: #212529;">${grandTotal}</td></tr>`; reportTbody.insertAdjacentHTML('beforeend', summaryRowHTML); reportPlaceholder.style.display = 'none'; exportBtn.style.display = 'inline-block'; }
+            function exportToExcel() { if (reportData.length === 0) { alert('ไม่มีข้อมูลสำหรับ Export'); return; } const startDate = startDateInput.value; const endDate = endDateInput.value; const headers = ["รหัสสินค้า", "ชื่อสินค้า", ...allChannels, "รวมทั้งหมด"]; const dataToExport = reportData.map(item => { const row = [item.code, item.name]; allChannels.forEach(ch => { row.push(item.channels[ch] || 0); }); row.push(item.total); return row; }); const summaryRow = ["", "รวมทั้งหมด"]; allChannels.forEach(ch => { const sum = reportData.reduce((acc, item) => acc + (item.channels[ch] || 0), 0); summaryRow.push(sum); }); const grandSum = reportData.reduce((acc, item) => acc + item.total, 0); summaryRow.push(grandSum); dataToExport.push(summaryRow); const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report"); const colWidths = headers.map((_, i) => ({ wch: 15 })); colWidths[1].wch = 40; worksheet['!cols'] = colWidths; XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`); }
             return { initializeApp };
         })();
         
