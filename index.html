@@ -312,8 +312,7 @@
     </style>
 </head>
 <body class="sidebar-collapsed">
-
-    <div id="loading-overlay">กำลังโหลด...</div>
+<div id="loading-overlay">กำลังโหลด...</div>
 
     <div id="login-overlay" class="full-page-overlay">
         <div id="login-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px;">
@@ -358,11 +357,19 @@
                     <div class="container">
                         <h1>ระบบจัดการออร์เดอร์</h1>
                         
-                        <!-- === ADDED SECTION START === -->
-                        <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
-                             <button id="export-master-status-btn" class="btn btn-success">📊 Export สถานะรวม (Excel)</button>
+                        <!-- === MODIFIED SECTION START === -->
+                        <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; flex-wrap: wrap;">
+                            <div class="control-group">
+                                <label for="master-status-start-date" style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 5px;">ตั้งแต่วันที่ (สถานะรวม)</label>
+                                <input type="date" id="master-status-start-date" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
+                            </div>
+                            <div class="control-group">
+                                <label for="master-status-end-date" style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 5px;">ถึงวันที่ (สถานะรวม)</label>
+                                <input type="date" id="master-status-end-date" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
+                            </div>
+                            <button id="export-master-status-btn" class="btn btn-success">📊 Export สถานะรวม (Excel)</button>
                         </div>
-                        <!-- === ADDED SECTION END === -->
+                        <!-- === MODIFIED SECTION END === -->
                         
                         <input type="file" id="tracking-file-input" style="display: none;" accept=".csv, text/csv">
                         <input type="file" id="import-orders-file-input" style="display: none;" accept=".csv, .xlsx, .xls">
@@ -458,8 +465,7 @@
                                 <button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
                                 <button id="claim-selected-shipped-btn" class="btn btn-info">เคลมบิลที่เลือก</button>
                                 <button id="export-shipped-btn" class="btn btn-success">Export ข้อมูลที่เลือก</button>
-                                <!-- === ADDED BUTTON START === -->
-                                <button id="export-status-btn" class="btn btn-info">Export Status</button>
+
                                 <!-- === ADDED BUTTON END === -->
                             </div>
                             <ul class="order-list"></ul>
@@ -636,7 +642,7 @@
             </main>
         </div>
     </div>
-
+html
     <!-- Product Add/Edit Modal -->
     <div id="product-modal" class="modal-overlay">
         <div class="modal-content">
@@ -737,17 +743,6 @@
         </div>
     </div>
 </body>
-แน่นอนครับ นี่คือส่วนสุดท้ายของไฟล์ ซึ่งเป็น JavaScript ที่ควบคุมการทำงานทั้งหมดของระบบครับ
-
----
-
-### **ส่วนที่ 3/3: ส่วน SCRIPT (Application Logic)**
-
-ส่วนนี้เป็นหัวใจสำคัญของเว็บแอปพลิเคชัน ประกอบด้วยโค้ดที่เชื่อมต่อกับฐานข้อมูล Supabase, จัดการการเข้าระบบ, การแสดงผลข้อมูล, และตรรกะการทำงานของทุกระบบย่อย
-
-คุณสามารถคัดลอกโค้ดทั้งหมดนี้ไปวางต่อจากส่วนที่ 2 (ต่อจาก `</body>`) ได้เลยครับ
-
-```html
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & GLOBAL STATE ---
@@ -980,6 +975,7 @@
             const workOrdersListContainer = document.getElementById('work-orders-list-container');
             const importOrdersBtn = document.getElementById('import-orders-btn');
             const importOrdersFileInput = document.getElementById('import-orders-file-input');
+            let eventListenersInitialized = false; 
             let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
             let currentUserRole = null;
 
@@ -1334,31 +1330,60 @@
             async function cancelSelectedBillsFromWorkOrder(buttonElement) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการ **ยกเลิก** ${selectedIds.length} บิล?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('ยกเลิกสำเร็จ!'); } catch (error) { console.error('Error cancelling:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกทั้งใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
+            // --- MODIFIED FUNCTION ---
             async function saveOrUpdateOrder(status) {
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
                     const channelCode = container.querySelector('#channel_code').value;
-                    const customerName = container.querySelector('#customer_name').value.trim();
-                    const customerAddressValue = container.querySelector('#customer_address').value.trim();
-                    const priceValue = container.querySelector('#price').value;
-                    const paymentMethod = container.querySelector('#payment_method').value;
-                    const paymentDateValue = container.querySelector('#payment_date').value;
-                    const paymentTimeValue = container.querySelector('#payment_time').value;
-
                     if (!channelCode) throw new Error("กรุณาเลือกช่องทาง (จำเป็นสำหรับการสร้างเลขบิล)");
 
                     if (status === 'ลงข้อมูลเสร็จสิ้น') {
+                        const customerName = container.querySelector('#customer_name').value.trim();
+                        const customerAddressValue = container.querySelector('#customer_address').value.trim();
+                        const priceValue = container.querySelector('#price').value;
+                        const paymentMethod = container.querySelector('#payment_method').value;
+                        const paymentDateValue = container.querySelector('#payment_date').value;
+                        const paymentTimeValue = container.querySelector('#payment_time').value;
+
                         if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         if (!customerAddressValue) {
                             const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
                             throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}" ก่อนบันทึกเป็น 'ข้อมูลครบ'`);
                         }
-                        const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => {
-                            const selectedData = $(row).find('.item-product').select2('data')[0];
-                            return selectedData && selectedData.id;
-                        });
+                        const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => $(row).find('.item-product').select2('data')[0]?.id);
                         if (!hasAtLeastOneItem) throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
+                        
+                        // === NEW VALIDATION LOGIC START ===
+                        const categoriesForCartoonCheck = ['LASER', 'STAMP', 'UV-DTF'];
+                        for (const row of itemsTbody.rows) {
+                            const selectedData = $(row).find('.item-product').select2('data')[0];
+                            if (!selectedData || !selectedData.id) continue;
+
+                            const product = fullProductList.find(p => p.id == selectedData.id);
+                            if (product && product.product_category) {
+                                const categoryUpper = product.product_category.toUpperCase();
+
+                                // Check for Cartoon Pattern
+                                const requiresCartoon = categoriesForCartoonCheck.some(cat => categoryUpper.includes(cat));
+                                if (requiresCartoon) {
+                                    const cartoonPattern = row.querySelector('.item-cartoon_pattern').value.trim();
+                                    if (!cartoonPattern) {
+                                        throw new Error(`กรุณากรอก "ลายการ์ตูน" สำหรับสินค้า: ${product.product_name}`);
+                                    }
+                                }
+                                
+                                // Check for Ink Color if it's a STAMP
+                                if (categoryUpper.includes('STAMP')) {
+                                    const inkColor = row.querySelector('.item-ink_color').value;
+                                    if (!inkColor) {
+                                        throw new Error(`กรุณาเลือก "สีหมึก" สำหรับสินค้า STAMP: ${product.product_name}`);
+                                    }
+                                }
+                            }
+                        }
+                        // === NEW VALIDATION LOGIC END ===
+
                         if (channelCode !== 'CLAIM') {
                             if (priceValue === '' || priceValue === null) throw new Error("กรุณากรอกราคา ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                             if (!paymentMethod) throw new Error("กรุณาเลือกวิธีการชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
@@ -1379,35 +1404,33 @@
                         bill_no: billNo,
                         status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status,
                         entry_date: new Date().toISOString().slice(0, 10),
-                        customer_name: customerName,
-                        price: parseFloat(priceValue),
+                        customer_name: container.querySelector('#customer_name').value.trim(),
+                        price: parseFloat(container.querySelector('#price').value),
                         shipping_cost: parseFloat(container.querySelector('#shipping_cost').value),
                         discount: parseFloat(container.querySelector('#discount').value),
                         total_amount: parseFloat(container.querySelector('#total_amount').value),
-                        payment_method: paymentMethod,
+                        payment_method: container.querySelector('#payment_method').value,
                         admin_user: adminUserInput.value,
-                        customer_address: customerAddressValue,
+                        customer_address: container.querySelector('#customer_address').value.trim(),
                         promotion: ($('#promotion').val() || '').trim(),
-                        payment_date: paymentDateValue ? paymentDateValue : null,
-                        payment_time: paymentTimeValue ? paymentTimeValue : null,
+                        payment_date: container.querySelector('#payment_date').value ? container.querySelector('#payment_date').value : null,
+                        payment_time: container.querySelector('#payment_time').value ? container.querySelector('#payment_time').value : null,
                     };
+
                     if (ecommerceChannels.includes(orderData.channel_code)) {
                         orderData.tracking_number = orderData.customer_address.replace(/\s/g, '');
                     }
+                    
                     let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) {
-                        const {
-                            error
-                        } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
+                        const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
                         if (error) throw error;
                     } else {
-                        const {
-                            data: insertedOrder,
-                            error
-                        } = await supabaseClient.from('orders').insert(orderData).select().single();
+                        const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single();
                         if (error) throw error;
                         upsertedOrderId = insertedOrder.id;
                     }
+                    
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
                     let allItemsToInsert = [];
                     let itemSequence = 1;
@@ -1418,9 +1441,7 @@
                         if (!originalProduct) continue;
                         const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
                         const baseItemData = {
-                            order_id: upsertedOrderId,
-                            bill_no: billNo,
-                            product_id: originalProduct.id,
+                            order_id: upsertedOrderId, bill_no: billNo, product_id: originalProduct.id,
                             product_name: originalProduct.product_name,
                             ink_color: row.querySelector('.item-ink_color').value.trim(),
                             product_type: row.querySelector('.item-shelf_location').value.trim(),
@@ -1434,15 +1455,11 @@
                             file_attachment: row.querySelector('.item-file_attachment').value.trim()
                         };
                         for (let i = 0; i < quantity; i++) {
-                            allItemsToInsert.push({ ...baseItemData,
-                                item_uid: `${billNo}-${itemSequence++}`
-                            });
+                            allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` });
                         }
                     }
                     if (allItemsToInsert.length > 0) {
-                        const {
-                            error: itemsError
-                        } = await supabaseClient.from('order_items').insert(allItemsToInsert);
+                        const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
                         if (itemsError) throw itemsError;
                     }
                     alert(isUpdate ? 'อัปเดตสำเร็จ!' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
@@ -1454,7 +1471,7 @@
                     loadingOverlay.style.display = 'none';
                 }
             }
-            
+
             function enterTrackingEditMode(trackingSpan) { 
                 const orderItem = trackingSpan.closest('.order-list-item');
                 const orderId = orderItem.dataset.orderId;
@@ -1492,54 +1509,30 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Shipped Data");
                 XLSX.writeFile(workbook, `ShippedData_${new Date().toISOString().slice(0,10)}.xlsx`);
             }
-            function exportShippedStatus() {
-                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
-                if (selectedIds.length === 0) {
-                    return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export');
+            
+            // --- MODIFIED FUNCTION ---
+            function exportMasterStatusReport() {
+                // Get date values from the new inputs
+                const startDate = document.getElementById('master-status-start-date').value;
+                const endDate = document.getElementById('master-status-end-date').value;
+
+                // Validate that dates are selected
+                if (!startDate || !endDate) {
+                    return alert('กรุณาเลือกช่วงวันที่สำหรับ Export สถานะรวม');
                 }
 
-                const ordersToExport = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
-                const headers = ['เลขบิล', 'Item UID', 'ชื่อสินค้า', 'หมวดหมู่', 'รายละเอียดสินค้า', 'สถานะ'];
-                const dataToExport = [];
-
-                ordersToExport.forEach(order => {
-                    if (order.order_items && order.order_items.length > 0) {
-                        order.order_items.forEach(item => {
-                            const productDetails = fullProductList.find(p => p.id === item.product_id);
-                            const category = productDetails ? productDetails.product_category : 'N/A';
-                            const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, item.notes].filter(Boolean).join(" | ");
-
-                            dataToExport.push([
-                                order.bill_no,
-                                item.item_uid,
-                                item.product_name,
-                                category,
-                                details,
-                                order.status
-                            ]);
-                        });
-                    } else {
-                        dataToExport.push([order.bill_no, 'N/A', 'N/A', 'N/A', 'No items in this order', order.status]);
-                    }
-                });
-
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Shipped Status");
-
-                worksheet['!cols'] = [
-                    { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 15 }
-                ];
-
-                XLSX.writeFile(workbook, `StatusExport_${new Date().toISOString().slice(0,10)}.xlsx`);
-            }
-            function exportMasterStatusReport() {
                 const statusesToExport = ['ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)', 'จัดส่งแล้ว'];
                 
-                const ordersToExport = allOrdersData.filter(order => statusesToExport.includes(order.status));
+                // Filter orders by both status AND date range
+                const ordersToExport = allOrdersData.filter(order => {
+                    const statusMatch = statusesToExport.includes(order.status);
+                    // Ensure order.entry_date exists before comparing
+                    const dateMatch = order.entry_date && order.entry_date >= startDate && order.entry_date <= endDate;
+                    return statusMatch && dateMatch;
+                });
 
                 if (ordersToExport.length === 0) {
-                    return alert('ไม่พบข้อมูลในสถานะที่ต้องการ Export (ลงข้อมูลเสร็จสิ้น, กำลังผลิต, จัดส่งแล้ว)');
+                    return alert('ไม่พบข้อมูลในสถานะและช่วงวันที่ที่เลือก');
                 }
                 
                 loadingOverlay.style.display = 'flex';
@@ -1577,7 +1570,7 @@
                         { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 15 }
                     ];
 
-                    XLSX.writeFile(workbook, `Master_Status_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+                    XLSX.writeFile(workbook, `Master_Status_Report_${startDate}_to_${endDate}.xlsx`);
 
                 } catch (err) {
                     console.error("Master Export Error:", err);
@@ -1586,6 +1579,7 @@
                     loadingOverlay.style.display = 'none';
                 }
             }
+
             function attachFormActionListeners(order) { const idMap = { 'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-complete-btn': () => saveOrUpdateOrder(null), 'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'), 'update-work-order-bill-btn': () => saveOrUpdateOrder(null) }; for(const id in idMap) { const btn = document.getElementById(id); if (btn) btn.addEventListener('click', idMap[id]); } }
             function checkAndApplyStampInkLogic(rowElement) { const linkedInkRowUid = rowElement.dataset.linkedInkRowUid; if (linkedInkRowUid) { const oldInkRow = itemsTbody.querySelector(`tr[data-row-uid="${linkedInkRowUid}"]`); if (oldInkRow) { $(oldInkRow).find('.item-product').select2('destroy'); oldInkRow.remove(); } } rowElement.removeAttribute('data-linked-ink-row-uid'); const productId = $(rowElement).find('.item-product').val(); const inkColor = $(rowElement).find('.item-ink_color').val(); const product = fullProductList.find(p => p.id == productId); if (!product || !product.product_category || !product.product_category.toUpperCase().includes('STAMP')) { return; } const targetColors = { 'เขียว': 'เขียว', 'ดำ': 'ดำ', 'แดง': 'แดง', 'น้ำเงิน': 'น้ำเงิน' }; const matchedColor = Object.keys(targetColors).find(c => inkColor.includes(c) && inkColor.includes('พลาสติก')); if (!matchedColor) { return; } const inkProductName = `หมึกแฟลชพลาสติก 5 ml. (${matchedColor})`; const inkProductToAdd = fullProductList.find(p => p.product_name === inkProductName); if (!inkProductToAdd) { console.warn(`Could not find product: ${inkProductName}`); return; } const newInkRowUid = 'ink-' + Date.now() + Math.random(); const newInkRow = addItemRow({ product_id: inkProductToAdd.id, quantity: 1 }, newInkRowUid); newInkRow.dataset.isAutoAdded = "true"; newInkRow.style.backgroundColor = '#f0fff0'; rowElement.dataset.linkedInkRowUid = newInkRowUid; }
             function handleCondoStampExpansion(changedRow) { if (changedRow.dataset.isCondoPart) return; const productId = $(changedRow).find('.item-product').val(); if (!productId) return; const product = fullProductList.find(p => p.id == productId); if (product && product.product_category && product.product_category.trim().toUpperCase() === 'CONDO STAMP') { if (window.isExpandingCondo) return; window.isExpandingCondo = true; const templateItem = { product_id: product.id }; changedRow.querySelector('.item-shelf_location').value = '1'; changedRow.dataset.isCondoPart = 'true'; const qtyInput = changedRow.querySelector('.item-quantity'); qtyInput.value = 1; qtyInput.readOnly = true; for (let i = 2; i <= 5; i++) { const newItemRow = addItemRow(templateItem); newItemRow.querySelector('.item-shelf_location').value = i.toString(); newItemRow.dataset.isCondoPart = 'true'; const newQtyInput = newItemRow.querySelector('.item-quantity'); newQtyInput.value = 1; newQtyInput.readOnly = true; } setTimeout(() => { window.isExpandingCondo = false; }, 100); } }
@@ -1606,7 +1600,15 @@
                 });
             }
 
+            // --- MODIFIED FUNCTION ---
             function initializeEventListeners() {
+                if (eventListenersInitialized) return;
+                // ADDED: Set default date values for the master status export
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                document.getElementById('master-status-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
+                document.getElementById('master-status-end-date').value = today.toISOString().split('T')[0];
+
                 document.getElementById('export-master-status-btn').addEventListener('click', exportMasterStatusReport);
                 container.querySelector('#channel-summary-container').addEventListener('click', (e) => { if (e.target.matches('.channel-summary-item')) { const channel = e.target.dataset.channel; container.querySelector('#filter-complete').value = channel; renderAllTabs(); } });
                 
@@ -1689,8 +1691,8 @@
                 document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting')); 
                 document.getElementById('cancel-selected-complete-btn').addEventListener('click', () => cancelSelectedOrders('complete'));
                 document.getElementById('select-all-shipped-btn').addEventListener('click', () => selectAll('shipped')); document.getElementById('claim-selected-shipped-btn').addEventListener('click', () => handleClaimSelectedOrders()); document.getElementById('export-shipped-btn').addEventListener('click', exportShippedData);
-                document.getElementById('export-status-btn').addEventListener('click', exportShippedStatus);
                 document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled')); document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล')); document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
+	eventListenersInitialized = true;
             }
 
             return { initializeApp, loadInitialData };
@@ -2140,13 +2142,13 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
 
                     if (ordersError) throw ordersError;
 
-                    // 3. ลบใบงานออกจาก Planner (jobs) เนื่องจากผลิตและส่งเสร็จแล้ว
+                    // 3. อัพเดทสถานะใบงาน Planner (jobs) เนื่องจากผลิตและส่งเสร็จแล้ว
                     const { error: jobError } = await supabaseClient
-                        .from('jobs')
-                        .delete()
-                        .eq('name', workOrderName);
+    .from('jobs')
+    .update({ status: 'DONE' }) // <-- เปลี่ยนจาก .delete() เป็น .update()
+    .eq('name', workOrderName);
                     
-                    if (jobError) console.warn("Could not delete job from planner:", jobError);
+                    if (jobError) console.warn("Could not update job from planner:", jobError);
 
                     alert(`ย้ายใบงาน "${workOrderName}" ไปยัง "จัดส่งแล้ว" เรียบร้อย!`);
                     
@@ -2425,5 +2427,6 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
         checkAuth();
         window.addEventListener('pageshow', function (event) { if (event.persisted) { console.log("Page loaded from bfcache. Re-initializing."); checkAuth(); } });
     });
-    </script>
+</script>
+</body>
 </html>
