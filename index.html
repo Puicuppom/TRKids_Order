@@ -588,6 +588,18 @@
                                 <label for="report-end-date">ถึงวันที่</label>
                                 <input type="date" id="report-end-date">
                             </div>
+                            <!-- === ADDED FILTERS START === -->
+                            <div class="control-group">
+                                <label for="report-category-filter">หมวดหมู่สินค้า</label>
+                                <select id="report-category-filter" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; min-width: 200px;">
+                                    <option value="all">ทั้งหมด</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="report-product-search">ค้นหาชื่อสินค้า</label>
+                                <input type="text" id="report-product-search" placeholder="พิมพ์ชื่อสินค้า..." style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; width: 250px;">
+                            </div>
+                             <!-- === ADDED FILTERS END === -->
                             <button id="generate-report-btn" class="btn btn-primary">สร้างรายงาน</button>
                             <button id="export-report-btn" class="btn btn-success" style="display: none; margin-left: auto;">Export to Excel</button>
                         </div>
@@ -597,6 +609,7 @@
                                     <tr>
                                         <th>รหัสสินค้า</th>
                                         <th>ชื่อสินค้า</th>
+                                        <th>หมวดหมู่</th>
                                         <th>จำนวนที่ขายได้</th>
                                     </tr>
                                 </thead>
@@ -1749,8 +1762,12 @@ html
                 let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
                 
                 let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
-                orderGroup.forEach(item => { const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // "); tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`; });
-                tableHTML += "</tbody></table>";
+orderGroup.forEach(item => {
+    const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
+    // บรรทัดด้านล่างนี้คือจุดที่แก้ไข จาก item.details เป็น item.notes ในคอลัมน์ "หมายเหตุ"
+    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
+});
+tableHTML += "</tbody></table>";
                 
                 resultContainer.innerHTML = headerHTML + tableHTML;
                 actionPanel.style.display = "block";
@@ -2070,13 +2087,221 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
         // --- SALES REPORT SYSTEM MODULE ---
         window.salesReportSystem = (() => {
             let isInitialized = false;
-            let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder;
+            // --- MODIFIED ---: Added categoryFilter, productSearch
+            let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder, categoryFilter, productSearch;
             let reportData = [];
             let allChannels = [];
-            function initializeApp() { if (isInitialized) return; container = document.getElementById('sales-report-system-container'); startDateInput = container.querySelector('#report-start-date'); endDateInput = container.querySelector('#report-end-date'); generateBtn = container.querySelector('#generate-report-btn'); exportBtn = container.querySelector('#export-report-btn'); reportTableHead = container.querySelector('#report-table thead'); reportTbody = container.querySelector('#report-tbody'); reportPlaceholder = container.querySelector('#report-placeholder'); const today = new Date(); const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1); startDateInput.value = firstDayOfMonth.toISOString().split('T')[0]; endDateInput.value = today.toISOString().split('T')[0]; generateBtn.addEventListener('click', generateReport); exportBtn.addEventListener('click', exportToExcel); isInitialized = true; }
-            async function generateReport() { const startDate = startDateInput.value; const endDate = endDateInput.value; if (!startDate || !endDate) { alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด'); return; } loadingOverlay.style.display = 'flex'; reportPlaceholder.textContent = 'กำลังดึงข้อมูล...'; reportTbody.innerHTML = ''; exportBtn.style.display = 'none'; try { const { data, error } = await supabaseClient.from('orders').select('channel_code, order_items(*, products(product_code))') .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate); if (error) throw error; const productMap = new Map(); const channelSet = new Set(); data.forEach(order => { const channel = (order.channel_code || 'N/A').toUpperCase(); channelSet.add(channel); (order.order_items || []).forEach(item => { if (item.products) { const productId = item.product_id; if (!productMap.has(productId)) { productMap.set(productId, { code: item.products.product_code, name: item.product_name, channels: {}, total: 0 }); } const pData = productMap.get(productId); pData.channels[channel] = (pData.channels[channel] || 0) + 1; pData.total += 1; } }); }); allChannels = Array.from(channelSet).sort(); reportData = Array.from(productMap.values()); renderReportTable(); } catch (err) { console.error('Error generating report:', err); reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message; alert('เกิดข้อผิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
-            function renderReportTable() { reportTbody.innerHTML = ''; reportTableHead.innerHTML = ''; if (reportData.length === 0) { reportPlaceholder.textContent = 'ไม่พบข้อมูลการขายในช่วงวันที่ที่เลือก'; reportPlaceholder.style.display = 'block'; exportBtn.style.display = 'none'; reportTableHead.innerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>จำนวนที่ขายได้</th></tr>'; return; } let headerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th>'; allChannels.forEach(channel => { headerHTML += `<th style="text-align: center;">${channel}</th>`; }); headerHTML += '<th style="text-align: center; background-color: #e2e3e5;">รวมทั้งหมด</th></tr>'; reportTableHead.innerHTML = headerHTML; reportData.sort((a, b) => b.total - a.total); const columnTotals = {}; allChannels.forEach(ch => columnTotals[ch] = 0); let grandTotal = 0; reportData.forEach(product => { let rowHTML = `<tr><td>${product.code || 'N/A'}</td><td>${product.name}</td>`; allChannels.forEach(channel => { const qty = product.channels[channel] || 0; columnTotals[channel] += qty; const displayQty = qty === 0 ? '<span style="color:#ccc;">-</span>' : `<b>${qty}</b>`; rowHTML += `<td style="text-align: center;">${displayQty}</td>`; }); grandTotal += product.total; rowHTML += `<td style="text-align: center; font-weight: bold; background-color: #f8f9fa;">${product.total}</td></tr>`; reportTbody.insertAdjacentHTML('beforeend', rowHTML); }); let summaryRowHTML = `<tr style="background-color: #343a40; color: white; font-weight: bold; border-top: 2px solid #000;"><td colspan="2" style="text-align: right;">รวมทั้งหมด</td>`; allChannels.forEach(channel => { summaryRowHTML += `<td style="text-align: center;">${columnTotals[channel]}</td>`; }); summaryRowHTML += `<td style="text-align: center; font-size: 1.1em; background-color: #212529;">${grandTotal}</td></tr>`; reportTbody.insertAdjacentHTML('beforeend', summaryRowHTML); reportPlaceholder.style.display = 'none'; exportBtn.style.display = 'inline-block'; }
-            function exportToExcel() { if (reportData.length === 0) { alert('ไม่มีข้อมูลสำหรับ Export'); return; } const startDate = startDateInput.value; const endDate = endDateInput.value; const headers = ["รหัสสินค้า", "ชื่อสินค้า", ...allChannels, "รวมทั้งหมด"]; const dataToExport = reportData.map(item => { const row = [item.code, item.name]; allChannels.forEach(ch => { row.push(item.channels[ch] || 0); }); row.push(item.total); return row; }); const summaryRow = ["", "รวมทั้งหมด"]; allChannels.forEach(ch => { const sum = reportData.reduce((acc, item) => acc + (item.channels[ch] || 0), 0); summaryRow.push(sum); }); const grandSum = reportData.reduce((acc, item) => acc + item.total, 0); summaryRow.push(grandSum); dataToExport.push(summaryRow); const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report"); const colWidths = headers.map((_, i) => ({ wch: 15 })); colWidths[1].wch = 40; worksheet['!cols'] = colWidths; XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`); }
+
+            // --- MODIFIED ---: Updated the whole function
+            function initializeApp() {
+                if (isInitialized) return;
+                container = document.getElementById('sales-report-system-container');
+                startDateInput = container.querySelector('#report-start-date');
+                endDateInput = container.querySelector('#report-end-date');
+                generateBtn = container.querySelector('#generate-report-btn');
+                exportBtn = container.querySelector('#export-report-btn');
+                reportTableHead = container.querySelector('#report-table thead');
+                reportTbody = container.querySelector('#report-tbody');
+                reportPlaceholder = container.querySelector('#report-placeholder');
+                categoryFilter = container.querySelector('#report-category-filter');
+                productSearch = container.querySelector('#report-product-search');
+
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
+                endDateInput.value = today.toISOString().split('T')[0];
+
+                generateBtn.addEventListener('click', generateReport);
+                exportBtn.addEventListener('click', exportToExcel);
+                
+                // --- ADDED ---: Event listeners for new filters to re-render without re-fetching
+                categoryFilter.addEventListener('change', renderReportTable);
+                productSearch.addEventListener('input', renderReportTable);
+
+                isInitialized = true;
+                populateCategories(); // Fetch and populate categories on init
+            }
+            
+            // --- ADDED ---: New function to populate the category dropdown
+            async function populateCategories() {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('products')
+                        .select('product_category');
+                    if (error) throw error;
+                    
+                    const categories = [...new Set(data.map(p => p.product_category).filter(Boolean))].sort();
+                    
+                    categories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat;
+                        option.textContent = cat;
+                        categoryFilter.appendChild(option);
+                    });
+
+                } catch (err) {
+                    console.error("Error populating categories:", err);
+                }
+            }
+
+            async function generateReport() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                if (!startDate || !endDate) {
+                    alert('กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด');
+                    return;
+                }
+                loadingOverlay.style.display = 'flex';
+                reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
+                reportTbody.innerHTML = '';
+                exportBtn.style.display = 'none';
+                try {
+                    const { data, error } = await supabaseClient.from('orders')
+                        .select('channel_code, order_items(*, products(product_code, product_category))')
+                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate);
+                    if (error) throw error;
+                    
+                    const productMap = new Map();
+                    const channelSet = new Set();
+                    data.forEach(order => {
+                        const channel = (order.channel_code || 'N/A').toUpperCase();
+                        channelSet.add(channel);
+                        (order.order_items || []).forEach(item => {
+                            if (item.products) {
+                                const productId = item.product_id;
+                                if (!productMap.has(productId)) {
+                                    productMap.set(productId, {
+                                        code: item.products.product_code,
+                                        name: item.product_name,
+                                        category: item.products.product_category,
+                                        channels: {},
+                                        total: 0
+                                    });
+                                }
+                                const pData = productMap.get(productId);
+                                pData.channels[channel] = (pData.channels[channel] || 0) + 1;
+                                pData.total += 1;
+                            }
+                        });
+                    });
+                    allChannels = Array.from(channelSet).sort();
+                    reportData = Array.from(productMap.values());
+                    renderReportTable();
+                } catch (err) {
+                    console.error('Error generating report:', err);
+                    reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
+                    alert('เกิดข้อผิดพลาด: ' + err.message);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+
+            // --- MODIFIED ---: Updated the whole function to handle client-side filtering
+            function renderReportTable() {
+                const selectedCategory = categoryFilter.value;
+                const searchTerm = productSearch.value.toLowerCase();
+
+                const filteredData = reportData.filter(product => {
+                    const categoryMatch = (selectedCategory === 'all') || (product.category === selectedCategory);
+                    const searchMatch = !searchTerm || product.name.toLowerCase().includes(searchTerm);
+                    return categoryMatch && searchMatch;
+                });
+
+                reportTbody.innerHTML = '';
+                reportTableHead.innerHTML = '';
+
+                if (filteredData.length === 0) {
+                    reportPlaceholder.textContent = 'ไม่พบข้อมูลตามเงื่อนไขที่เลือก';
+                    reportPlaceholder.style.display = 'block';
+                    exportBtn.style.display = 'none';
+                    reportTableHead.innerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หมวดหมู่</th><th>จำนวนที่ขายได้</th></tr>';
+                    return;
+                }
+                let headerHTML = '<tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หมวดหมู่</th>';
+                allChannels.forEach(channel => {
+                    headerHTML += `<th style="text-align: center;">${channel}</th>`;
+                });
+                headerHTML += '<th style="text-align: center; background-color: #e2e3e5;">รวมทั้งหมด</th></tr>';
+                reportTableHead.innerHTML = headerHTML;
+                
+                filteredData.sort((a, b) => b.total - a.total);
+                
+                const columnTotals = {};
+                allChannels.forEach(ch => columnTotals[ch] = 0);
+                let grandTotal = 0;
+
+                filteredData.forEach(product => {
+                    let rowHTML = `<tr><td>${product.code || 'N/A'}</td><td>${product.name}</td><td>${product.category || ''}</td>`;
+                    allChannels.forEach(channel => {
+                        const qty = product.channels[channel] || 0;
+                        columnTotals[channel] += qty;
+                        const displayQty = qty === 0 ? '<span style="color:#ccc;">-</span>' : `<b>${qty}</b>`;
+                        rowHTML += `<td style="text-align: center;">${displayQty}</td>`;
+                    });
+                    grandTotal += product.total;
+                    rowHTML += `<td style="text-align: center; font-weight: bold; background-color: #f8f9fa;">${product.total}</td></tr>`;
+                    reportTbody.insertAdjacentHTML('beforeend', rowHTML);
+                });
+
+                let summaryRowHTML = `<tr style="background-color: #343a40; color: white; font-weight: bold; border-top: 2px solid #000;"><td colspan="3" style="text-align: right;">รวมทั้งหมด</td>`;
+                allChannels.forEach(channel => {
+                    summaryRowHTML += `<td style="text-align: center;">${columnTotals[channel]}</td>`;
+                });
+                summaryRowHTML += `<td style="text-align: center; font-size: 1.1em; background-color: #212529;">${grandTotal}</td></tr>`;
+                reportTbody.insertAdjacentHTML('beforeend', summaryRowHTML);
+
+                reportPlaceholder.style.display = 'none';
+                exportBtn.style.display = 'inline-block';
+            }
+
+            // --- MODIFIED ---: Updated the whole function to export filtered data
+            function exportToExcel() {
+                const selectedCategory = categoryFilter.value;
+                const searchTerm = productSearch.value.toLowerCase();
+                const filteredData = reportData.filter(product => {
+                    const categoryMatch = (selectedCategory === 'all') || (product.category === selectedCategory);
+                    const searchMatch = !searchTerm || product.name.toLowerCase().includes(searchTerm);
+                    return categoryMatch && searchMatch;
+                });
+
+                if (filteredData.length === 0) {
+                    alert('ไม่มีข้อมูลสำหรับ Export');
+                    return;
+                }
+
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                const headers = ["รหัสสินค้า", "ชื่อสินค้า", "หมวดหมู่", ...allChannels, "รวมทั้งหมด"];
+                
+                const dataToExport = filteredData.map(item => {
+                    const row = [item.code, item.name, item.category];
+                    allChannels.forEach(ch => {
+                        row.push(item.channels[ch] || 0);
+                    });
+                    row.push(item.total);
+                    return row;
+                });
+                
+                const summaryRow = ["", "รวมทั้งหมด", ""];
+                allChannels.forEach(ch => {
+                    const sum = filteredData.reduce((acc, item) => acc + (item.channels[ch] || 0), 0);
+                    summaryRow.push(sum);
+                });
+                const grandSum = filteredData.reduce((acc, item) => acc + item.total, 0);
+                summaryRow.push(grandSum);
+                dataToExport.push(summaryRow);
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
+                
+                const colWidths = headers.map(() => ({ wch: 15 }));
+                colWidths[1].wch = 40; // product_name
+                colWidths[2].wch = 25; // product_category
+                worksheet['!cols'] = colWidths;
+                
+                XLSX.writeFile(workbook, `SalesReport_${startDate}_to_${endDate}.xlsx`);
+            }
             return { initializeApp };
         })();
         
