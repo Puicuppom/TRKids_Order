@@ -1,3 +1,5 @@
+--- START OF FILE index.html ---
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -473,8 +475,7 @@
                         <div id="tab-cancelled" class="tab-content"><div class="tab-filter"><label for="filter-cancelled">กรองตามช่องทาง:</label><select id="filter-cancelled"></select><input type="text" id="search-cancelled" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-cancelled-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="restore-to-waiting-btn" class="btn btn-warning">คืนไป "รอลงข้อมูล"</button><button id="restore-to-complete-btn" class="btn btn-info">คืนไป "ลงข้อมูลเสร็จสิ้น"</button></div><ul class="order-list"></ul></div>
                     </div>
                 </div>
-
-                <!-- ==================== PACKING SYSTEM ==================== -->
+<!-- ==================== PACKING SYSTEM ==================== -->
                 <div id="packing-system-container" class="system-content">
                     <div id="work-order-selection-view">
                         <div class="container">
@@ -694,6 +695,34 @@ html
         </div>
     </div>
 
+    <!-- Claim Details Modal -->
+    <div id="claim-details-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="claim-modal-title">ระบุรายละเอียดการเคลม</h2>
+            <form id="claim-details-form">
+                <div class="modal-form-group">
+                    <label for="claim-type-select">ประเภทการเคลม</label>
+                    <select id="claim-type-select" class="modal-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
+                        <!-- Options will be populated by JS -->
+                        <option value="new">-- พิมพ์ใหม่ --</option>
+                    </select>
+                </div>
+                <div class="modal-form-group" id="new-claim-type-group" style="display: none;">
+                    <label for="new-claim-type-input">ระบุประเภทใหม่</label>
+                    <input type="text" id="new-claim-type-input" class="modal-input" placeholder="เช่น สินค้าผิด, จัดส่งพลาด">
+                </div>
+                <div class="modal-form-group">
+                    <label for="claim-details-textarea">รายละเอียดเพิ่มเติม</label>
+                    <textarea id="claim-details-textarea" rows="4" class="modal-input" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-claim-modal-btn" class="btn btn-secondary">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">บันทึกและสร้างบิลเคลม</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Hidden Container for PNG Generation -->
     <div id="picking-slip-png-container"></div>
 
@@ -860,8 +889,7 @@ html
             async function process(file) { if (!file) return; loadingOverlay.textContent = 'กำลังประมวลผลสลิป...'; loadingOverlay.style.display = 'flex'; slipStatusEl.textContent = '⏳ กำลังอ่านข้อมูล...'; slipStatusEl.style.color = '#0056b3'; try { const worker = await Tesseract.createWorker('tha+eng', 1, { logger: m => { if (m.status === 'recognizing text') { loadingOverlay.textContent = `ประมวลผลสลิป... ${Math.round(m.progress * 100)}%`; } }, }); const { data: { text } } = await worker.recognize(file); await worker.terminate(); const slipData = extractSlipInfo(text); if (slipData.date || slipData.time || slipData.amount) { paymentMethodEl.value = 'โอน'; } if (slipData.date) { paymentDateEl.value = buddhistToISO(slipData.date); } if (slipData.time) { paymentTimeEl.value = slipData.time; } if (slipData.amount) { const slipAmount = parseFloat(slipData.amount.replace(/,/g, '')); const totalAmount = parseFloat(totalAmountEl.value); if (Math.abs(slipAmount - totalAmount) < 0.01) { slipStatusEl.textContent = `✅ ยอดตรงกัน (${slipAmount.toFixed(2)} บาท)`; slipStatusEl.style.color = '#28a745'; } else { slipStatusEl.textContent = `❌ ยอดไม่ตรง! (สลิป: ${slipAmount.toFixed(2)}, ยอดสุทธิ: ${totalAmount.toFixed(2)})`; slipStatusEl.style.color = '#dc3545'; } } else { slipStatusEl.textContent = '⚠️ ไม่พบยอดเงิน แต่กรอกวันที่/เวลา (ถ้ามี)'; slipStatusEl.style.color = '#ffc107'; } } catch (error) { console.error("Slip error:", error); slipStatusEl.textContent = `❌ เกิดพลาด: ${error.message}`; slipStatusEl.style.color = '#dc3545'; } finally { loadingOverlay.textContent = 'กำลังโหลด...'; loadingOverlay.style.display = 'none'; document.getElementById('slip-file-input').value = ''; } }
             return { process };
         })();
-
-        // --- WAYBILL SORTER MODULE ---
+ // --- WAYBILL SORTER MODULE ---
         window.waybillSorter = (() => {
             if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js`; }
             const modal = document.getElementById('waybill-sorter-modal'); const woNameEl = document.getElementById('waybill-sorter-wo-name'); const selectFolderBtn = document.getElementById('select-pdf-folder-btn'); const folderInput = document.getElementById('pdf-folder-input'); const statCsv = document.getElementById('ws-stat-csv'); const statPdf = document.getElementById('ws-stat-pdf'); const statFound = document.getElementById('ws-stat-found'); const progressBar = document.getElementById('ws-progress-bar'); const statusLog = document.getElementById('ws-status-log'); const downloadMissingBtn = document.getElementById('ws-download-missing-btn'); const closeBtn = document.getElementById('ws-close-btn'); const cropTopInput = document.getElementById('ws-crop-top'); const batchSizeInput = document.getElementById('ws-batch-size');
@@ -1036,23 +1064,19 @@ html
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
                     inkTypeList = inkTypesRes.data;
 
-                    // *** MODIFICATION START ***
-                    // Check if this is a silent update while the user is on the create/edit tab.
                     const isEditingOrder = isSilent && container.querySelector('#tab-create')?.classList.contains('active');
 
-                    // Only repopulate dropdowns if it's NOT a silent update on the create tab.
                     if (!isEditingOrder) {
                         if (promotionsRes.error) throw new Error('Could not load promotions');
                         const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
                         const promotionSelect = $('#promotion'); 
-                        const currentValue = promotionSelect.val(); // Save current value
+                        const currentValue = promotionSelect.val();
                         promotionSelect.empty();
                         uniquePromotions.forEach(promo => { const option = new Option(promo, promo, false, false); promotionSelect.append(option); });
-                        promotionSelect.val(currentValue).trigger('change'); // Restore current value
+                        promotionSelect.val(currentValue).trigger('change');
                         
                         populateChannelDropdowns();
                     }
-                    // *** MODIFICATION END ***
 
                     if (ordersRes.error) throw new Error('Could not load orders');
                     allOrdersData = ordersRes.data;
@@ -1087,6 +1111,14 @@ html
                         if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) { 
                             const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
                             let infoHTML = `<div><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong> <span class="customer-info">${order.customer_name || 'N/A'}</span></div>`;
+                            
+                            if (order.channel_code === 'CLAIM' && (order.claim_type || order.claim_details)) {
+                                const claimType = order.claim_type ? `<strong>${order.claim_type}</strong>` : '';
+                                const claimDetails = order.claim_details || '';
+                                const separator = claimType && claimDetails ? ': ' : '';
+                                infoHTML += `<div class="shipping-details" style="color: #c82333; font-size: 0.8em; white-space: normal;">เคลม: ${claimType}${separator}${claimDetails}</div>`;
+                            }
+
                             if (order.status === 'จัดส่งแล้ว' && order.shipped_by) {
                                 const shippedTime = new Date(order.shipped_time).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'});
                                 infoHTML += `<div class="shipping-details">โดย: ${order.shipped_by} (${shippedTime})</div>`;
@@ -1330,7 +1362,6 @@ html
             async function cancelSelectedBillsFromWorkOrder(buttonElement) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการ **ยกเลิก** ${selectedIds.length} บิล?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('ยกเลิกสำเร็จ!'); } catch (error) { console.error('Error cancelling:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกทั้งใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
-            // --- MODIFIED FUNCTION ---
             async function saveOrUpdateOrder(status) {
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
@@ -1354,7 +1385,6 @@ html
                         const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => $(row).find('.item-product').select2('data')[0]?.id);
                         if (!hasAtLeastOneItem) throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
                         
-                        // === NEW VALIDATION LOGIC START ===
                         const categoriesForCartoonCheck = ['LASER', 'STAMP', 'UV-DTF'];
                         for (const row of itemsTbody.rows) {
                             const selectedData = $(row).find('.item-product').select2('data')[0];
@@ -1364,7 +1394,6 @@ html
                             if (product && product.product_category) {
                                 const categoryUpper = product.product_category.toUpperCase();
 
-                                // Check for Cartoon Pattern
                                 const requiresCartoon = categoriesForCartoonCheck.some(cat => categoryUpper.includes(cat));
                                 if (requiresCartoon) {
                                     const cartoonPattern = row.querySelector('.item-cartoon_pattern').value.trim();
@@ -1373,7 +1402,6 @@ html
                                     }
                                 }
                                 
-                                // Check for Ink Color if it's a STAMP
                                 if (categoryUpper.includes('STAMP')) {
                                     const inkColor = row.querySelector('.item-ink_color').value;
                                     if (!inkColor) {
@@ -1382,7 +1410,6 @@ html
                                 }
                             }
                         }
-                        // === NEW VALIDATION LOGIC END ===
 
                         if (channelCode !== 'CLAIM') {
                             if (priceValue === '' || priceValue === null) throw new Error("กรุณากรอกราคา ก่อนบันทึกเป็น 'ข้อมูลครบ'");
@@ -1487,21 +1514,25 @@ html
             async function generateNextBillNo(channelCode) { const today = new Date(); const year = String(today.getFullYear() + 543).slice(-2); const month = String(today.getMonth() + 1).padStart(2, '0'); const prefix = `${channelCode}${year}${month}`; const { data, error } = await supabaseClient.from('orders').select('bill_no').like('bill_no', `${prefix}%`).order('bill_no', { ascending: false }).limit(1); if (error) throw new Error(`ค้นหาบิลล่าสุดไม่ได้: ${error.message}`); let nextSequence = 1; if (data.length > 0) { const lastBillNo = data[0].bill_no; const lastSequence = parseInt(lastBillNo.slice(prefix.length), 10); if (!isNaN(lastSequence)) { nextSequence = lastSequence + 1; } } return `${prefix}${String(nextSequence).padStart(5, '0')}`; }
             function calculateTotal() { const price = parseFloat(container.querySelector('#price').value) || 0; const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0; const discount = parseFloat(container.querySelector('#discount').value) || 0; container.querySelector('#total_amount').value = (price + shipping - discount).toFixed(2); }
             function exportForProduction(workOrderName) { const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName); if (ordersInWorkOrder.length === 0) { alert("ไม่พบข้อมูล"); return; } const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ']; const dataToExport = []; ordersInWorkOrder.forEach(order => { if (order.order_items && order.order_items.length > 0) { order.order_items.forEach(item => { dataToExport.push([ workOrderName, item.bill_no, item.item_uid, item.product_name, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, 1, item.notes, item.file_attachment ]); }); } }); if (dataToExport.length === 0) { alert("ไม่พบรายการสินค้า"); return; } const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData"); XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`); }
+            
             function exportShippedData() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
                 if (selectedIds.length === 0) { return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export'); }
                 const ordersToExport = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
-                const headers = ['เลขบิล', 'ลูกค้า', 'เลขพัสดุ', 'ผู้จัดส่ง', 'เวลาจัดส่ง', 'Item UID', 'ชื่อสินค้า', 'รายละเอียดสินค้า'];
+                
+                const headers = ['เลขบิล', 'ลูกค้า', 'เลขพัสดุ', 'ผู้จัดส่ง', 'เวลาจัดส่ง', 'Item UID', 'ชื่อสินค้า', 'รายละเอียดสินค้า', 'ประเภทเคลม', 'รายละเอียดเคลม'];
+
                 const dataToExport = [];
                 ordersToExport.forEach(order => {
                     const shippedTime = order.shipped_time ? new Date(order.shipped_time).toLocaleString('th-TH') : 'N/A';
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
                             const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, item.notes].filter(Boolean).join(" | ");
-                            dataToExport.push([ order.bill_no, order.customer_name, order.tracking_number, order.shipped_by, shippedTime, item.item_uid, item.product_name, details ]);
+                            
+                            dataToExport.push([ order.bill_no, order.customer_name, order.tracking_number, order.shipped_by, shippedTime, item.item_uid, item.product_name, details, order.claim_type || '', order.claim_details || '' ]);
                         });
                     } else {
-                        dataToExport.push([ order.bill_no, order.customer_name, order.tracking_number, order.shipped_by, shippedTime, 'N/A', 'N/A', 'N/A' ]);
+                        dataToExport.push([ order.bill_no, order.customer_name, order.tracking_number, order.shipped_by, shippedTime, 'N/A', 'N/A', 'N/A', order.claim_type || '', order.claim_details || '' ]);
                     }
                 });
                 const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
@@ -1510,23 +1541,18 @@ html
                 XLSX.writeFile(workbook, `ShippedData_${new Date().toISOString().slice(0,10)}.xlsx`);
             }
             
-            // --- MODIFIED FUNCTION ---
             function exportMasterStatusReport() {
-                // Get date values from the new inputs
                 const startDate = document.getElementById('master-status-start-date').value;
                 const endDate = document.getElementById('master-status-end-date').value;
 
-                // Validate that dates are selected
                 if (!startDate || !endDate) {
                     return alert('กรุณาเลือกช่วงวันที่สำหรับ Export สถานะรวม');
                 }
 
                 const statusesToExport = ['ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)', 'จัดส่งแล้ว'];
                 
-                // Filter orders by both status AND date range
                 const ordersToExport = allOrdersData.filter(order => {
                     const statusMatch = statusesToExport.includes(order.status);
-                    // Ensure order.entry_date exists before comparing
                     const dateMatch = order.entry_date && order.entry_date >= startDate && order.entry_date <= endDate;
                     return statusMatch && dateMatch;
                 });
@@ -1538,7 +1564,7 @@ html
                 loadingOverlay.style.display = 'flex';
 
                 try {
-                    const headers = ['เลขบิล', 'Item UID', 'ชื่อสินค้า', 'หมวดหมู่', 'รายละเอียดสินค้า', 'สถานะ'];
+                    const headers = ['เลขบิล', 'Item UID', 'ชื่อสินค้า', 'หมวดหมู่', 'รายละเอียดสินค้า', 'สถานะ', 'ประเภทเคลม', 'รายละเอียดเคลม'];
                     const dataToExport = [];
 
                     ordersToExport.forEach(order => {
@@ -1554,11 +1580,13 @@ html
                                     item.product_name,
                                     category,
                                     details,
-                                    order.status
+                                    order.status,
+                                    order.claim_type || '',
+                                    order.claim_details || ''
                                 ]);
                             });
                         } else {
-                            dataToExport.push([order.bill_no, 'N/A', 'N/A', 'N/A', 'No items in this order', order.status]);
+                            dataToExport.push([order.bill_no, 'N/A', 'N/A', 'N/A', 'No items in this order', order.status, order.claim_type || '', order.claim_details || '']);
                         }
                     });
 
@@ -1567,7 +1595,7 @@ html
                     XLSX.utils.book_append_sheet(workbook, worksheet, "Master Status Report");
 
                     worksheet['!cols'] = [
-                        { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 15 }
+                        { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 15 }, { wch: 25 }, { wch: 40 }
                     ];
 
                     XLSX.writeFile(workbook, `Master_Status_Report_${startDate}_to_${endDate}.xlsx`);
@@ -1587,7 +1615,153 @@ html
             function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
             function exportPickingSlipAsPNG(workOrderName) { const element = document.getElementById("picking-slip-png-container"); loadingOverlay.style.display = 'flex'; html2canvas(element, { scale: 2 }).then(canvas => { const link = document.createElement('a'); link.download = `ใบเบิก_${workOrderName}.png`; link.href = canvas.toDataURL("image/png"); link.click(); loadingOverlay.style.display = 'none'; }).catch(err => { console.error('Error PNG:', err); alert('สร้าง PNG ผิดพลาด'); loadingOverlay.style.display = 'none'; }); }
             function exportPickingSlipAsCSV(workOrderName) { const headers = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จำนวนเบิก']; const itemsInWorkOrder = []; allOrdersData.forEach(order => { if (order.work_order_name === workOrderName && order.order_items) { order.order_items.forEach(item => { const fullProduct = fullProductList.find(p => p.id === item.product_id); itemsInWorkOrder.push({ transactionCode: workOrderName, productCode: fullProduct ? fullProduct.product_code : 'N/A', productName: item.product_name, quantity: 1, category: fullProduct ? fullProduct.product_category : '' }); }); } }); if (itemsInWorkOrder.length === 0) { alert('ไม่พบข้อมูล'); return; } const aggregatedItems = {}; itemsInWorkOrder.forEach(item => { const key = item.productCode; if (!aggregatedItems[key]) { aggregatedItems[key] = { ...item, quantity: 0 }; } aggregatedItems[key].quantity += 1; }); Object.values(aggregatedItems).forEach(item => { if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') { item.quantity = Math.ceil(item.quantity / 5); } }); const finalRows = Object.values(aggregatedItems); const escapeCsv = (field) => { const str = String(field || ''); if (str.includes(',') || str.includes('"') || str.includes('\n')) { return `"${str.replace(/"/g, '""')}"`; } return str; }; const csvContent = [ headers.join(','), ...finalRows.map(row => [ escapeCsv(row.transactionCode), escapeCsv(row.productCode), escapeCsv(row.productName), escapeCsv(row.quantity) ].join(',')) ].join('\n'); const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `${workOrderName}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
-            async function handleClaimSelectedOrders() { const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list')); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); if (selectedIds.length > 1) return alert('กรุณาเลือก 1 ออร์เดอร์'); const orderId = selectedIds[0]; const originalOrder = allOrdersData.find(o => String(o.id) === orderId); if (!originalOrder) return alert('ไม่พบข้อมูล'); const originalBillNo = originalOrder.bill_no.replace(/^C\d*-/, ''); const existingClaims = allOrdersData.filter(o => o.bill_no.endsWith(`-${originalBillNo}`) && o.bill_no.startsWith('C')); const claimCount = existingClaims.length; if (claimCount > 0) { if (!confirm( `เคยเคลมแล้ว ${claimCount} ครั้ง\nต้องการสร้างบิลเคลมครั้งที่ ${claimCount + 1}?`)) { return; } } const nextClaimNumber = claimCount + 1; const newBillNo = `C${nextClaimNumber}-${originalBillNo}`; if (!confirm(`ต้องการสร้างบิลเคลมสำหรับ ${originalBillNo}?\nเลขบิลใหม่: ${newBillNo}`)) { return; } loadingOverlay.style.display = 'flex'; try { const claimOrderData = { ...originalOrder, channel_code: 'CLAIM', bill_no: newBillNo, status: 'รอลงข้อมูล', price: 0, shipping_cost: 0, discount: 0, total_amount: 0, payment_method: null, payment_date: null, payment_time: null, promotion: null, work_order_name: null, shipped_by: null, shipped_time: null, tracking_number: null, created_at: new Date().toISOString(), entry_date: new Date().toISOString().slice(0, 10), admin_user: loggedInUsername }; delete claimOrderData.id; delete claimOrderData.order_items; const { data: insertedOrder, error: orderError } = await supabaseClient.from('orders').insert(claimOrderData).select().single(); if (orderError) throw orderError; const originalItems = originalOrder.order_items || []; if (originalItems.length > 0) { let itemSequence = 1; const claimItemsToInsert = originalItems.map(item => { const newItem = { ...item }; delete newItem.id; newItem.order_id = insertedOrder.id; newItem.bill_no = newBillNo; newItem.item_uid = `${newBillNo}-${itemSequence++}`; newItem.item_scan_time = null; newItem.packing_status = null; return newItem; }); const { error: itemsError } = await supabaseClient.from('order_items').insert(claimItemsToInsert); if (itemsError) { await supabaseClient.from('orders').delete().eq('id', insertedOrder.id); throw itemsError; } } alert(`สร้างออร์เดอร์เคลมสำเร็จ!\nเลขบิล: ${newBillNo}\nไปที่แท็บ "รอลงข้อมูล"`); } catch (error) { console.error('Error creating claim:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            
+            async function handleClaimSelectedOrders() {
+                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
+                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์');
+                if (selectedIds.length > 1) return alert('กรุณาเลือก 1 ออร์เดอร์');
+
+                const orderId = selectedIds[0];
+                const originalOrder = allOrdersData.find(o => String(o.id) === orderId);
+                if (!originalOrder) return alert('ไม่พบข้อมูลออร์เดอร์เดิม');
+
+                const originalBillNo = originalOrder.bill_no.replace(/^C\d*-/, '');
+
+                try {
+                    loadingOverlay.style.display = 'flex';
+                    const { data: existingTypesData, error: typesError } = await supabaseClient
+                        .from('orders')
+                        .select('claim_type')
+                        .not('claim_type', 'is', null)
+                        .neq('claim_type', '');
+                        
+                    if (typesError) throw typesError;
+
+                    const existingTypes = [...new Set(existingTypesData.map(item => item.claim_type))].sort();
+
+                    const modal = document.getElementById('claim-details-modal');
+                    const form = document.getElementById('claim-details-form');
+                    const typeSelect = document.getElementById('claim-type-select');
+                    const newTypeGroup = document.getElementById('new-claim-type-group');
+                    const newTypeInput = document.getElementById('new-claim-type-input');
+                    const detailsTextarea = document.getElementById('claim-details-textarea');
+                    const cancelBtn = document.getElementById('cancel-claim-modal-btn');
+                    const modalTitle = document.getElementById('claim-modal-title');
+
+                    form.reset();
+                    modalTitle.textContent = `ระบุรายละเอียดเคลมสำหรับ: ${originalBillNo}`;
+                    typeSelect.innerHTML = '<option value="" disabled selected>-- เลือกประเภท --</option>';
+                    existingTypes.forEach(type => {
+                        typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+                    });
+                    typeSelect.innerHTML += '<option value="new">-- พิมพ์ใหม่ --</option>';
+                    newTypeGroup.style.display = 'none';
+                    
+                    typeSelect.onchange = () => {
+                        newTypeGroup.style.display = typeSelect.value === 'new' ? 'block' : 'none';
+                    };
+                    
+                    modal.style.display = 'flex';
+                    loadingOverlay.style.display = 'none';
+
+                    const claimData = await new Promise((resolve, reject) => {
+                        const submitHandler = (e) => {
+                            e.preventDefault();
+                            const claim_type = typeSelect.value === 'new' ? newTypeInput.value.trim() : typeSelect.value;
+                            if (!claim_type) {
+                                alert('กรุณาเลือกหรือระบุประเภทการเคลม');
+                                return;
+                            }
+                            const claim_details = detailsTextarea.value.trim();
+                            
+                            form.removeEventListener('submit', submitHandler);
+                            cancelBtn.removeEventListener('click', cancelHandler);
+                            modal.style.display = 'none';
+                            resolve({ claim_type, claim_details });
+                        };
+
+                        const cancelHandler = () => {
+                            form.removeEventListener('submit', submitHandler);
+                            cancelBtn.removeEventListener('click', cancelHandler);
+                            modal.style.display = 'none';
+                            reject(new Error('User cancelled'));
+                        };
+                        
+                        form.addEventListener('submit', submitHandler);
+                        cancelBtn.addEventListener('click', cancelHandler);
+                    });
+                    
+                    loadingOverlay.style.display = 'flex';
+                    const existingClaims = allOrdersData.filter(o => o.bill_no.endsWith(`-${originalBillNo}`) && o.bill_no.startsWith('C'));
+                    const nextClaimNumber = existingClaims.length + 1;
+                    const newBillNo = `C${nextClaimNumber}-${originalBillNo}`;
+
+                    if (!confirm(`ต้องการสร้างบิลเคลมสำหรับ ${originalBillNo}?\nเลขบิลใหม่: ${newBillNo}\nประเภท: ${claimData.claim_type}`)) {
+                        loadingOverlay.style.display = 'none';
+                        return;
+                    }
+                    
+                    const claimOrderData = {
+                        ...originalOrder,
+                        channel_code: 'CLAIM',
+                        bill_no: newBillNo,
+                        status: 'รอลงข้อมูล',
+                        price: 0,
+                        shipping_cost: 0,
+                        discount: 0,
+                        total_amount: 0,
+                        payment_method: null,
+                        payment_date: null,
+                        payment_time: null,
+                        promotion: null,
+                        work_order_name: null,
+                        shipped_by: null,
+                        shipped_time: null,
+                        tracking_number: null,
+                        created_at: new Date().toISOString(),
+                        entry_date: new Date().toISOString().slice(0, 10),
+                        admin_user: loggedInUsername,
+                        claim_type: claimData.claim_type,
+                        claim_details: claimData.claim_details
+                    };
+
+                    delete claimOrderData.id;
+                    delete claimOrderData.order_items;
+
+                    const { data: insertedOrder, error: orderError } = await supabaseClient.from('orders').insert(claimOrderData).select().single();
+                    if (orderError) throw orderError;
+
+                    const originalItems = originalOrder.order_items || [];
+                    if (originalItems.length > 0) {
+                        let itemSequence = 1;
+                        const claimItemsToInsert = originalItems.map(item => {
+                            const newItem = { ...item };
+                            delete newItem.id;
+                            newItem.order_id = insertedOrder.id;
+                            newItem.bill_no = newBillNo;
+                            newItem.item_uid = `${newBillNo}-${itemSequence++}`;
+                            newItem.item_scan_time = null;
+                            newItem.packing_status = null;
+                            return newItem;
+                        });
+                        const { error: itemsError } = await supabaseClient.from('order_items').insert(claimItemsToInsert);
+                        if (itemsError) {
+                            await supabaseClient.from('orders').delete().eq('id', insertedOrder.id);
+                            throw itemsError;
+                        }
+                    }
+                    
+                    alert(`สร้างออร์เดอร์เคลมสำเร็จ!\nเลขบิล: ${newBillNo}\nไปที่แท็บ "รอลงข้อมูล"`);
+
+                } catch (error) {
+                    if (error.message !== 'User cancelled') {
+                        console.error('Error creating claim:', error);
+                        alert(`เกิดข้อผิดพลาด: ${error.message}`);
+                    }
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
             
             function selectAll(tabKey) {
                 const listContainer = container.querySelector(`#tab-${tabKey} .order-list`);
@@ -1600,10 +1774,8 @@ html
                 });
             }
 
-            // --- MODIFIED FUNCTION ---
             function initializeEventListeners() {
                 if (eventListenersInitialized) return;
-                // ADDED: Set default date values for the master status export
                 const today = new Date();
                 const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                 document.getElementById('master-status-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
@@ -1665,15 +1837,12 @@ html
     const lastRow = itemsTbody.querySelector('tr:last-child');
     
     if (lastRow) {
-        // ดึง ID ของสินค้าที่ถูกเลือกในแถวสุดท้าย
         const lastProductId = $(lastRow).find('.item-product').val();
         if (lastProductId) {
-            // เตรียมข้อมูลที่จะคัดลอก (เฉพาะ product_id)
             itemToCopy = { product_id: lastProductId };
         }
     }
     
-    // เรียกฟังก์ชันเพิ่มแถว โดยส่งข้อมูลที่คัดลอกไปด้วย (ถ้ามี)
     addItemRow(itemToCopy);
 });
                 $(itemsTbody).on('select2:select', '.item-product', function(e) { const row = e.target.closest('tr'); if (!row.dataset.isAutoAdded) { handleCondoStampExpansion(row); checkAndApplyStampInkLogic(row); } });
@@ -1848,7 +2017,6 @@ html
 
                 aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
                 
-                // Determine completed indices from the start
                 aggregatedData.forEach((group, index) => {
                     if (group[0].isOrderComplete) {
                         completedIndices.add(index);
@@ -1906,15 +2074,12 @@ async function resetCurrentOrderPacking() {
                     const itemUidsToReset = currentOrderGroup.map(item => item.item_uid); 
                     const orderIdToReset = currentOrderGroup[0].order_id;
 
-                    // Clear Step 2: Reset item statuses in the database
                     const { error: itemError } = await supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', itemUidsToReset); 
                     if (itemError) throw itemError; 
 
-                    // Clear Step 1: Reset parcel scan status in the database
                     const { error: orderError } = await supabaseClient.from('orders').update({ packing_meta: null, shipped_by: null, shipped_time: null }).eq('id', orderIdToReset);
                     if (orderError) throw orderError;
                     
-                    // Update local data to reflect the changes instantly
                     currentOrderGroup.forEach(item => { 
                         item.scanned = false; 
                         item.itemScanTime = null; 
@@ -1927,7 +2092,7 @@ async function resetCurrentOrderPacking() {
                     }
                     
                     alert('รีเซ็ตสำเร็จ'); 
-                    displayOrder(currentIndex); // Re-render the current order view
+                    displayOrder(currentIndex);
                 } catch (err) { 
                     alert('เกิดข้อผิดพลาดในการรีเซ็ต: ' + err.message); 
                 } finally { 
@@ -1941,7 +2106,6 @@ async function resetCurrentOrderPacking() {
                 const currentOrderId = currentOrderGroup[0].order_id; 
                 const timestamp = new Date().toISOString(); 
 
-                // Finalize the order by setting shipped_by and shipped_time
                 const { error } = await supabaseClient.from('orders').update({ shipped_by: loggedInUsername, shipped_time: timestamp }).eq('id', currentOrderId); 
                 if (error) { alert('บันทึกข้อมูลการจัดส่งไม่สำเร็จ: ' + error.message); errorSound.play(); return; } 
 
@@ -1963,7 +2127,6 @@ async function resetCurrentOrderPacking() {
                         if (nextIndex !== -1) { 
                             displayOrder(nextIndex); 
                         } else {
-                            // This case shouldn't be reached, but as a fallback:
                             actionPanel.style.display = "none";
                             resultContainer.innerHTML = `<div style="text-align:center; padding: 40px;"><h2>ไม่มีออร์เดอร์ถัดไป</h2></div>`;
                         }
@@ -1982,7 +2145,6 @@ async function resetCurrentOrderPacking() {
                     const orderId = currentOrderGroup[0].order_id;
                     const newMeta = { parcelScanned: true, scannedBy: loggedInUsername, scanTime: new Date().toISOString() };
                     
-                    // Update the database
                     const { error } = await supabaseClient.from('orders').update({ packing_meta: newMeta }).eq('id', orderId);
                     
                     if (error) {
@@ -1991,7 +2153,6 @@ async function resetCurrentOrderPacking() {
                         return;
                     }
                     
-                    // Update local state
                     currentOrderGroup.forEach(item => item.parcelScanned = true);
 
                     successSound.play();
@@ -2016,17 +2177,14 @@ async function resetCurrentOrderPacking() {
                     itemScanInput.value = "";
                     const timestamp = new Date().toISOString();
                     
-                    // Update item in database
                     const { error } = await supabaseClient.from('order_items').update({ item_scan_time: timestamp, packing_status: 'สแกนแล้ว' }).eq('item_uid', itemToScan.item_uid);
                     if (error) { alert('บันทึกเวลาสแกนพลาด: ' + error.message); errorSound.play(); return; }
                     
                     successSound.play();
                     
-                    // Update local state
                     itemToScan.scanned = true;
                     itemToScan.itemScanTime = timestamp;
 
-                    // Re-render the specific row and counter
                     const row = resultContainer.querySelector(`tr[data-item-uid="${itemToScan.item_uid}"]`);
                     if(row) { row.classList.add('item-scanned'); row.parentElement.appendChild(row); }
                     
@@ -2085,7 +2243,6 @@ async function resetCurrentOrderPacking() {
                     updateStatus(`รอสแกนเลขพัสดุ...`, ""); 
                     parcelScanInput.focus(); 
                 } else if (allItemsScanned) { 
-                    // This state is temporary before finalizeAndProceed takes over
                     updateStatus("✅ สินค้าครบ! กำลังบันทึก...", "success"); 
                 } else { 
                     const remaining = orderGroup.length - orderGroup.filter(i => i.scanned).length;
@@ -2115,7 +2272,7 @@ async function resetCurrentOrderPacking() {
             parcelScanInput.addEventListener("change", handleParcelScan);
             backBtn.addEventListener('click', () => {
                 showPackingView('selection');
-                loadWorkOrdersForPacking(); // Reload to get fresh status
+                loadWorkOrdersForPacking();
             }); 
             resetBtn.addEventListener("click", resetCurrentOrderPacking);
             finalizeWoBtn.addEventListener('click', () => {
@@ -2126,7 +2283,6 @@ async function resetCurrentOrderPacking() {
 async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 loadingOverlay.style.display = 'flex';
                 try {
-                    // 1. อัปเดตสถานะของ Work Order เป็น "จัดส่งแล้ว"
                     const { error: woError } = await supabaseClient
                         .from('work_orders')
                         .update({ status: 'จัดส่งแล้ว' })
@@ -2134,7 +2290,6 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
 
                     if (woError) throw woError;
 
-                    // 2. อัปเดตสถานะของ Orders ทั้งหมดในใบงานนั้นเป็น "จัดส่งแล้ว"
                     const { error: ordersError } = await supabaseClient
                         .from('orders')
                         .update({ status: 'จัดส่งแล้ว' })
@@ -2142,17 +2297,15 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
 
                     if (ordersError) throw ordersError;
 
-                    // 3. อัพเดทสถานะใบงาน Planner (jobs) เนื่องจากผลิตและส่งเสร็จแล้ว
                     const { error: jobError } = await supabaseClient
     .from('jobs')
-    .update({ status: 'DONE' }) // <-- เปลี่ยนจาก .delete() เป็น .update()
+    .update({ status: 'DONE' })
     .eq('name', workOrderName);
                     
                     if (jobError) console.warn("Could not update job from planner:", jobError);
 
                     alert(`ย้ายใบงาน "${workOrderName}" ไปยัง "จัดส่งแล้ว" เรียบร้อย!`);
                     
-                    // 4. รีเซ็ตหน้าจอ
                     showPackingView('selection');
                     loadWorkOrdersForPacking();
 
@@ -2205,12 +2358,10 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
         // --- SALES REPORT SYSTEM MODULE ---
         window.salesReportSystem = (() => {
             let isInitialized = false;
-            // --- MODIFIED ---: Added categoryFilter, productSearch
             let container, startDateInput, endDateInput, generateBtn, exportBtn, reportTbody, reportTableHead, reportPlaceholder, categoryFilter, productSearch;
             let reportData = [];
             let allChannels = [];
 
-            // --- MODIFIED ---: Updated the whole function
             function initializeApp() {
                 if (isInitialized) return;
                 container = document.getElementById('sales-report-system-container');
@@ -2232,15 +2383,13 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 generateBtn.addEventListener('click', generateReport);
                 exportBtn.addEventListener('click', exportToExcel);
                 
-                // --- ADDED ---: Event listeners for new filters to re-render without re-fetching
                 categoryFilter.addEventListener('change', renderReportTable);
                 productSearch.addEventListener('input', renderReportTable);
 
                 isInitialized = true;
-                populateCategories(); // Fetch and populate categories on init
+                populateCategories();
             }
             
-            // --- ADDED ---: New function to populate the category dropdown
             async function populateCategories() {
                 try {
                     const { data, error } = await supabaseClient
@@ -2314,7 +2463,6 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 }
             }
 
-            // --- MODIFIED ---: Updated the whole function to handle client-side filtering
             function renderReportTable() {
                 const selectedCategory = categoryFilter.value;
                 const searchTerm = productSearch.value.toLowerCase();
@@ -2372,7 +2520,6 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 exportBtn.style.display = 'inline-block';
             }
 
-            // --- MODIFIED ---: Updated the whole function to export filtered data
             function exportToExcel() {
                 const selectedCategory = categoryFilter.value;
                 const searchTerm = productSearch.value.toLowerCase();
@@ -2428,5 +2575,4 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
         window.addEventListener('pageshow', function (event) { if (event.persisted) { console.log("Page loaded from bfcache. Re-initializing."); checkAuth(); } });
     });
 </script>
-</body>
 </html>
