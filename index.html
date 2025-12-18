@@ -463,7 +463,24 @@
                                     <div class="form-group"><label for="customer_name">ชื่อลูกค้า</label><input type="text" id="customer_name" required></div>
                                     <div class="form-group full-width"><label for="customer_address">ที่อยู่ลูกค้า</label><textarea id="customer_address" rows="4" required></textarea></div>
                                 </div>
-<hr>
+
+                                <!-- ==================== NEW CLAIM DETAILS SECTION ==================== -->
+                                <div id="claim-details-section" style="display: none; margin-top: 20px;">
+                                    <h4>ข้อมูลการเคลม</h4>
+                                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                                        <div class="form-group">
+                                            <label for="claim_type">ประเภทเคลม</label>
+                                            <input type="text" id="claim_type">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="claim_details">รายละเอียดเคลม</label>
+                                            <textarea id="claim_details" rows="3"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- ================================================================= -->
+
+                                <hr>
                                 <h3>รายการสินค้า</h3>
                                 <div class="batch-actions">
                                     <button type="button" id="download-template-btn" class="btn btn-info">📥 Template (Standard)</button>
@@ -748,7 +765,6 @@
             </main>
         </div>
     </div>
-html
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & GLOBAL STATE ---
@@ -1139,7 +1155,6 @@ html
                         if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) { 
                             const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
                             
-                            // --- START MODIFICATION ---
                             let billingIndicator = '';
                             if (order.billing_details) {
                                 if (order.billing_details.request_tax_invoice) {
@@ -1149,7 +1164,6 @@ html
                                 }
                             }
                             let infoHTML = `<div><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong> <span class="customer-info">${order.customer_name || 'N/A'}${billingIndicator}</span></div>`;
-                            // --- END MODIFICATION ---
                             
                             if (order.channel_code === 'CLAIM' && (order.claim_type || order.claim_details)) {
                                 const claimType = order.claim_type ? `<strong>${order.claim_type}</strong>` : '';
@@ -1219,9 +1233,6 @@ html
             function handleExcelImport(file) { if (!file) return; const reader = new FileReader(); reader.onload = async (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheetName = workbook.SheetNames[0]; const worksheet = workbook.Sheets[firstSheetName]; const rowsData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false }); if (rowsData.length <= 1) throw new Error("ไม่พบข้อมูล"); const processedOrders = []; let currentOrder = null; for (let i = 1; i < rowsData.length; i++) { const row = rowsData[i]; if (row.every(cell => String(cell).trim() === '')) continue; const channelCode = String(row[0]).trim(); const customerName = String(row[1]).trim(); const productNameOrCode = String(row[10]).trim(); if (channelCode && customerName) { const price = parseFloat(row[3]) || 0; const shippingCost = parseFloat(row[4]) || 0; const discount = parseFloat(row[5]) || 0; let paymentDate = row[8] ? String(row[8]).trim() : null; let paymentTime = row[9] ? String(row[9]).trim() : null; if (paymentDate && !isNaN(paymentDate) && Number(paymentDate) > 1) { const jsDate = excelDateToJSDate(Number(paymentDate)); if(jsDate) { paymentDate = jsDate.toISOString().split('T')[0]; } } if (paymentTime && !isNaN(paymentTime) && Number(paymentTime) < 1) { const jsDate = excelDateToJSDate(Number(paymentTime)); if(jsDate) { paymentTime = jsDate.toTimeString().split(' ')[0].substring(0,5); } } currentOrder = { channel_code: channelCode, customer_name: customerName, customer_address: String(row[2]).trim(), price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount, payment_method: String(row[6]).trim(), promotion: String(row[7]).trim(), payment_date: paymentDate, payment_time: paymentTime, admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10), items: [] }; if (ecommerceChannels.includes(channelCode)) { currentOrder.tracking_number = currentOrder.customer_address.replace(/\s/g, ''); } processedOrders.push(currentOrder); } if (productNameOrCode) { if (!currentOrder) throw new Error(`พบสินค้า '${productNameOrCode}' แถว ${i + 1} แต่ไม่พบออร์เดอร์`); const searchTerm = productNameOrCode.toLowerCase(); const product = fullProductList.find(p => p.product_code.toLowerCase() === searchTerm || p.product_name.toLowerCase().includes(searchTerm)); if (!product) { console.warn(`ไม่พบสินค้า '${productNameOrCode}' แถว ${i+1} - ข้ามไป`); continue; } const itemData = { product_id: product.id, product_name: product.product_name, ink_color: String(row[11]).trim(), product_type: String(row[12]).trim(), cartoon_pattern: String(row[13]).trim(), line_pattern: String(row[14]).trim(), font: String(row[15]).trim(), line_1: String(row[16]).trim(), line_2: String(row[17]).trim(), line_3: String(row[18]).trim(), quantity: parseInt(row[19]) || 1, notes: String(row[20]).trim(), file_attachment: String(row[21]).trim() }; currentOrder.items.push(itemData); } } if (processedOrders.length === 0) throw new Error("ไม่พบออร์เดอร์"); if (confirm(`พบ ${processedOrders.length} ออร์เดอร์, ต้องการนำเข้า?`)) { await processAndSaveImportedOrders(processedOrders); } } catch (err) { console.error('Excel Import Error:', err); alert('เกิดพลาด: ' + err.message); } finally { importOrdersFileInput.value = ''; } }; reader.readAsArrayBuffer(file); }
             function handlePgtrImport(file) { if (!file) return; const reader = new FileReader(); reader.onload = async (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const sheetName = workbook.SheetNames[0]; const worksheet = workbook.Sheets[sheetName]; const jsonData = XLSX.utils.sheet_to_json(worksheet, {raw: false}); if (jsonData.length === 0) throw new Error("ไม่พบข้อมูล"); const headers = Object.keys(jsonData[0]); const orderNumberHeader = findHeader(headers, ['เลขออร์เดอร์', 'เลขที่ออเดอร์', 'Order Number']); const paymentDateHeader = findHeader(headers, ['วันที่สั่งซื้อ']); const paymentTimeHeader = findHeader(headers, ['เวลา']); if(!orderNumberHeader){ throw new Error("ไม่พบ 'เลขออร์เดอร์'"); } const ordersMap = new Map(); for (const row of jsonData) { const orderNumberRaw = String(row[orderNumberHeader] || '').trim(); if (!orderNumberRaw) continue; let orderNumber = orderNumberRaw; const lastHyphenIndex = orderNumber.lastIndexOf('-'); if (lastHyphenIndex > 0) { const lastSegment = orderNumber.substring(lastHyphenIndex + 1); if (!isNaN(parseInt(lastSegment)) && /^\d{1,2}$/.test(lastSegment)) { orderNumber = orderNumber.substring(0, lastHyphenIndex); } } if (!ordersMap.has(orderNumber)) { const price = parseFloat(row["ราคาก่อนส่วนลด"]) || 0; const shippingCost = parseFloat(row["ค่าขนส่ง"]) || 0; const discount = parseFloat(row["ส่วนลด admin"]) || 0; let paymentDate = null; let paymentTime = null; if (paymentDateHeader && row[paymentDateHeader]) { const rawDate = row[paymentDateHeader]; if (typeof rawDate === 'number' && !isNaN(rawDate)) { const jsDate = excelDateToJSDate(rawDate); if (jsDate) paymentDate = jsDate.toISOString().split('T')[0]; } else if (typeof rawDate === 'string' && rawDate.trim() !== '') { const dateParts = rawDate.trim().split('/'); if (dateParts.length === 3 && dateParts[2].length === 4) { paymentDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`; } } } if (paymentTimeHeader && row[paymentTimeHeader]) { const rawTime = row[paymentTimeHeader]; if (typeof rawTime === 'number' && !isNaN(rawTime) && rawTime < 1) { const jsDate = excelDateToJSDate(rawTime); if(jsDate) paymentTime = jsDate.toTimeString().split(' ')[0].substring(0, 5); } else if (typeof rawTime === 'string' && rawTime.trim() !== '') { paymentTime = rawTime.trim().substring(0, 5); } } const orderData = { bill_no: orderNumber, channel_code: 'PGTR', customer_name: String(row["ชื่อสกุลผู้รับ"] || '').trim(), customer_address: (`${row["ชื่อสกุลผู้รับ"] || ''},${row["ที่อยู่เต็ม"] || ''},${row["โทรศัพท์"] || ''}`).trim(), price: price, shipping_cost: shippingCost, discount: discount, total_amount: price + shippingCost - discount, payment_method: "โอน", promotion: "", payment_date: paymentDate, payment_time: paymentTime, admin_user: loggedInUsername, status: 'ลงข้อมูลเสร็จสิ้น', entry_date: new Date().toISOString().slice(0, 10), items: [] }; ordersMap.set(orderNumber, orderData); } const currentOrder = ordersMap.get(orderNumber); const productName = String(row["ชื่อสินค้า"] || '').trim(); const searchTerm = productName.toLowerCase(); const product = fullProductList.find(p => p.product_code.toLowerCase() === searchTerm || p.product_name.toLowerCase().includes(searchTerm)); if (!product) { console.warn(`ไม่พบสินค้า '${productName}' - ข้ามไป`); continue; } const comment = String(row["comment"] || "").trim(); const remark = String(row["remark"] || "").trim(); const itemData = { product_id: product.id, product_name: product.product_name, ink_color: (`${row["Ink"] || ''}${row["สี"] || ''}`).trim(), product_type: "", cartoon_pattern: String(row["รหัสรูปแบบ"] || '').trim(), line_pattern: String(row["Underline"] || '').trim(), font: String(row["ฟอนต์"] || '').trim(), line_1: String(row["Label1"] || '').trim(), line_2: String(row["Label2"] || '').trim(), line_3: String(row["Label3"] || '').trim(), quantity: parseInt(row["จำนวน"]) || 1, notes: comment && remark ? `${comment},${remark}` : (comment || remark), file_attachment: "" }; currentOrder.items.push(itemData); } const processedOrders = Array.from(ordersMap.values()); if (processedOrders.length === 0) throw new Error("ไม่พบข้อมูล"); if (confirm(`พบ ${processedOrders.length} ออร์เดอร์, ต้องการนำเข้า?`)) { await processAndSaveImportedOrders(processedOrders, true); } } catch (err) { console.error('Error importing PGTR:', err); alert('เกิดพลาด: ' + err.message); } finally { importOrdersFileInput.value = ''; } }; reader.readAsArrayBuffer(file); }
             
-            // =================================================================
-            // START: CORRECTED WY IMPORT FUNCTION
-            // =================================================================
             function handleWyImport(file) {
                 if (!file) return;
                 const reader = new FileReader();
@@ -1239,7 +1250,7 @@ html
                         const dateTimeHeader = findHeader(headers, ['วันที่สั่งซื้อ']);
                         const customerNameHeader = findHeader(headers, ['ชื่อลูกค้า']);
                         const customerAddressHeader = findHeader(headers, ['ชื่อที่อยู่-เบอร์โทรผู้รับ']);
-                        const productIdentifierHeader = findHeader(headers, ['รหัส']); // This column contains product_name
+                        const productIdentifierHeader = findHeader(headers, ['รหัส']); 
 
                         if (!billNoHeader) { throw new Error("ไม่พบหัวคอลัมน์ 'เลขบิล'"); }
                         if (!customerNameHeader) { throw new Error("ไม่พบหัวคอลัมน์ 'ชื่อลูกค้า'"); }
@@ -1298,9 +1309,7 @@ html
                             const currentOrder = ordersMap.get(billNo);
                             const productNameFromFile = String(row[productIdentifierHeader]).trim();
                             
-                            // === FIX START: Changed find logic to match product by product_name ===
                             const product = fullProductList.find(p => p.product_name.toLowerCase() === productNameFromFile.toLowerCase());
-                            // === FIX END ===
                             
                             if (product) {
                                 const itemData = {
@@ -1338,14 +1347,7 @@ html
                 };
                 reader.readAsArrayBuffer(file);
             }
-            // =================================================================
-            // END: CORRECTED WY IMPORT FUNCTION
-            // =================================================================
-
-
-            // =================================================================
-            // START: NEWLY ADDED SMART IMPORT FUNCTION
-            // =================================================================
+            
             function handleSmartImport(file) {
                 if (!file) return;
                 const reader = new FileReader();
@@ -1386,9 +1388,6 @@ html
                 };
                 reader.readAsArrayBuffer(file);
             }
-            // =================================================================
-            // END: NEWLY ADDED SMART IMPORT FUNCTION
-            // =================================================================
             
             function toggleWorkOrder(headerElement) { const content = headerElement.nextElementSibling; if (content) { content.classList.toggle('show'); } }
             function populateChannelDropdowns() { const dropdowns = [ container.querySelector('#channel_code'), container.querySelector('#filter-waiting'), container.querySelector('#filter-complete'), container.querySelector('#filter-cancelled'), container.querySelector('#filter-shipped'), container.querySelector('#filter-work-orders') ]; const currentFormChannel = container.querySelector('#channel_code').value; dropdowns.forEach(dropdown => { if (!dropdown) return; const isFilter = dropdown.id.startsWith('filter-'); dropdown.innerHTML = isFilter ? '<option value="all">ทั้งหมด</option>' : '<option value="">--เลือก--</option>'; channelList.forEach(ch => { const opt = document.createElement('option'); opt.value = ch.channel_code; opt.textContent = ch.channel_name; dropdown.appendChild(opt); }); }); container.querySelector('#channel_code').value = currentFormChannel; }
@@ -1441,6 +1440,11 @@ html
                 taxInvoiceSection.style.display = 'none';
                 taxItemsTbody.innerHTML = '';
                 
+                const claimSection = document.getElementById('claim-details-section');
+                claimSection.style.display = 'none';
+                document.getElementById('claim_type').value = '';
+                document.getElementById('claim_details').value = '';
+                
                 const allControls = orderForm.querySelectorAll('input, select, textarea, button');
                 allControls.forEach(el => el.disabled = false);
                 $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', false).trigger('change');
@@ -1478,12 +1482,18 @@ html
                             }
                         }
                     });
+                    
+                    if (order.channel_code === 'CLAIM') {
+                        claimSection.style.display = 'block';
+                        document.getElementById('claim_type').value = order.claim_type || '';
+                        document.getElementById('claim_details').value = order.claim_details || '';
+                        document.getElementById('payment-info-section').style.display = 'none';
+                    }
+
                     if (ecommerceChannels.includes(order.channel_code)) {
                         container.querySelector('label[for="customer_address"]').textContent = 'เลขพัสดุ';
                     }
-                    if (order.channel_code === 'CLAIM') {
-                        document.getElementById('payment-info-section').style.display = 'none';
-                    }
+                    
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
 
                     const itemGroups = {};
@@ -1505,7 +1515,6 @@ html
 
                     Object.values(itemGroups).forEach(groupedItem => { addItemRow(groupedItem); });
 
-                    // --- START MODIFICATION: Load saved billing details ---
                     if (order.billing_details) {
                         const details = order.billing_details;
                         requestTaxInvoiceCb.checked = details.request_tax_invoice || false;
@@ -1522,7 +1531,6 @@ html
                             populateTaxItems(details.tax_items); 
                         }
                     }
-                    // --- END MODIFICATION ---
 
                     const isViewOnly = (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') || order.status === 'จัดส่งแล้ว';
 
@@ -1704,6 +1712,11 @@ html
                         billing_details: taxInvoiceData
                     };
 
+                    if (channelCode === 'CLAIM') {
+                        orderData.claim_type = document.getElementById('claim_type').value.trim();
+                        orderData.claim_details = document.getElementById('claim_details').value.trim();
+                    }
+
                     if (ecommerceChannels.includes(orderData.channel_code)) {
                         orderData.tracking_number = orderData.customer_address.replace(/\s/g, '');
                     }
@@ -1797,16 +1810,12 @@ html
                 const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0;
                 const discount = parseFloat(container.querySelector('#discount').value) || 0;
                 
-                // --- START MODIFICATION ---
-                // The base for VAT calculation now includes the shipping cost.
                 const preTaxBase = price + shipping - discount;
-                let total = preTaxBase; // Default total is the pre-tax amount
+                let total = preTaxBase; 
                 let vat = 0;
 
                 if (requestTaxInvoiceCb.checked) {
-                    // Calculate VAT from the new base that includes shipping
                     vat = preTaxBase * 0.07;
-                    // The final total is the pre-tax base plus the calculated VAT
                     total = preTaxBase + vat;
                     
                     vatAmountInput.value = vat.toFixed(2);
@@ -1815,7 +1824,6 @@ html
                     vatAmountInput.value = '0.00';
                     vatDisplayContainer.style.display = 'none';
                 }
-                // --- END MODIFICATION ---
 
                 container.querySelector('#total_amount').value = total.toFixed(2);
             }
@@ -1988,10 +1996,18 @@ html
             }
             
             function populateTaxItems(savedTaxItems = null) {
+                const existingPrices = {};
+                taxItemsTbody.querySelectorAll('tr').forEach(row => {
+                    const productName = row.cells[0].textContent;
+                    const unitPrice = row.querySelector('.tax-item-unit-price').value;
+                    if (productName) {
+                        existingPrices[productName] = unitPrice;
+                    }
+                });
+
                 taxItemsTbody.innerHTML = '';
 
                 if (savedTaxItems && savedTaxItems.length > 0) {
-                    // Populate table from saved billing data
                     savedTaxItems.forEach(item => {
                         const row = taxItemsTbody.insertRow();
                         const unitPrice = parseFloat(item.unit_price || 0).toFixed(2);
@@ -2004,7 +2020,6 @@ html
                         `;
                     });
                 } else {
-                    // Populate from main items table if creating a new one
                     const aggregatedItems = {};
                     itemsTbody.querySelectorAll('tr').forEach(row => {
                         const productId = $(row.querySelector('.item-product')).val();
@@ -2021,14 +2036,16 @@ html
 
                     Object.values(aggregatedItems).forEach(item => {
                         const row = taxItemsTbody.insertRow();
+                        const savedPrice = existingPrices[item.name] || '0.00';
                         row.innerHTML = `
                             <td>${item.name}</td>
                             <td><input type="number" class="tax-item-qty" value="${item.qty}" readonly></td>
-                            <td><input type="number" class="tax-item-unit-price" value="0.00" step="0.01"></td>
+                            <td><input type="number" class="tax-item-unit-price" value="${savedPrice}" step="0.01"></td>
                             <td class="tax-item-total">0.00</td>
                         `;
                     });
                 }
+                calculateTaxItemTotals();
             }
 
             function calculateTaxItemTotals() {
@@ -2254,7 +2271,34 @@ html
                 document.getElementById('create-wo-by-quantity-input').addEventListener('input', updateSmartWorkOrderButton);
 
                 trackingFileInput.addEventListener('change', (e) => handleTrackingImport(e.target.files[0]));
-                container.querySelector('#channel_code').addEventListener('change', (e) => { const selectedChannel = e.target.value; const addressLabel = container.querySelector('label[for="customer_address"]'); const paymentSection = document.getElementById('payment-info-section'); updateAllFontDropdowns(selectedChannel); if (ecommerceChannels.includes(selectedChannel)) { addressLabel.textContent = 'เลขพัสดุ'; } else { addressLabel.textContent = 'ที่อยู่ลูกค้า'; } if (selectedChannel === 'CLAIM') { paymentSection.style.display = 'none'; container.querySelector('#price').value = 0; container.querySelector('#shipping_cost').value = 0; container.querySelector('#discount').value = 0; calculateTotal(); } else { paymentSection.style.display = 'block'; } });
+                
+                container.querySelector('#channel_code').addEventListener('change', (e) => { 
+                    const selectedChannel = e.target.value; 
+                    const addressLabel = container.querySelector('label[for="customer_address"]'); 
+                    const paymentSection = document.getElementById('payment-info-section'); 
+                    const claimSection = document.getElementById('claim-details-section');
+
+                    updateAllFontDropdowns(selectedChannel); 
+                    
+                    if (ecommerceChannels.includes(selectedChannel)) { 
+                        addressLabel.textContent = 'เลขพัสดุ'; 
+                    } else { 
+                        addressLabel.textContent = 'ที่อยู่ลูกค้า'; 
+                    } 
+                    
+                    if (selectedChannel === 'CLAIM') { 
+                        paymentSection.style.display = 'none'; 
+                        claimSection.style.display = 'block';
+                        container.querySelector('#price').value = 0; 
+                        container.querySelector('#shipping_cost').value = 0; 
+                        container.querySelector('#discount').value = 0; 
+                        calculateTotal(); 
+                    } else { 
+                        paymentSection.style.display = 'block'; 
+                        claimSection.style.display = 'none';
+                    } 
+                });
+
                 itemsTbody.addEventListener('paste', (e) => { e.preventDefault(); const pasteData = (e.clipboardData || window.clipboardData).getData('text'); const rowsData = pasteData.split(/[\r\n]+/).filter(row => row.trim() !== ''); let targetCell = e.target.closest('td'); if (!targetCell) return; let startRowIndex = Array.from(itemsTbody.children).indexOf(targetCell.parentElement); let startCellIndex = targetCell.cellIndex; const modifiedRows = []; rowsData.forEach((rowData, rowIndex) => { const cellsData = rowData.split('\t'); let currentRow; const currentRowIndex = startRowIndex + rowIndex; if (currentRowIndex >= itemsTbody.rows.length) { if (itemsTbody.rows.length === 1 && $(itemsTbody.rows[0]).find('.item-product').val() === null) { currentRow = itemsTbody.rows[0]; } else { currentRow = addItemRow(); } } else { currentRow = itemsTbody.rows[currentRowIndex]; } if (!currentRow) return; cellsData.forEach((cellData, cellIndex) => { const targetCellIndex = startCellIndex + cellIndex; if (targetCellIndex < currentRow.cells.length - 1) { const input = currentRow.cells[targetCellIndex].querySelector('input, select'); if (input) { if (input.classList.contains('item-product')) { const pastedValue = cellData.trim().toLowerCase(); const product = fullProductList.find(p => p.product_code.toLowerCase() === pastedValue || p.product_name.toLowerCase() === pastedValue); if (product) { $(input).val(product.id).trigger('change.select2'); } else { $(input).val(null).trigger('change.select2'); } } else if (input.tagName === 'SELECT') { const trimmedCellData = cellData.trim().toLowerCase(); const matchedOption = [...input.options].find(opt => opt.text.toLowerCase() === trimmedCellData || opt.value.toLowerCase() === trimmedCellData); if (matchedOption) { input.value = matchedOption.value; } } else { input.value = cellData.trim(); } } } }); modifiedRows.push(currentRow); }); modifiedRows.forEach(row => { if (row) { checkAndApplyStampInkLogic(row); } }); });
                 container.addEventListener('click', (event) => {
                     const target = event.target;
@@ -2346,10 +2390,8 @@ html
                 ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled', 'search-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('input', renderAllTabs); });
                 document.getElementById('download-template-btn').addEventListener('click', downloadStandardOrderTemplate); document.getElementById('download-pgtr-template-btn')?.addEventListener('click', downloadPgtrTemplate); document.getElementById('download-wy-template-btn')?.addEventListener('click', downloadWyTemplate);
                 
-                // --- CORRECTED EVENT LISTENER ---
                 importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click()); 
                 importOrdersFileInput.addEventListener('change', (e) => handleSmartImport(e.target.files[0]));
-                // --- END CORRECTION ---
 
                 document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล')); document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น')); 
                 document.getElementById('select-all-waiting-btn').addEventListener('click', () => selectAll('waiting'));
@@ -2463,74 +2505,74 @@ html
             }
 
             function prepareDataForPacking(orders) {
-                let flatData = [];
-                completedIndices.clear();
+    let flatData = [];
+    completedIndices.clear();
 
-                orders.forEach(order => {
-                    const isOrderComplete = order.shipped_time != null;
-                    const isParcelScanned = order.packing_meta?.parcelScanned || false;
-                    
+    orders.forEach(order => {
+        const isOrderComplete = order.shipped_time != null;
+        const isParcelScanned = order.packing_meta?.parcelScanned || false;
+        
+        const needsTaxInvoice = order.billing_details?.request_tax_invoice || false;
+        const needsCashBill = order.billing_details?.request_cash_bill || false;
+
+        if (order.order_items && order.order_items.length > 0) {
+            order.order_items.forEach(item => {
+                flatData.push({ 
+                    'tracking_number': order.tracking_number, 
+                    'customer_name': order.customer_name, 
+                    'order_id': order.id, 
+                    'product_name': item.product_name, 
+                    'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
+                    'font': item.font, 
+                    'ink_color': item.ink_color, 
+                    'notes': item.notes, 
+                    'shelf_location': item.product_type, 
+                    'cartoon_pattern': item.cartoon_pattern, 
+                    'line_pattern': item.line_pattern, 
+                    'file_attachment': item.file_attachment, 
+                    'item_uid': item.item_uid, 
+                    'scanned': item.packing_status === 'สแกนแล้ว',
+                    'itemScanTime': item.item_scan_time,
+                    'parcelScanned': isParcelScanned,
+                    'bill_no': order.bill_no,
+                    'isOrderComplete': isOrderComplete,
+                    'needsTaxInvoice': needsTaxInvoice,
+                    'needsCashBill': needsCashBill,
                     // --- START MODIFICATION ---
-                    const needsTaxInvoice = order.billing_details?.request_tax_invoice || false;
-                    const needsCashBill = order.billing_details?.request_cash_bill || false;
+                    'claim_type': order.claim_type,
+                    'claim_details': order.claim_details
                     // --- END MODIFICATION ---
-
-                    if (order.order_items && order.order_items.length > 0) {
-                        order.order_items.forEach(item => {
-                            flatData.push({ 
-                                'tracking_number': order.tracking_number, 
-                                'customer_name': order.customer_name, 
-                                'order_id': order.id, 
-                                'product_name': item.product_name, 
-                                'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
-                                'font': item.font, 
-                                'ink_color': item.ink_color, 
-                                'notes': item.notes, 
-                                'shelf_location': item.product_type, 
-                                'cartoon_pattern': item.cartoon_pattern, 
-                                'line_pattern': item.line_pattern, 
-                                'file_attachment': item.file_attachment, 
-                                'item_uid': item.item_uid, 
-                                'scanned': item.packing_status === 'สแกนแล้ว',
-                                'itemScanTime': item.item_scan_time,
-                                'parcelScanned': isParcelScanned,
-                                'bill_no': order.bill_no,
-                                'isOrderComplete': isOrderComplete,
-                                // --- START MODIFICATION ---
-                                'needsTaxInvoice': needsTaxInvoice,
-                                'needsCashBill': needsCashBill
-                                // --- END MODIFICATION ---
-                            });
-                        });
-                    }
                 });
-                
-                allOrdersForPacking = flatData;
-                
-                const groupedByTracking = {};
-                const trackingOrder = [];
+            });
+        }
+    });
+    
+    allOrdersForPacking = flatData;
+    
+    const groupedByTracking = {};
+    const trackingOrder = [];
 
-                allOrdersForPacking.forEach(item => {
-                    const tracking = item.tracking_number;
-                    if (!groupedByTracking[tracking]) {
-                        groupedByTracking[tracking] = [];
-                        trackingOrder.push(tracking);
-                    }
-                    groupedByTracking[tracking].push(item);
-                });
+    allOrdersForPacking.forEach(item => {
+        const tracking = item.tracking_number;
+        if (!groupedByTracking[tracking]) {
+            groupedByTracking[tracking] = [];
+            trackingOrder.push(tracking);
+        }
+        groupedByTracking[tracking].push(item);
+    });
 
-                aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
-                
-                aggregatedData.forEach((group, index) => {
-                    if (group[0].isOrderComplete) {
-                        completedIndices.add(index);
-                    }
-                });
+    aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
+    
+    aggregatedData.forEach((group, index) => {
+        if (group[0].isOrderComplete) {
+            completedIndices.add(index);
+        }
+    });
 
-                currentIndex = -1;
-                searchInput.value = '';
-                updateFinalizeButtonVisibility();
-            }
+    currentIndex = -1;
+    searchInput.value = '';
+    updateFinalizeButtonVisibility();
+}
 
             function renderOrderNav() { orderList.innerHTML = ""; aggregatedData.forEach((group, index) => { const trackingId = String(group[0].tracking_number).trim(); const isCompleted = completedIndices.has(index); const li = document.createElement("li"); li.className = "order-item"; if (isCompleted) li.classList.add("completed"); li.dataset.index = index; li.dataset.trackingId = trackingId; li.innerHTML = `<span class="tracking-id">${isCompleted ? '✅' : '📦'} ${trackingId}</span><span class="customer-name">${group[0].customer_name || 'N/A'}</span>`; li.addEventListener("click", () => displayOrder(index)); orderList.appendChild(li); }); updateCounter(); }
             
@@ -2539,47 +2581,56 @@ html
                 currentIndex = index;
                 
                 const orderGroup = aggregatedData[index];
-                
-                orderGroup.sort((a, b) => {
-                    if (a.scanned !== b.scanned) {
-                        return a.scanned ? 1 : -1;
-                    }
-                    return naturalSortCompare(a.item_uid || '', b.item_uid || '');
-                });
 
-                const totalItems = orderGroup.length;
-                const scannedItems = orderGroup.filter(item => item.scanned).length;
-                
-                // --- START MODIFICATION ---
-                let notificationHTML = '';
-                if (orderGroup[0].needsTaxInvoice) {
-                    notificationHTML = `<div style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
-                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>ใบกำกับภาษี</strong>
-                                        </div>`;
-                } else if (orderGroup[0].needsCashBill) {
-                    notificationHTML = `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
-                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong>
-                                        </div>`;
-                }
-                // --- END MODIFICATION ---
-                
-                let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
-                
-                let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
-                orderGroup.forEach(item => {
-                    const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
-                    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
-                });
-                tableHTML += "</tbody></table>";
-                
-                resultContainer.innerHTML = notificationHTML + headerHTML + tableHTML; // Prepend notification
-                actionPanel.style.display = "block";
-                parcelScanInput.value = "";
-                itemScanInput.value = "";
-                updateInputStates();
-                updateActiveNavItem();
-                
-                orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
+orderGroup.sort((a, b) => {
+    if (a.scanned !== b.scanned) {
+        return a.scanned ? 1 : -1;
+    }
+    return naturalSortCompare(a.item_uid || '', b.item_uid || '');
+});
+
+const totalItems = orderGroup.length;
+const scannedItems = orderGroup.filter(item => item.scanned).length;
+
+let notificationHTML = '';
+
+// --- START MODIFICATION ---
+// เพิ่มการแสดงผลสำหรับบิลเคลม
+if (orderGroup[0].claim_type) {
+    const detailsText = orderGroup[0].claim_details ? `: ${orderGroup[0].claim_details}` : '';
+    notificationHTML += `<div style="background-color: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                            <strong>⚠️ ออร์เดอร์เคลม:</strong> ${orderGroup[0].claim_type}${detailsText}
+                        </div>`;
+}
+// --- END MODIFICATION ---
+
+if (orderGroup[0].needsTaxInvoice) {
+    notificationHTML += `<div style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>ใบกำกับภาษี</strong>
+                        </div>`;
+} else if (orderGroup[0].needsCashBill) {
+    notificationHTML += `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong>
+                        </div>`;
+}
+
+let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
+
+let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
+orderGroup.forEach(item => {
+    const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
+    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
+});
+tableHTML += "</tbody></table>";
+
+resultContainer.innerHTML = notificationHTML + headerHTML + tableHTML; 
+actionPanel.style.display = "block";
+parcelScanInput.value = "";
+itemScanInput.value = "";
+updateInputStates();
+updateActiveNavItem();
+
+orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
             }
 async function resetCurrentOrderPacking() { 
                 if (currentIndex < 0 || !currentWorkOrderName) return; 
