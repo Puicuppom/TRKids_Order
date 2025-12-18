@@ -1797,19 +1797,25 @@ html
                 const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0;
                 const discount = parseFloat(container.querySelector('#discount').value) || 0;
                 
-                const subtotalForVat = price - discount;
-                let total = subtotalForVat + shipping;
+                // --- START MODIFICATION ---
+                // The base for VAT calculation now includes the shipping cost.
+                const preTaxBase = price + shipping - discount;
+                let total = preTaxBase; // Default total is the pre-tax amount
                 let vat = 0;
 
                 if (requestTaxInvoiceCb.checked) {
-                    vat = subtotalForVat * 0.07;
-                    total += vat;
+                    // Calculate VAT from the new base that includes shipping
+                    vat = preTaxBase * 0.07;
+                    // The final total is the pre-tax base plus the calculated VAT
+                    total = preTaxBase + vat;
+                    
                     vatAmountInput.value = vat.toFixed(2);
                     vatDisplayContainer.style.display = 'block';
                 } else {
                     vatAmountInput.value = '0.00';
                     vatDisplayContainer.style.display = 'none';
                 }
+                // --- END MODIFICATION ---
 
                 container.querySelector('#total_amount').value = total.toFixed(2);
             }
