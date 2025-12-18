@@ -1,5 +1,3 @@
---- START OF FILE index.html ---
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -772,6 +770,7 @@ html
         </div>
     </div>
 </body>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- CONFIG & GLOBAL STATE ---
@@ -1273,15 +1272,26 @@ html
                     }
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
 
+                    // MODIFICATION START: Handle Condo Stamp merging issue on load
                     const itemGroups = {};
                     (order.order_items || []).forEach(item => {
-                        const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes, item.file_attachment].join('||');
+                        const product = fullProductList.find(p => p.id === item.product_id);
+                        let uniqueKeyPart = '';
+                        // If it's a condo stamp, use a unique identifier (like item_uid) to prevent grouping
+                        if (product && product.product_category && product.product_category.toUpperCase().includes('CONDO STAMP')) {
+                           uniqueKeyPart = item.item_uid;
+                        }
+
+                        const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes, item.file_attachment, uniqueKeyPart].join('||');
+                        
                         if (!itemGroups[key]) {
                             itemGroups[key] = { ...item, quantity: 1 };
                         } else {
                             itemGroups[key].quantity++;
                         }
                     });
+                    // MODIFICATION END
+
                     Object.values(itemGroups).forEach(groupedItem => { addItemRow(groupedItem); });
 
                     const isViewOnly = (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') || order.status === 'จัดส่งแล้ว';
@@ -1459,6 +1469,27 @@ html
                     }
                     
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
+                    
+                    // MODIFICATION START: Handle Condo Stamp Set ID for saving
+                    const condoGroups = new Map();
+                    itemsTbody.querySelectorAll('tr[data-condo-group-id]').forEach(row => {
+                        const groupId = row.dataset.condoGroupId;
+                        if (!condoGroups.has(groupId)) {
+                            condoGroups.set(groupId, []);
+                        }
+                        condoGroups.get(groupId).push(row);
+                    });
+
+                    condoGroups.forEach((rows) => {
+                        const setId = `[SET-${Date.now()}-${Math.random().toString(16).slice(2)}]`;
+                        rows.forEach(row => {
+                            const notesInput = row.querySelector('.item-notes');
+                            const currentNotes = notesInput.value.replace(/\[SET-.*?\]/g, '').trim();
+                            notesInput.value = `${currentNotes} ${setId}`.trim();
+                        });
+                    });
+                    // MODIFICATION END
+
                     let allItemsToInsert = [];
                     let itemSequence = 1;
                     for (const row of itemsTbody.rows) {
@@ -1610,7 +1641,60 @@ html
 
             function attachFormActionListeners(order) { const idMap = { 'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-complete-btn': () => saveOrUpdateOrder(null), 'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'), 'update-work-order-bill-btn': () => saveOrUpdateOrder(null) }; for(const id in idMap) { const btn = document.getElementById(id); if (btn) btn.addEventListener('click', idMap[id]); } }
             function checkAndApplyStampInkLogic(rowElement) { const linkedInkRowUid = rowElement.dataset.linkedInkRowUid; if (linkedInkRowUid) { const oldInkRow = itemsTbody.querySelector(`tr[data-row-uid="${linkedInkRowUid}"]`); if (oldInkRow) { $(oldInkRow).find('.item-product').select2('destroy'); oldInkRow.remove(); } } rowElement.removeAttribute('data-linked-ink-row-uid'); const productId = $(rowElement).find('.item-product').val(); const inkColor = $(rowElement).find('.item-ink_color').val(); const product = fullProductList.find(p => p.id == productId); if (!product || !product.product_category || !product.product_category.toUpperCase().includes('STAMP')) { return; } const targetColors = { 'เขียว': 'เขียว', 'ดำ': 'ดำ', 'แดง': 'แดง', 'น้ำเงิน': 'น้ำเงิน' }; const matchedColor = Object.keys(targetColors).find(c => inkColor.includes(c) && inkColor.includes('พลาสติก')); if (!matchedColor) { return; } const inkProductName = `หมึกแฟลชพลาสติก 5 ml. (${matchedColor})`; const inkProductToAdd = fullProductList.find(p => p.product_name === inkProductName); if (!inkProductToAdd) { console.warn(`Could not find product: ${inkProductName}`); return; } const newInkRowUid = 'ink-' + Date.now() + Math.random(); const newInkRow = addItemRow({ product_id: inkProductToAdd.id, quantity: 1 }, newInkRowUid); newInkRow.dataset.isAutoAdded = "true"; newInkRow.style.backgroundColor = '#f0fff0'; rowElement.dataset.linkedInkRowUid = newInkRowUid; }
-            function handleCondoStampExpansion(changedRow) { if (changedRow.dataset.isCondoPart) return; const productId = $(changedRow).find('.item-product').val(); if (!productId) return; const product = fullProductList.find(p => p.id == productId); if (product && product.product_category && product.product_category.trim().toUpperCase() === 'CONDO STAMP') { if (window.isExpandingCondo) return; window.isExpandingCondo = true; const templateItem = { product_id: product.id }; changedRow.querySelector('.item-shelf_location').value = '1'; changedRow.dataset.isCondoPart = 'true'; const qtyInput = changedRow.querySelector('.item-quantity'); qtyInput.value = 1; qtyInput.readOnly = true; for (let i = 2; i <= 5; i++) { const newItemRow = addItemRow(templateItem); newItemRow.querySelector('.item-shelf_location').value = i.toString(); newItemRow.dataset.isCondoPart = 'true'; const newQtyInput = newItemRow.querySelector('.item-quantity'); newQtyInput.value = 1; newQtyInput.readOnly = true; } setTimeout(() => { window.isExpandingCondo = false; }, 100); } }
+            
+            // MODIFICATION START: Functions for Condo Stamp
+            function addCondoStampSet(productId) {
+                if (window.isExpandingCondo) return;
+                window.isExpandingCondo = true;
+                
+                const productData = { product_id: productId };
+                const groupId = 'condo-group-' + Date.now();
+
+                for (let i = 1; i <= 5; i++) {
+                    const newItemRow = addItemRow(productData);
+                    newItemRow.querySelector('.item-shelf_location').value = i.toString();
+                    newItemRow.dataset.isCondoPart = 'true';
+                    newItemRow.dataset.condoGroupId = groupId; // Assign group ID
+                    const qtyInput = newItemRow.querySelector('.item-quantity');
+                    qtyInput.value = 1;
+                    qtyInput.readOnly = true;
+                }
+                
+                setTimeout(() => { window.isExpandingCondo = false; }, 100);
+            }
+
+            function handleCondoStampExpansion(changedRow) { 
+                if (changedRow.dataset.isCondoPart || changedRow.dataset.condoGroupId) return; 
+                const productId = $(changedRow).find('.item-product').val(); 
+                if (!productId) return; 
+                const product = fullProductList.find(p => p.id == productId); 
+                if (product && product.product_category && product.product_category.trim().toUpperCase() === 'CONDO STAMP') { 
+                    if (window.isExpandingCondo) return; 
+                    window.isExpandingCondo = true; 
+                    const templateItem = { product_id: product.id }; 
+                    const groupId = 'condo-group-' + Date.now();
+                    
+                    changedRow.querySelector('.item-shelf_location').value = '1'; 
+                    changedRow.dataset.isCondoPart = 'true'; 
+                    changedRow.dataset.condoGroupId = groupId;
+                    const qtyInput = changedRow.querySelector('.item-quantity'); 
+                    qtyInput.value = 1; 
+                    qtyInput.readOnly = true; 
+                    
+                    for (let i = 2; i <= 5; i++) { 
+                        const newItemRow = addItemRow(templateItem); 
+                        newItemRow.querySelector('.item-shelf_location').value = i.toString(); 
+                        newItemRow.dataset.isCondoPart = 'true';
+                        newItemRow.dataset.condoGroupId = groupId;
+                        const newQtyInput = newItemRow.querySelector('.item-quantity'); 
+                        newQtyInput.value = 1; 
+                        newQtyInput.readOnly = true; 
+                    } 
+                    setTimeout(() => { window.isExpandingCondo = false; }, 100); 
+                } 
+            }
+            // MODIFICATION END
+
             function showPickingSlipModal(workOrderName) { const modal = document.getElementById('picking-slip-modal'); const modalTitle = document.getElementById('picking-slip-modal-title'); const previewContainer = document.getElementById('picking-slip-preview'); const pngContainer = document.getElementById('picking-slip-png-container'); modalTitle.textContent = `ใบเบิก: ${workOrderName}`; const itemsInWorkOrder = []; allOrdersData.forEach(order => { if (order.work_order_name === workOrderName && order.order_items) { order.order_items.forEach(item => { const fullProduct = fullProductList.find(p => p.id === item.product_id); itemsInWorkOrder.push({ ...item, ...fullProduct }); }); } }); if (itemsInWorkOrder.length === 0) { alert('ไม่พบสินค้า'); return; } const mainItemsAggregated = {}; const excludedCategories = ['UV', 'STK', 'TUBE']; itemsInWorkOrder.filter(item => item.product_category && !excludedCategories.some(cat => item.product_category.toUpperCase().includes(cat))).forEach(item => { const key = item.product_id; if (!mainItemsAggregated[key]) { mainItemsAggregated[key] = { name: item.product_name, code: item.product_code, location: item.storage_location || 'N/A', category: item.product_category, qty: 0 }; } mainItemsAggregated[key].qty += 1; }); for (const key in mainItemsAggregated) { const item = mainItemsAggregated[key]; if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') { item.qty = Math.ceil(item.qty / 5); } } const mainItems = Object.values(mainItemsAggregated).sort((a, b) => a.location.localeCompare(b.location)); const sparePartsAggregated = {}; itemsInWorkOrder.filter(item => item.rubber_code).forEach(item => { const key = item.rubber_code; if (!sparePartsAggregated[key]) { sparePartsAggregated[key] = { name: `หน้ายาง+โฟม ${item.rubber_code}`, qty: 0 }; } sparePartsAggregated[key].qty += 1; }); const spareParts = Object.values(sparePartsAggregated); const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }); const picker = loggedInUsername || ''; let mainItemsHtml = '<h3>สินค้าหลัก</h3><table><thead><tr><th>จุดเก็บ</th><th>รหัส</th><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>'; mainItems.forEach(item => { mainItemsHtml += `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td>${item.qty}</td></tr>`; }); mainItemsHtml += '</tbody></table>'; let sparePartsHtml = spareParts.length > 0 ? '<h3>อะไหล่</h3><table><thead><tr><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>' : ''; if(spareParts.length > 0) { spareParts.forEach(part => { sparePartsHtml += `<tr><td>${part.name}</td><td>${part.qty}</td></tr>`; }); sparePartsHtml += '</tbody></table>'; } previewContainer.innerHTML = mainItemsHtml + sparePartsHtml; const pngHeaderHtml = `<div class="png-header"><div class="png-header-box"><b>เพจ:</b> ${workOrderName.split('-')[0]} <b>รอบ:</b> ${workOrderName.split('-')[2].replace('R','')}</div><div class="png-header-box"><b>วันที่:</b> ${today}</div></div>`; const pngMainTable = `<table><thead><tr><th>จุดเก็บ</th><th>รหัส</th><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>${mainItems.map(item => `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td style="text-align:center;">${item.qty}</td></tr>`).join('')}</tbody></table>`; const pngSpareTable = spareParts.length > 0 ? `<table><thead><tr><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>${spareParts.map(part => `<tr><td>${part.name}</td><td style="text-align:center;">${part.qty}</td></tr>`).join('')}</tbody></table>` : ''; const pngSignatureHtml = `<div class="png-signature-boxes"><div class="png-signature-box"><div class="title">ผู้เบิก</div><div class="space">${picker}</div></div><div class="png-signature-box"><div class="title">ผู้จ่าย</div><div class="space"></div></div><div class="png-signature-box"><div class="title">ผู้รับ</div><div class="space"></div></div></div>`; const pngFooterHtml = `<div class="png-footer">Page 1 of 1</div>`; pngContainer.innerHTML = `<div class="png-body">${pngHeaderHtml}${pngMainTable}${pngSpareTable}</div>${pngSignatureHtml}${pngFooterHtml}`; document.getElementById('export-picking-slip-png-btn').onclick = () => exportPickingSlipAsPNG(workOrderName); document.getElementById('export-picking-slip-csv-btn').onclick = () => exportPickingSlipAsCSV(workOrderName); modal.style.display = 'flex'; }
             function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
             function exportPickingSlipAsPNG(workOrderName) { const element = document.getElementById("picking-slip-png-container"); loadingOverlay.style.display = 'flex'; html2canvas(element, { scale: 2 }).then(canvas => { const link = document.createElement('a'); link.download = `ใบเบิก_${workOrderName}.png`; link.href = canvas.toDataURL("image/png"); link.click(); loadingOverlay.style.display = 'none'; }).catch(err => { console.error('Error PNG:', err); alert('สร้าง PNG ผิดพลาด'); loadingOverlay.style.display = 'none'; }); }
@@ -1832,20 +1916,55 @@ html
                     if (headerForAction) { const classToAction = { 'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName), 'export-waybill-sort-btn': (btn) => window.waybillSorter.start(btn.dataset.workOrderName, allOrdersData), 'import-wo-csv-btn': () => trackingFileInput.click(), 'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName) }; let actionTaken = false; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { event.stopPropagation(); classToAction[className](btn); actionTaken = true; break; } } if (!actionTaken && !target.closest('.wo-header-actions')) { toggleWorkOrder(headerForAction); } }
                     const billsContainer = target.closest('.work-order-bills'); if(billsContainer) { const classToAction = { 'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn), 'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'), 'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'), 'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn) }; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { classToAction[className](btn); break; } } }
                 });
+                
+                // MODIFICATION START: Update Add Item Button logic for Condo Stamp
                 addItemBtn.addEventListener('click', () => {
-    let itemToCopy = null;
-    const lastRow = itemsTbody.querySelector('tr:last-child');
-    
-    if (lastRow) {
-        const lastProductId = $(lastRow).find('.item-product').val();
-        if (lastProductId) {
-            itemToCopy = { product_id: lastProductId };
-        }
-    }
-    
-    addItemRow(itemToCopy);
-});
-                $(itemsTbody).on('select2:select', '.item-product', function(e) { const row = e.target.closest('tr'); if (!row.dataset.isAutoAdded) { handleCondoStampExpansion(row); checkAndApplyStampInkLogic(row); } });
+                    const lastRow = itemsTbody.querySelector('tr:last-child');
+                    
+                    if (lastRow && lastRow.dataset.isCondoPart) {
+                        const lastProductId = $(lastRow.querySelector('.item-product')).val();
+                        const product = fullProductList.find(p => p.id == lastProductId);
+                        if (product && product.product_category && product.product_category.trim().toUpperCase() === 'CONDO STAMP') {
+                            addCondoStampSet(lastProductId);
+                            return;
+                        }
+                    }
+
+                    let itemToCopy = null;
+                    if (lastRow) {
+                        const lastProductId = $(lastRow).find('.item-product').val();
+                        if (lastProductId) {
+                            itemToCopy = { product_id: lastProductId };
+                        }
+                    }
+                    addItemRow(itemToCopy);
+                });
+                
+                $(itemsTbody).on('select2:select', '.item-product', function(e) {
+                    const row = e.target.closest('tr');
+                    const groupId = row.dataset.condoGroupId;
+
+                    if (groupId && !window.isSyncingCondo) {
+                        window.isSyncingCondo = true;
+                        const newProductId = $(e.target).val();
+                        document.querySelectorAll(`tr[data-condo-group-id="${groupId}"]`).forEach(groupRow => {
+                            if (groupRow !== row) {
+                                $(groupRow.querySelector('.item-product')).val(newProductId).trigger('change.select2', [true]); // Pass sync flag
+                            }
+                        });
+                        window.isSyncingCondo = false;
+                    }
+                    
+                    if (!e.params.data.fromSync) { // Prevent re-triggering expansion
+                        handleCondoStampExpansion(row);
+                    }
+                    
+                    if (!row.dataset.isAutoAdded) {
+                        checkAndApplyStampInkLogic(row);
+                    }
+                });
+                // MODIFICATION END
+
                 itemsTbody.addEventListener('change', (e) => { if (e.target.classList.contains('item-ink_color')) { const row = e.target.closest('tr'); if (!row.dataset.isAutoAdded) { checkAndApplyStampInkLogic(row); } } });
                 itemsTbody.addEventListener('click', (e) => { if (e.target.classList.contains('remove-item-btn')) { const rowToRemove = e.target.closest('tr'); const linkedInkRowUid = rowToRemove.dataset.linkedInkRowUid; if (linkedInkRowUid) { const inkRow = itemsTbody.querySelector(`tr[data-row-uid="${linkedInkRowUid}"]`); if (inkRow) { $(inkRow).find('.item-product').select2('destroy'); inkRow.remove(); } } $(rowToRemove).find('.item-product').select2('destroy'); rowToRemove.remove(); } });
                 const pickingSlipModal = document.getElementById('picking-slip-modal'); document.getElementById('cancel-picking-slip-modal-btn').addEventListener('click', hidePickingSlipModal); pickingSlipModal.addEventListener('click', (e) => { if (e.target === pickingSlipModal) hidePickingSlipModal(); });
