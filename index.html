@@ -425,7 +425,6 @@
                     <div class="container">
                         <h1>ระบบจัดการออร์เดอร์</h1>
                         
-                        <!-- === MODIFIED SECTION START === -->
                         <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; flex-wrap: wrap;">
                             <div class="control-group">
                                 <label for="master-status-start-date" style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 5px;">ตั้งแต่วันที่ (สถานะรวม)</label>
@@ -437,12 +436,10 @@
                             </div>
                             <button id="export-master-status-btn" class="btn btn-success">📊 Export สถานะรวม (Excel)</button>
                         </div>
-                        <!-- === MODIFIED SECTION END === -->
                         
                         <input type="file" id="tracking-file-input" style="display: none;" accept=".csv, text/csv">
                         <input type="file" id="import-orders-file-input" style="display: none;" accept=".csv, .xlsx, .xls">
                         
-                        <!-- Hidden file input for slip upload -->
                         <input type="file" id="slip-file-input" style="display: none;" accept="image/*">
 
                         <div class="tabs">
@@ -463,8 +460,7 @@
                                     <div class="form-group"><label for="customer_name">ชื่อลูกค้า</label><input type="text" id="customer_name" required></div>
                                     <div class="form-group full-width"><label for="customer_address">ที่อยู่ลูกค้า</label><textarea id="customer_address" rows="4" required></textarea></div>
                                 </div>
-
-                                <!-- ==================== NEW CLAIM DETAILS SECTION ==================== -->
+                                
                                 <div id="claim-details-section" style="display: none; margin-top: 20px;">
                                     <h4>ข้อมูลการเคลม</h4>
                                     <div class="form-grid" style="grid-template-columns: 1fr;">
@@ -478,8 +474,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- ================================================================= -->
-
+                                
                                 <hr>
                                 <h3>รายการสินค้า</h3>
                                 <div class="batch-actions">
@@ -496,7 +491,6 @@
                                         <div class="form-group"><label for="price">ราคา</label><input type="number" id="price" value="0" step="0.01"></div>
                                         <div class="form-group"><label for="shipping_cost">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01"></div>
                                         <div class="form-group"><label for="discount">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01"></div>
-                                        <!-- NEW: VAT Display -->
                                         <div class="form-group" id="vat-display-container" style="display: none;">
                                             <label for="vat_amount">VAT (7%)</label>
                                             <input type="number" id="vat_amount" readonly>
@@ -516,7 +510,6 @@
                                     <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                                         <button type="button" id="upload-slip-btn" class="btn btn-info">อัพโหลดและตรวจสอบสลิป</button>
                                         <span id="slip-status" style="font-weight: bold; font-size: 16px;"></span>
-                                        <!-- MODIFIED: Billing Checkbox Group -->
                                         <div class="billing-checkbox-group" style="margin-left: auto;">
                                             <label><input type="checkbox" id="request-tax-invoice-cb"> ขอใบกำกับภาษี</label>
                                             <label><input type="checkbox" id="request-cash-bill-cb"> ขอบิลเงินสด</label>
@@ -524,7 +517,6 @@
                                     </div>
                                 </div>
 
-                                <!-- === NEW TAX INVOICE DETAILS SECTION START === -->
                                 <div id="tax-invoice-details-section">
                                     <hr>
                                     <h4>ข้อมูลสำหรับออกใบกำกับภาษี / บิลเงินสด</h4>
@@ -545,18 +537,15 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="tax-items-tbody">
-                                                <!-- Rows will be populated by JS -->
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                                <!-- === NEW TAX INVOICE DETAILS SECTION END === -->
-
 
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
                         </div>
-<div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+                        <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
                         <div id="tab-complete" class="tab-content">
                             <div class="tab-filter">
                                 <label for="filter-complete">กรองตามช่องทาง:</label>
@@ -589,8 +578,6 @@
                                 <button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
                                 <button id="claim-selected-shipped-btn" class="btn btn-info">เคลมบิลที่เลือก</button>
                                 <button id="export-shipped-btn" class="btn btn-success">Export ข้อมูลที่เลือก</button>
-
-                                <!-- === ADDED BUTTON END === -->
                             </div>
                             <ul class="order-list"></ul>
                         </div>
@@ -995,7 +982,6 @@
             const importOrdersBtn = document.getElementById('import-orders-btn');
             const importOrdersFileInput = document.getElementById('import-orders-file-input');
             
-            // NEW: Tax Invoice UI Elements
             const requestTaxInvoiceCb = document.getElementById('request-tax-invoice-cb');
             const requestCashBillCb = document.getElementById('request-cash-bill-cb');
             const taxInvoiceSection = document.getElementById('tax-invoice-details-section');
@@ -1580,7 +1566,24 @@
                 row.innerHTML = `<td><select class="item-product"></select></td><td><select class="item-ink_color"><option value="">--เลือกสี--</option></select></td><td><select class="item-shelf_location"><option value="">--เลือก--</option>${shelfOptions}</select></td><td><input type="text" class="item-cartoon_pattern"></td><td><input type="text" class="item-line_pattern"></td><td><select class="item-font">${fontOptions}</select></td><td><input type="text" class="item-line_1"></td><td><input type="text" class="item-line_2"></td><td><input type="text" class="item-line_3"></td><td><input type="number" class="item-quantity quantity-input" value="1" min="1"></td><td><input type="text" class="item-notes"></td><td><input type="text" class="item-file_attachment"></td><td class="action-cell"><button type="button" class="btn btn-danger remove-item-btn">X</button></td>`;
                 const productSelect = $(row.querySelector('.item-product')); productSelect.select2({ data: productList, placeholder: 'เลือกสินค้า', width: '100%' });
                 const inkSelect = row.querySelector('.item-ink_color'); inkTypeList.forEach(ink => { const opt = document.createElement('option'); opt.value = ink.ink_name; opt.textContent = ink.ink_name; inkSelect.appendChild(opt); });
-                if (item) { productSelect.val(item.product_id).trigger('change.select2'); inkSelect.value = item.ink_color || ''; row.querySelector('.item-shelf_location').value = item.product_type || ''; row.querySelector('.item-cartoon_pattern').value = item.cartoon_pattern || ''; row.querySelector('.item-line_pattern').value = item.line_pattern || ''; row.querySelector('.item-font').value = item.font || ''; row.querySelector('.item-line_1').value = item.line_1 || ''; row.querySelector('.item-line_2').value = item.line_2 || ''; row.querySelector('.item-line_3').value = item.line_3 || ''; row.querySelector('.item-notes').value = item.notes || ''; row.querySelector('.item-file_attachment').value = item.file_attachment || ''; row.querySelector('.item-quantity').value = item.quantity || 1; }
+                if (item) { 
+                    productSelect.val(item.product_id).trigger('change.select2'); 
+                    inkSelect.value = item.ink_color || ''; 
+                    row.querySelector('.item-shelf_location').value = item.product_type || ''; 
+                    row.querySelector('.item-cartoon_pattern').value = item.cartoon_pattern || ''; 
+                    row.querySelector('.item-line_pattern').value = item.line_pattern || ''; 
+                    row.querySelector('.item-font').value = item.font || ''; 
+                    row.querySelector('.item-line_1').value = item.line_1 || ''; 
+                    row.querySelector('.item-line_2').value = item.line_2 || ''; 
+                    row.querySelector('.item-line_3').value = item.line_3 || ''; 
+                    
+                    const notesValue = item.notes || '';
+                    const displayNotes = notesValue.replace(/\[SET-.*?\]/g, '').trim();
+                    row.querySelector('.item-notes').value = displayNotes;
+                    
+                    row.querySelector('.item-file_attachment').value = item.file_attachment || ''; 
+                    row.querySelector('.item-quantity').value = item.quantity || 1; 
+                }
                 return row;
             }
             
@@ -1828,11 +1831,43 @@
                 container.querySelector('#total_amount').value = total.toFixed(2);
             }
 
-            function exportForProduction(workOrderName) { const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName); if (ordersInWorkOrder.length === 0) { alert("ไม่พบข้อมูล"); return; } const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ']; const dataToExport = []; ordersInWorkOrder.forEach(order => { if (order.order_items && order.order_items.length > 0) { order.order_items.forEach(item => { dataToExport.push([ workOrderName, item.bill_no, item.item_uid, item.product_name, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, 1, item.notes, item.file_attachment ]); }); } }); if (dataToExport.length === 0) { alert("ไม่พบรายการสินค้า"); return; } const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData"); XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`); }
+            function exportForProduction(workOrderName) {
+                const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName);
+                if (ordersInWorkOrder.length === 0) {
+                    alert("ไม่พบข้อมูล");
+                    return;
+                }
+                const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
+                const dataToExport = [];
+                ordersInWorkOrder.forEach(order => {
+                    if (order.order_items && order.order_items.length > 0) {
+                        order.order_items.forEach(item => {
+                            const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+                            dataToExport.push([
+                                workOrderName, item.bill_no, item.item_uid, item.product_name,
+                                item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern,
+                                item.font, item.line_1, item.line_2, item.line_3, 1,
+                                cleanNotes,
+                                item.file_attachment
+                            ]);
+                        });
+                    }
+                });
+                if (dataToExport.length === 0) {
+                    alert("ไม่พบรายการสินค้า");
+                    return;
+                }
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData");
+                XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`);
+            }
             
             function exportShippedData() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
-                if (selectedIds.length === 0) { return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export'); }
+                if (selectedIds.length === 0) {
+                    return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export');
+                }
                 const ordersToExport = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
                 
                 const headers = ['เลขบิล', 'ลูกค้า', 'เลขพัสดุ', 'ผู้จัดส่ง', 'เวลาจัดส่ง', 'Item UID', 'ชื่อสินค้า', 'รายละเอียดสินค้า', 'ประเภทเคลม', 'รายละเอียดเคลม'];
@@ -1842,7 +1877,8 @@
                     const shippedTime = order.shipped_time ? new Date(order.shipped_time).toLocaleString('th-TH') : 'N/A';
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
-                            const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, item.notes].filter(Boolean).join(" | ");
+                            const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+                            const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, cleanNotes].filter(Boolean).join(" | ");
                             
                             dataToExport.push([ order.bill_no, order.customer_name, order.tracking_number, order.shipped_by, shippedTime, item.item_uid, item.product_name, details, order.claim_type || '', order.claim_details || '' ]);
                         });
@@ -1887,7 +1923,9 @@
                             order.order_items.forEach(item => {
                                 const productDetails = fullProductList.find(p => p.id === item.product_id);
                                 const category = productDetails ? productDetails.product_category : 'N/A';
-                                const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, item.notes].filter(Boolean).join(" | ");
+                                
+                                const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+                                const details = [item.line_1, item.line_2, item.line_3, item.font, item.ink_color, cleanNotes].filter(Boolean).join(" | ");
 
                                 dataToExport.push([
                                     order.bill_no,
@@ -2472,7 +2510,7 @@
 
                 const { data, error } = await supabaseClient
                     .from("orders")
-                    .select("*, order_items(*)") // Select all nested items
+                    .select("*, order_items(*)")
                     .eq("work_order_name", workOrderName)
                     .order('bill_no', { ascending: true }); 
                 
@@ -2505,74 +2543,72 @@
             }
 
             function prepareDataForPacking(orders) {
-    let flatData = [];
-    completedIndices.clear();
+                let flatData = [];
+                completedIndices.clear();
 
-    orders.forEach(order => {
-        const isOrderComplete = order.shipped_time != null;
-        const isParcelScanned = order.packing_meta?.parcelScanned || false;
-        
-        const needsTaxInvoice = order.billing_details?.request_tax_invoice || false;
-        const needsCashBill = order.billing_details?.request_cash_bill || false;
+                orders.forEach(order => {
+                    const isOrderComplete = order.shipped_time != null;
+                    const isParcelScanned = order.packing_meta?.parcelScanned || false;
+                    
+                    const needsTaxInvoice = order.billing_details?.request_tax_invoice || false;
+                    const needsCashBill = order.billing_details?.request_cash_bill || false;
 
-        if (order.order_items && order.order_items.length > 0) {
-            order.order_items.forEach(item => {
-                flatData.push({ 
-                    'tracking_number': order.tracking_number, 
-                    'customer_name': order.customer_name, 
-                    'order_id': order.id, 
-                    'product_name': item.product_name, 
-                    'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
-                    'font': item.font, 
-                    'ink_color': item.ink_color, 
-                    'notes': item.notes, 
-                    'shelf_location': item.product_type, 
-                    'cartoon_pattern': item.cartoon_pattern, 
-                    'line_pattern': item.line_pattern, 
-                    'file_attachment': item.file_attachment, 
-                    'item_uid': item.item_uid, 
-                    'scanned': item.packing_status === 'สแกนแล้ว',
-                    'itemScanTime': item.item_scan_time,
-                    'parcelScanned': isParcelScanned,
-                    'bill_no': order.bill_no,
-                    'isOrderComplete': isOrderComplete,
-                    'needsTaxInvoice': needsTaxInvoice,
-                    'needsCashBill': needsCashBill,
-                    // --- START MODIFICATION ---
-                    'claim_type': order.claim_type,
-                    'claim_details': order.claim_details
-                    // --- END MODIFICATION ---
+                    if (order.order_items && order.order_items.length > 0) {
+                        order.order_items.forEach(item => {
+                            flatData.push({ 
+                                'tracking_number': order.tracking_number, 
+                                'customer_name': order.customer_name, 
+                                'order_id': order.id, 
+                                'product_name': item.product_name, 
+                                'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "), 
+                                'font': item.font, 
+                                'ink_color': item.ink_color, 
+                                'notes': item.notes, 
+                                'shelf_location': item.product_type, 
+                                'cartoon_pattern': item.cartoon_pattern, 
+                                'line_pattern': item.line_pattern, 
+                                'file_attachment': item.file_attachment, 
+                                'item_uid': item.item_uid, 
+                                'scanned': item.packing_status === 'สแกนแล้ว',
+                                'itemScanTime': item.item_scan_time,
+                                'parcelScanned': isParcelScanned,
+                                'bill_no': order.bill_no,
+                                'isOrderComplete': isOrderComplete,
+                                'needsTaxInvoice': needsTaxInvoice,
+                                'needsCashBill': needsCashBill,
+                                'claim_type': order.claim_type,
+                                'claim_details': order.claim_details
+                            });
+                        });
+                    }
                 });
-            });
-        }
-    });
-    
-    allOrdersForPacking = flatData;
-    
-    const groupedByTracking = {};
-    const trackingOrder = [];
+                
+                allOrdersForPacking = flatData;
+                
+                const groupedByTracking = {};
+                const trackingOrder = [];
 
-    allOrdersForPacking.forEach(item => {
-        const tracking = item.tracking_number;
-        if (!groupedByTracking[tracking]) {
-            groupedByTracking[tracking] = [];
-            trackingOrder.push(tracking);
-        }
-        groupedByTracking[tracking].push(item);
-    });
+                allOrdersForPacking.forEach(item => {
+                    const tracking = item.tracking_number;
+                    if (!groupedByTracking[tracking]) {
+                        groupedByTracking[tracking] = [];
+                        trackingOrder.push(tracking);
+                    }
+                    groupedByTracking[tracking].push(item);
+                });
 
-    aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
-    
-    aggregatedData.forEach((group, index) => {
-        if (group[0].isOrderComplete) {
-            completedIndices.add(index);
-        }
-    });
+                aggregatedData = trackingOrder.map(tracking => groupedByTracking[tracking]);
+                
+                aggregatedData.forEach((group, index) => {
+                    if (group[0].isOrderComplete) {
+                        completedIndices.add(index);
+                    }
+                });
 
-    currentIndex = -1;
-    searchInput.value = '';
-    updateFinalizeButtonVisibility();
-}
+                currentIndex = -1;
+                searchInput.value = '';
+                updateFinalizeButtonVisibility();
+            }
 
             function renderOrderNav() { orderList.innerHTML = ""; aggregatedData.forEach((group, index) => { const trackingId = String(group[0].tracking_number).trim(); const isCompleted = completedIndices.has(index); const li = document.createElement("li"); li.className = "order-item"; if (isCompleted) li.classList.add("completed"); li.dataset.index = index; li.dataset.trackingId = trackingId; li.innerHTML = `<span class="tracking-id">${isCompleted ? '✅' : '📦'} ${trackingId}</span><span class="customer-name">${group[0].customer_name || 'N/A'}</span>`; li.addEventListener("click", () => displayOrder(index)); orderList.appendChild(li); }); updateCounter(); }
             
@@ -2581,56 +2617,53 @@
                 currentIndex = index;
                 
                 const orderGroup = aggregatedData[index];
+                
+                orderGroup.sort((a, b) => {
+                    if (a.scanned !== b.scanned) {
+                        return a.scanned ? 1 : -1;
+                    }
+                    return naturalSortCompare(a.item_uid || '', b.item_uid || '');
+                });
 
-orderGroup.sort((a, b) => {
-    if (a.scanned !== b.scanned) {
-        return a.scanned ? 1 : -1;
-    }
-    return naturalSortCompare(a.item_uid || '', b.item_uid || '');
-});
+                const totalItems = orderGroup.length;
+                const scannedItems = orderGroup.filter(item => item.scanned).length;
+                
+                let notificationHTML = '';
+                
+                if (orderGroup[0].claim_type) {
+                    const detailsText = orderGroup[0].claim_details ? `: ${orderGroup[0].claim_details}` : '';
+                    notificationHTML += `<div style="background-color: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                                            <strong>⚠️ ออร์เดอร์เคลม:</strong> ${orderGroup[0].claim_type}${detailsText}
+                                        </div>`;
+                }
 
-const totalItems = orderGroup.length;
-const scannedItems = orderGroup.filter(item => item.scanned).length;
-
-let notificationHTML = '';
-
-// --- START MODIFICATION ---
-// เพิ่มการแสดงผลสำหรับบิลเคลม
-if (orderGroup[0].claim_type) {
-    const detailsText = orderGroup[0].claim_details ? `: ${orderGroup[0].claim_details}` : '';
-    notificationHTML += `<div style="background-color: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
-                            <strong>⚠️ ออร์เดอร์เคลม:</strong> ${orderGroup[0].claim_type}${detailsText}
-                        </div>`;
-}
-// --- END MODIFICATION ---
-
-if (orderGroup[0].needsTaxInvoice) {
-    notificationHTML += `<div style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
-                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>ใบกำกับภาษี</strong>
-                        </div>`;
-} else if (orderGroup[0].needsCashBill) {
-    notificationHTML += `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
-                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong>
-                        </div>`;
-}
-
-let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
-
-let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
-orderGroup.forEach(item => {
-    const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
-    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
-});
-tableHTML += "</tbody></table>";
-
-resultContainer.innerHTML = notificationHTML + headerHTML + tableHTML; 
-actionPanel.style.display = "block";
-parcelScanInput.value = "";
-itemScanInput.value = "";
-updateInputStates();
-updateActiveNavItem();
-
-orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
+                if (orderGroup[0].needsTaxInvoice) {
+                    notificationHTML += `<div style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>ใบกำกับภาษี</strong>
+                                        </div>`;
+                } else if (orderGroup[0].needsCashBill) {
+                    notificationHTML += `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong>
+                                        </div>`;
+                }
+                
+                let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
+                
+                let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
+                orderGroup.forEach(item => {
+                    const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
+                    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
+                });
+                tableHTML += "</tbody></table>";
+                
+                resultContainer.innerHTML = notificationHTML + headerHTML + tableHTML; 
+                actionPanel.style.display = "block";
+                parcelScanInput.value = "";
+                itemScanInput.value = "";
+                updateInputStates();
+                updateActiveNavItem();
+                
+                orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
             }
 async function resetCurrentOrderPacking() { 
                 if (currentIndex < 0 || !currentWorkOrderName) return; 
