@@ -539,7 +539,7 @@
                                 <div id="form-actions" style="margin-top: 25px; text-align: right;"></div>
                             </form>
                         </div>
-                        <div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
+<div id="tab-waiting" class="tab-content"><div class="tab-filter"><label for="filter-waiting">กรองตามช่องทาง:</label><select id="filter-waiting"></select><input type="text" id="search-waiting" placeholder="ค้นหาเลขบิล, ชื่อลูกค้า, พัสดุ..."></div><div class="batch-actions"><button id="select-all-waiting-btn" class="btn btn-secondary">เลือกทั้งหมด</button><button id="move-to-complete-from-waiting-btn" class="btn btn-success">ย้ายไป "ลงข้อมูลเสร็จสิ้น"</button><button id="cancel-selected-waiting-btn" class="btn btn-danger">ยกเลิกบิลที่เลือก</button></div><ul class="order-list"></ul></div>
                         <div id="tab-complete" class="tab-content">
                             <div class="tab-filter">
                                 <label for="filter-complete">กรองตามช่องทาง:</label>
@@ -965,8 +965,6 @@ html
             modal.addEventListener('click', (e) => { if(e.target === modal) { modal.style.display = 'none'; folderInput.value = ''; }});
             return { start };
         })();
-
-
         // --- ORDER SYSTEM MODULE ---
         window.orderSystem = (() => {
             const container = document.getElementById('order-system-container');
@@ -1140,7 +1138,18 @@ html
                         const matchesSearch = !searchTerm || (order.bill_no && order.bill_no.toLowerCase().includes(searchTerm)) || (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm)) || (order.tracking_number && order.tracking_number.toLowerCase().includes(searchTerm));
                         if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) { 
                             const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
-                            let infoHTML = `<div><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong> <span class="customer-info">${order.customer_name || 'N/A'}</span></div>`;
+                            
+                            // --- START MODIFICATION ---
+                            let billingIndicator = '';
+                            if (order.billing_details) {
+                                if (order.billing_details.request_tax_invoice) {
+                                    billingIndicator = ` <span style="font-size: 0.8em; color: #c82333; background-color: #fdd; border: 1px solid #c82333; padding: 2px 6px; border-radius: 4px; font-weight: bold;">📄 ใบกำกับภาษี</span>`;
+                                } else if (order.billing_details.request_cash_bill) {
+                                    billingIndicator = ` <span style="font-size: 0.8em; color: #007bff; background-color: #e7f3ff; border: 1px solid #007bff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">💵 บิลเงินสด</span>`;
+                                }
+                            }
+                            let infoHTML = `<div><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong> <span class="customer-info">${order.customer_name || 'N/A'}${billingIndicator}</span></div>`;
+                            // --- END MODIFICATION ---
                             
                             if (order.channel_code === 'CLAIM' && (order.claim_type || order.claim_details)) {
                                 const claimType = order.claim_type ? `<strong>${order.claim_type}</strong>` : '';
@@ -1495,6 +1504,25 @@ html
                     });
 
                     Object.values(itemGroups).forEach(groupedItem => { addItemRow(groupedItem); });
+
+                    // --- START MODIFICATION: Load saved billing details ---
+                    if (order.billing_details) {
+                        const details = order.billing_details;
+                        requestTaxInvoiceCb.checked = details.request_tax_invoice || false;
+                        requestCashBillCb.checked = details.request_cash_bill || false;
+                        
+                        if (requestTaxInvoiceCb.checked || requestCashBillCb.checked) {
+                            taxCustomerNameInput.value = details.tax_customer_name || '';
+                            taxCustomerAddressInput.value = details.tax_customer_address || '';
+                            document.getElementById('tax-id').value = details.tax_id || '';
+
+                            taxInvoiceSection.style.display = 'block';
+                            document.getElementById('tax-id').closest('.form-group').style.display = requestTaxInvoiceCb.checked ? 'block' : 'none';
+
+                            populateTaxItems(details.tax_items); 
+                        }
+                    }
+                    // --- END MODIFICATION ---
 
                     const isViewOnly = (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') || order.status === 'จัดส่งแล้ว';
 
@@ -1953,32 +1981,48 @@ html
                 calculateTotal(); 
             }
             
-            function populateTaxItems() {
+            function populateTaxItems(savedTaxItems = null) {
                 taxItemsTbody.innerHTML = '';
-                const aggregatedItems = {};
 
-                itemsTbody.querySelectorAll('tr').forEach(row => {
-                    const productId = $(row.querySelector('.item-product')).val();
-                    const productName = $(row.querySelector('.item-product')).select2('data')[0]?.text;
-                    const quantity = parseInt(row.querySelector('.item-quantity').value) || 0;
+                if (savedTaxItems && savedTaxItems.length > 0) {
+                    // Populate table from saved billing data
+                    savedTaxItems.forEach(item => {
+                        const row = taxItemsTbody.insertRow();
+                        const unitPrice = parseFloat(item.unit_price || 0).toFixed(2);
+                        const total = (parseInt(item.quantity || 0) * unitPrice).toFixed(2);
+                        row.innerHTML = `
+                            <td>${item.product_name}</td>
+                            <td><input type="number" class="tax-item-qty" value="${item.quantity}" readonly></td>
+                            <td><input type="number" class="tax-item-unit-price" value="${unitPrice}" step="0.01"></td>
+                            <td class="tax-item-total">${total}</td>
+                        `;
+                    });
+                } else {
+                    // Populate from main items table if creating a new one
+                    const aggregatedItems = {};
+                    itemsTbody.querySelectorAll('tr').forEach(row => {
+                        const productId = $(row.querySelector('.item-product')).val();
+                        const productName = $(row.querySelector('.item-product')).select2('data')[0]?.text;
+                        const quantity = parseInt(row.querySelector('.item-quantity').value) || 0;
 
-                    if (productId && productName && quantity > 0) {
-                        if (!aggregatedItems[productId]) {
-                            aggregatedItems[productId] = { name: productName, qty: 0 };
+                        if (productId && productName && quantity > 0) {
+                            if (!aggregatedItems[productId]) {
+                                aggregatedItems[productId] = { name: productName, qty: 0 };
+                            }
+                            aggregatedItems[productId].qty += quantity;
                         }
-                        aggregatedItems[productId].qty += quantity;
-                    }
-                });
+                    });
 
-                Object.values(aggregatedItems).forEach(item => {
-                    const row = taxItemsTbody.insertRow();
-                    row.innerHTML = `
-                        <td>${item.name}</td>
-                        <td><input type="number" class="tax-item-qty" value="${item.qty}" readonly></td>
-                        <td><input type="number" class="tax-item-unit-price" value="0.00" step="0.01"></td>
-                        <td class="tax-item-total">0.00</td>
-                    `;
-                });
+                    Object.values(aggregatedItems).forEach(item => {
+                        const row = taxItemsTbody.insertRow();
+                        row.innerHTML = `
+                            <td>${item.name}</td>
+                            <td><input type="number" class="tax-item-qty" value="${item.qty}" readonly></td>
+                            <td><input type="number" class="tax-item-unit-price" value="0.00" step="0.01"></td>
+                            <td class="tax-item-total">0.00</td>
+                        `;
+                    });
+                }
             }
 
             function calculateTaxItemTotals() {
@@ -2419,6 +2463,11 @@ html
                 orders.forEach(order => {
                     const isOrderComplete = order.shipped_time != null;
                     const isParcelScanned = order.packing_meta?.parcelScanned || false;
+                    
+                    // --- START MODIFICATION ---
+                    const needsTaxInvoice = order.billing_details?.request_tax_invoice || false;
+                    const needsCashBill = order.billing_details?.request_cash_bill || false;
+                    // --- END MODIFICATION ---
 
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
@@ -2436,11 +2485,15 @@ html
                                 'line_pattern': item.line_pattern, 
                                 'file_attachment': item.file_attachment, 
                                 'item_uid': item.item_uid, 
-                                'scanned': item.packing_status === 'สแกนแล้ว', // Step 2 state from DB
+                                'scanned': item.packing_status === 'สแกนแล้ว',
                                 'itemScanTime': item.item_scan_time,
-                                'parcelScanned': isParcelScanned, // Step 1 state from DB
+                                'parcelScanned': isParcelScanned,
                                 'bill_no': order.bill_no,
-                                'isOrderComplete': isOrderComplete
+                                'isOrderComplete': isOrderComplete,
+                                // --- START MODIFICATION ---
+                                'needsTaxInvoice': needsTaxInvoice,
+                                'needsCashBill': needsCashBill
+                                // --- END MODIFICATION ---
                             });
                         });
                     }
@@ -2491,6 +2544,19 @@ html
                 const totalItems = orderGroup.length;
                 const scannedItems = orderGroup.filter(item => item.scanned).length;
                 
+                // --- START MODIFICATION ---
+                let notificationHTML = '';
+                if (orderGroup[0].needsTaxInvoice) {
+                    notificationHTML = `<div style="background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>ใบกำกับภาษี</strong>
+                                        </div>`;
+                } else if (orderGroup[0].needsCashBill) {
+                    notificationHTML = `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;">
+                                            <strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong>
+                                        </div>`;
+                }
+                // --- END MODIFICATION ---
+                
                 let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${totalItems}</span></div></div>`;
                 
                 let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
@@ -2500,7 +2566,7 @@ html
                 });
                 tableHTML += "</tbody></table>";
                 
-                resultContainer.innerHTML = headerHTML + tableHTML;
+                resultContainer.innerHTML = notificationHTML + headerHTML + tableHTML; // Prepend notification
                 actionPanel.style.display = "block";
                 parcelScanInput.value = "";
                 itemScanInput.value = "";
