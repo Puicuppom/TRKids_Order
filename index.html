@@ -1180,7 +1180,7 @@
                     billsHTML += '</ul>';
                     const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR']; const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
                     
-                    let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button>`;
+                    let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button>`;
                     if (isWaybillSortChannel) { actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
                     } else { actionButtonsHTML += `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button><button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`; }
                     if (currentUserRole === 'superadmin') { actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกทั้งใบงาน</button>`; }
@@ -1862,6 +1862,60 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData");
                 XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`);
             }
+
+            // --- FUNCTION TO EXPORT FOR QC ---
+            function exportForQC(workOrderName) {
+                const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName);
+                if (ordersInWorkOrder.length === 0) {
+                    alert("ไม่พบข้อมูล");
+                    return;
+                }
+                
+                const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'รหัสสินค้า', 'ชื่อสินค้า', 'หมวดหมู่สินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
+                
+                const dataToExport = [];
+                ordersInWorkOrder.forEach(order => {
+                    if (order.order_items && order.order_items.length > 0) {
+                        order.order_items.forEach(item => {
+                            const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+                            
+                            const productDetails = fullProductList.find(p => p.id === item.product_id);
+                            const productCode = productDetails ? productDetails.product_code : 'N/A';
+                            const productCategory = productDetails ? productDetails.product_category : 'N/A';
+
+                            dataToExport.push([
+                                workOrderName, 
+                                item.bill_no, 
+                                item.item_uid, 
+                                productCode,
+                                item.product_name,
+                                productCategory,
+                                item.ink_color, 
+                                item.product_type, 
+                                item.cartoon_pattern, 
+                                item.line_pattern,
+                                item.font, 
+                                item.line_1, 
+                                item.line_2, 
+                                item.line_3, 
+                                1,
+                                cleanNotes,
+                                item.file_attachment
+                            ]);
+                        });
+                    }
+                });
+
+                if (dataToExport.length === 0) {
+                    alert("ไม่พบรายการสินค้า");
+                    return;
+                }
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "QC_Data");
+                XLSX.writeFile(workbook, `QC_${workOrderName}.xlsx`);
+            }
             
             function exportShippedData() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
@@ -2343,7 +2397,29 @@
                     if (target.tagName === 'STRONG' && target.closest('.order-list-item')) { const orderId = target.closest('.order-list-item').dataset.orderId; if (orderId) { loadOrderForEditing(orderId); } }
                     const trackingSpan = target.closest('.order-tracking'); if (trackingSpan) { if (target.closest('.btn-edit-tracking')) { event.stopPropagation(); event.preventDefault(); enterTrackingEditMode(trackingSpan); } if (target.closest('.btn-save-tracking-confirm')) { event.stopPropagation(); event.preventDefault(); saveTrackingNumber(trackingSpan); } if (target.closest('.btn-cancel-tracking-edit')) { event.stopPropagation(); event.preventDefault(); exitTrackingEditMode(trackingSpan); } }
                     const headerForAction = target.closest('.work-order-header');
-                    if (headerForAction) { const classToAction = { 'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName), 'export-waybill-sort-btn': (btn) => window.waybillSorter.start(btn.dataset.workOrderName, allOrdersData), 'import-wo-csv-btn': () => trackingFileInput.click(), 'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName) }; let actionTaken = false; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { event.stopPropagation(); classToAction[className](btn); actionTaken = true; break; } } if (!actionTaken && !target.closest('.wo-header-actions')) { toggleWorkOrder(headerForAction); } }
+                    if (headerForAction) { 
+                        // --- ACTION MAP FOR BUTTONS (Including Export QC) ---
+                        const classToAction = { 
+                            'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 
+                            'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 
+                            'export-qc-btn': (btn) => exportForQC(btn.dataset.workOrderName), 
+                            'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName), 
+                            'export-waybill-sort-btn': (btn) => window.waybillSorter.start(btn.dataset.workOrderName, allOrdersData), 
+                            'import-wo-csv-btn': () => trackingFileInput.click(), 
+                            'cancel-wo-btn': (btn) => cancelWorkOrder(btn.dataset.workOrderName) 
+                        }; 
+                        let actionTaken = false; 
+                        for (const className in classToAction) { 
+                            const btn = target.closest(`.${className}`); 
+                            if (btn) { 
+                                event.stopPropagation(); 
+                                classToAction[className](btn); 
+                                actionTaken = true; 
+                                break; 
+                            } 
+                        } 
+                        if (!actionTaken && !target.closest('.wo-header-actions')) { toggleWorkOrder(headerForAction); } 
+                    }
                     const billsContainer = target.closest('.work-order-bills'); if(billsContainer) { const classToAction = { 'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn), 'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'), 'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'), 'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn) }; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { classToAction[className](btn); break; } } }
                 });
                 
@@ -2665,7 +2741,7 @@
                 
                 orderGroup.forEach(item => { if (item.item_uid) { const qrContainer = document.getElementById(`qr-${item.item_uid}`); if(qrContainer) { qrContainer.innerHTML = ''; new QRCode(qrContainer, { text: item.item_uid, width: 80, height: 80, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); } } });
             }
-async function resetCurrentOrderPacking() { 
+            async function resetCurrentOrderPacking() { 
                 if (currentIndex < 0 || !currentWorkOrderName) return; 
                 if (!confirm('ยืนยัน "แพ็คใหม่"?\nการสแกนทั้งหมดของออร์เดอร์นี้จะถูกล้าง')) return; 
 
@@ -2881,7 +2957,7 @@ async function resetCurrentOrderPacking() {
                     finalizeWorkOrderAndMoveStatus(currentWorkOrderName);
                 }
             });
-async function finalizeWorkOrderAndMoveStatus(workOrderName) {
+            async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                 loadingOverlay.style.display = 'flex';
                 try {
                     const { error: woError } = await supabaseClient
@@ -2899,9 +2975,9 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
                     if (ordersError) throw ordersError;
 
                     const { error: jobError } = await supabaseClient
-    .from('jobs')
-    .update({ status: 'DONE' })
-    .eq('name', workOrderName);
+                        .from('jobs')
+                        .update({ status: 'DONE' })
+                        .eq('name', workOrderName);
                     
                     if (jobError) console.warn("Could not update job from planner:", jobError);
 
@@ -3176,8 +3252,7 @@ async function finalizeWorkOrderAndMoveStatus(workOrderName) {
         window.addEventListener('pageshow', function (event) { if (event.persisted) { console.log("Page loaded from bfcache. Re-initializing."); checkAuth(); } });
     });
 </script>
-</html>
-html
+
     <!-- Product Add/Edit Modal -->
     <div id="product-modal" class="modal-overlay">
         <div class="modal-content">
