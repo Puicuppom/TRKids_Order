@@ -1833,7 +1833,11 @@
             }
 
             function exportForProduction(workOrderName) {
-                const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName);
+                // เพิ่ม .sort() เพื่อเรียงตามเลขบิล (น้อยไปมาก)
+                const ordersInWorkOrder = allOrdersData
+                    .filter(order => order.work_order_name === workOrderName)
+                    .sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || ''));
+
                 if (ordersInWorkOrder.length === 0) {
                     alert("ไม่พบข้อมูล");
                     return;
@@ -1866,7 +1870,12 @@
 
             // --- FUNCTION TO EXPORT FOR QC ---
             function exportForQC(workOrderName) {
-                const ordersInWorkOrder = allOrdersData.filter(order => order.work_order_name === workOrderName);
+                // 1. กรองเฉพาะบิลในใบงานนั้น
+                // 2. เรียงลำดับ (Sort) ตามเลขบิล จากน้อยไปมาก (A->Z, 0->9) เพื่อให้ผลิตตามลำดับ
+                const ordersInWorkOrder = allOrdersData
+                    .filter(order => order.work_order_name === workOrderName)
+                    .sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || ''));
+
                 if (ordersInWorkOrder.length === 0) {
                     alert("ไม่พบข้อมูล");
                     return;
