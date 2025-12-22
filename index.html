@@ -2131,7 +2131,10 @@
 
                         if (productId && productName && quantity > 0) {
                             if (!aggregatedItems[productId]) {
-                                aggregatedItems[productId] = { name: productName, qty: 0 };
+                                // ดึงข้อมูลหมวดหมู่สินค้ามาเก็บไว้ด้วย
+                                const product = fullProductList.find(p => p.id == productId);
+                                const category = product ? (product.product_category || '').trim().toUpperCase() : '';
+                                aggregatedItems[productId] = { name: productName, qty: 0, category: category };
                             }
                             aggregatedItems[productId].qty += quantity;
                         }
@@ -2140,9 +2143,17 @@
                     Object.values(aggregatedItems).forEach(item => {
                         const row = taxItemsTbody.insertRow();
                         const savedPrice = existingPrices[item.name] || '0.00';
+                        
+                        // --- ส่วนที่แก้ไข: ตรรกะการหาร 5 สำหรับ Condo Stamp ---
+                        let displayQty = item.qty;
+                        if (item.category === 'CONDO STAMP') {
+                            displayQty = Math.ceil(item.qty / 5);
+                        }
+                        // ----------------------------------------------
+
                         row.innerHTML = `
                             <td>${item.name}</td>
-                            <td><input type="number" class="tax-item-qty" value="${item.qty}" readonly></td>
+                            <td><input type="number" class="tax-item-qty" value="${displayQty}" readonly></td>
                             <td><input type="number" class="tax-item-unit-price" value="${savedPrice}" step="0.01"></td>
                             <td class="tax-item-total">0.00</td>
                         `;
