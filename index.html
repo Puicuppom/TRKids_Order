@@ -2883,58 +2883,140 @@ window.packingSystem = (() => {
             return { initializeApp };
         })();
 
-        // --- PLANNER SYSTEM MODULE ---
+        // --- PLANNER SYSTEM MODULE (FIXED SELECT ALL & EXPORT SELECTED) ---
         window.plannerSystem = (() => {
             let isInitialized = false; let container = null; let currentUserRole = null; let state = { jobs: [] };
             const el = (sel, context = document) => context.querySelector(sel); const cel = (tag, attrs = {}) => { const n = document.createElement(tag); for (const k in attrs) { if (k === 'text') n.textContent = attrs[k]; else n.setAttribute(k, attrs[k]); } return n; }; const sameDay = (d1, d2) => d1 === d2;
-            function setupEventListeners() { el('#j_date').addEventListener('change', renderJobs); el('#j_search').addEventListener('input', renderJobs); el('#j_clear').addEventListener('click', () => { el('#j_date').value = ''; el('#j_search').value = ''; renderJobs(); }); el('#btnExportForSorting').addEventListener('click', exportJobsForSorting); el('#tableJobs').addEventListener('click', handleTableClick); }
+
+            function setupEventListeners() { 
+                el('#j_date').addEventListener('change', renderJobs); 
+                el('#j_search').addEventListener('input', renderJobs); 
+                el('#j_clear').addEventListener('click', () => { el('#j_date').value = ''; el('#j_search').value = ''; renderJobs(); }); 
+                el('#btnExportForSorting').addEventListener('click', exportJobsForSorting); 
+                el('#tableJobs').addEventListener('click', handleTableClick); 
+
+                // FIX: เพิ่ม Event สำหรับเลือกทั้งหมด
+                el('#j_selectAll').addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    container.querySelectorAll('.job-checkbox').forEach(cb => {
+                        cb.checked = isChecked;
+                        const row = cb.closest('tr');
+                        if (row) row.classList.toggle('row-selected', isChecked);
+                    });
+                });
+            }
+
             async function initializeApp(userRole) { if (isInitialized && currentUserRole === userRole) { await internal_load(); return; } container = el('#planner-system-container'); currentUserRole = userRole; loadingOverlay.style.display = 'flex'; await internal_load(); loadingOverlay.style.display = 'none'; if (!isInitialized) { setupEventListeners(); setupRealtimeSubscriptions(); } updateAccessControls(); isInitialized = true; }
+            
             async function internal_load() { try { const { data: jobsData, error: jobsError } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false }); if (jobsError) throw new Error('โหลดใบงานไม่ได้: ' + jobsError.message); state.jobs = jobsData || []; } catch (e) { console.error("Planner load error:", e); alert('โหลดข้อมูลไม่ได้! ' + e.message); state.jobs = []; } renderAll(); }
-            function updateAccessControls() { const unlocked = currentUserRole === 'superadmin'; container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => { elem.disabled = !unlocked; }); renderAll(); }
+            
+            function updateAccessControls() { const unlocked = currentUserRole === 'superadmin' || currentUserRole === 'production'; container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => { if(elem.id !== 'j_selectAll' && !elem.classList.contains('job-checkbox')) elem.disabled = !unlocked; }); renderAll(); }
+            
             function renderAll() { if (!container) return; populateJobDateFilter(); renderJobs(); }
+            
             function populateJobDateFilter() { const dateSelect = el('#j_date'); if (!dateSelect) return; const today = new Date().toISOString().slice(0, 10); const jobDates = state.jobs.map(j => j.date); const allDates = [...new Set([today, ...jobDates])].sort().reverse(); dateSelect.innerHTML = '<option value="">ทุกวัน</option>'; allDates.forEach(d => dateSelect.add(new Option(d, d))); dateSelect.value = today; }
-            function renderJobs() { const tbody = el('#tableJobs tbody'); if (!tbody) return; tbody.innerHTML = ''; const qDate = el('#j_date').value; const qStr = (el('#j_search').value || '').toLowerCase(); const filteredJobs = state.jobs.filter(j => { const dateMatch = !qDate || sameDay(j.date, qDate); const searchMatch = !qStr || j.name.toLowerCase().includes(qStr); return dateMatch && searchMatch; }); if (filteredJobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">ไม่พบใบงานสำหรับวันที่เลือก</td></tr>`; return; } filteredJobs.forEach(j => { const tr = cel('tr'); tr.dataset.jobId = j.id; tr.innerHTML = `<td class="checkbox-cell"><input type="checkbox" class="job-checkbox" data-id="${j.id}"></td>`; const qtyCell = cel('td'); const qtyContainer = cel('div', { class: 'qty-pills-container' }); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const q = j.qty?.[d] || 0; if (q > 0) qtyContainer.appendChild(cel('span', { class: 'pill', text: `${d}: ${q}` })); }); qtyCell.appendChild(qtyContainer); let cutTimeText = j.cut || '-'; if (cutTimeText && cutTimeText.length > 5) cutTimeText = cutTimeText.substring(0, 5); const nameCell = cel('td'); nameCell.innerHTML = `<strong>${j.name}</strong>`; const dateCell = cel('td', { text: j.date }); const cutCell = cel('td', { text: cutTimeText }); const tdAct = cel('td', { class: 'action-cell-buttons'}); tdAct.innerHTML = `<button class="btn btn-warning btn-sm edit-job-btn" data-job-id="${j.id}">แก้ไข</button><button class="btn btn-danger btn-sm delete-job-btn" data-job-id="${j.id}">ลบ</button>`; tr.append(nameCell, dateCell, cutCell, qtyCell, tdAct); tbody.appendChild(tr); }); }
+            
+            function renderJobs() { 
+                const tbody = el('#tableJobs tbody'); 
+                if (!tbody) return; 
+                tbody.innerHTML = ''; 
+                // Reset select all checkbox
+                if(el('#j_selectAll')) el('#j_selectAll').checked = false;
+
+                const qDate = el('#j_date').value; 
+                const qStr = (el('#j_search').value || '').toLowerCase(); 
+                const filteredJobs = state.jobs.filter(j => { const dateMatch = !qDate || sameDay(j.date, qDate); const searchMatch = !qStr || j.name.toLowerCase().includes(qStr); return dateMatch && searchMatch; }); 
+                
+                if (filteredJobs.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">ไม่พบใบงานสำหรับวันที่เลือก</td></tr>`; return; } 
+                
+                filteredJobs.forEach(j => { 
+                    const tr = cel('tr'); 
+                    tr.dataset.jobId = j.id; 
+                    tr.innerHTML = `<td class="checkbox-cell"><input type="checkbox" class="job-checkbox" data-id="${j.id}"></td>`; 
+                    
+                    const qtyCell = cel('td'); 
+                    const qtyContainer = cel('div', { class: 'qty-pills-container' }); 
+                    const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; 
+                    depts.forEach(d => { const q = j.qty?.[d] || 0; if (q > 0) qtyContainer.appendChild(cel('span', { class: 'pill', text: `${d}: ${q}` })); }); 
+                    qtyCell.appendChild(qtyContainer); 
+                    
+                    let cutTimeText = j.cut || '-'; if (cutTimeText && cutTimeText.length > 5) cutTimeText = cutTimeText.substring(0, 5); 
+                    const nameCell = cel('td'); nameCell.innerHTML = `<strong>${j.name}</strong>`; 
+                    const dateCell = cel('td', { text: j.date }); 
+                    const cutCell = cel('td', { text: cutTimeText }); 
+                    const tdAct = cel('td', { class: 'action-cell-buttons'}); 
+                    tdAct.innerHTML = `<button class="btn btn-warning btn-sm edit-job-btn" data-job-id="${j.id}">แก้ไข</button><button class="btn btn-danger btn-sm delete-job-btn" data-job-id="${j.id}">ลบ</button>`; 
+                    tr.append(nameCell, dateCell, cutCell, qtyCell, tdAct); 
+                    tbody.appendChild(tr); 
+
+                    // Highlight row on checkbox change
+                    tr.querySelector('.job-checkbox').addEventListener('change', (e) => {
+                        tr.classList.toggle('row-selected', e.target.checked);
+                    });
+                }); 
+            }
+
             function handleTableClick(e) { const target = e.target; if (target.classList.contains('edit-job-btn')) { const jobId = target.dataset.jobId; showJobEditor(jobId); } if (target.classList.contains('delete-job-btn')) { const jobId = target.dataset.jobId; deleteJob(jobId); } }
+            
             async function deleteJob(jobId) { const jobToDelete = state.jobs.find(j => j.id == jobId); if(!jobToDelete) return; if (!confirm(`ต้องการลบใบงาน "${jobToDelete.name}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('jobs').delete().eq('id', jobId); if (error) throw error; alert('ลบสำเร็จ'); } catch(err) { alert('เกิดพลาด: ' + err.message); } finally { loadingOverlay.style.display = 'none'; } }
-            function showJobEditor(jobId) { const job = state.jobs.find(j => j.id == jobId); if (!job) return; const formContainer = document.createElement('div'); formContainer.id = 'job-editor-modal-container'; formContainer.innerHTML = `<div class="modal-overlay" style="display: flex;"><div class="modal-content" style="max-width: 600px;"><h2 id="job-editor-title">แก้ไขใบงาน: ${job.name}</h2><div id="job-editor-form"><div class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;"><div class="planner-form-group"><label for="edit_j_date">วันที่</label><input type="date" id="edit_j_date" value="${job.date}"></div><div class="planner-form-group"><label for="edit_j_cut">เวลาตัด</label><input type="time" id="edit_j_cut" value="${job.cut || ''}"></div></div><h3 class="planner-section-title">จำนวนต่อแผนก</h3><div id="edit_j_qty" class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px 20px;"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="edit_j_cancel">ยกเลิก</button><button type="button" class="btn btn-primary" id="edit_j_save">บันทึก</button></div></div></div></div>`; document.body.appendChild(formContainer); const qtyHost = formContainer.querySelector('#edit_j_qty'); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const qty = job.qty?.[d] || 0; const div = cel('div', { class: 'planner-qty-group' }); div.innerHTML = `<label>${d}</label><input type="number" class="edit-qty" data-dept="${d}" value="${qty}" min="0">`; qtyHost.appendChild(div); }); const closeModal = () => document.body.removeChild(formContainer); formContainer.querySelector('#edit_j_save').onclick = async () => { const newQty = {}; qtyHost.querySelectorAll('.edit-qty').forEach(inp => { newQty[inp.dataset.dept] = parseInt(inp.value, 10) || 0; }); const updates = { date: formContainer.querySelector('#edit_j_date').value, cut: formContainer.querySelector('#edit_j_cut').value, qty: newQty, }; loadingOverlay.style.display = 'flex'; const { error } = await supabaseClient.from('jobs').update(updates).eq('id', jobId); loadingOverlay.style.display = 'none'; if (error) { alert('อัปเดตล้มเหลว: ' + error.message); } else { alert('อัปเดตสำเร็จ'); closeModal(); } }; formContainer.querySelector('#edit_j_cancel').onclick = closeModal; formContainer.querySelector('.modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); }); }
+            
+            function showJobEditor(jobId) { /* ... โค้ดส่วน Editor เหมือนเดิม ... */
+                const job = state.jobs.find(j => j.id == jobId); if (!job) return; const formContainer = document.createElement('div'); formContainer.id = 'job-editor-modal-container'; formContainer.innerHTML = `<div class="modal-overlay" style="display: flex;"><div class="modal-content" style="max-width: 600px;"><h2 id="job-editor-title">แก้ไขใบงาน: ${job.name}</h2><div id="job-editor-form"><div class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px;"><div class="planner-form-group"><label for="edit_j_date">วันที่</label><input type="date" id="edit_j_date" value="${job.date}"></div><div class="planner-form-group"><label for="edit_j_cut">เวลาตัด</label><input type="time" id="edit_j_cut" value="${job.cut || ''}"></div></div><h3 class="planner-section-title">จำนวนต่อแผนก</h3><div id="edit_j_qty" class="planner-form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px 20px;"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="edit_j_cancel">ยกเลิก</button><button type="button" class="btn btn-primary" id="edit_j_save">บันทึก</button></div></div></div></div>`; document.body.appendChild(formContainer); const qtyHost = formContainer.querySelector('#edit_j_qty'); const depts = ['STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK']; depts.forEach(d => { const qty = job.qty?.[d] || 0; const div = cel('div', { class: 'planner-qty-group' }); div.innerHTML = `<label>${d}</label><input type="number" class="edit-qty" data-dept="${d}" value="${qty}" min="0">`; qtyHost.appendChild(div); }); const closeModal = () => document.body.removeChild(formContainer); formContainer.querySelector('#edit_j_save').onclick = async () => { const newQty = {}; qtyHost.querySelectorAll('.edit-qty').forEach(inp => { newQty[inp.dataset.dept] = parseInt(inp.value, 10) || 0; }); const updates = { date: formContainer.querySelector('#edit_j_date').value, cut: formContainer.querySelector('#edit_j_cut').value, qty: newQty, }; loadingOverlay.style.display = 'flex'; const { error } = await supabaseClient.from('jobs').update(updates).eq('id', jobId); loadingOverlay.style.display = 'none'; if (error) { alert('อัปเดตล้มเหลว: ' + error.message); } else { alert('อัปเดตสำเร็จ'); closeModal(); } }; formContainer.querySelector('#edit_j_cancel').onclick = closeModal; formContainer.querySelector('.modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+            }
+
+            // MODIFIED: รองรับการ Export เฉพาะที่เลือก
             function exportJobsForSorting() {
-    const qDate = el('#j_date').value;
-    const qStr = (el('#j_search').value || '').toLowerCase();
+                const checkedCheckboxes = container.querySelectorAll('.job-checkbox:checked');
+                const checkedIds = Array.from(checkedCheckboxes).map(cb => String(cb.dataset.id));
 
-    // กรองข้อมูลและเรียงลำดับเวลาจาก น้อย ไป มาก
-    const filteredJobs = state.jobs
-        .filter(j => !qDate || sameDay(j.date, qDate))
-        .filter(j => !qStr || j.name.toLowerCase().includes(qStr))
-        .sort((a, b) => (a.cut || "").localeCompare(b.cut || "")); // เรียง 09:00 -> 10:00
+                let jobsToExport;
 
-    if (filteredJobs.length === 0) {
-        alert('ไม่พบใบงานสำหรับ Export');
-        return;
-    }
+                if (checkedIds.length > 0) {
+                    // 1. ถ้ามีการติ๊กเลือก -> Export เฉพาะที่เลือก
+                    jobsToExport = state.jobs.filter(j => checkedIds.includes(String(j.id)));
+                } else {
+                    // 2. ถ้าไม่มีการติ๊กเลย -> Export ทั้งหมดที่กำลังแสดงอยู่ในตาราง (ตาม Filter)
+                    const qDate = el('#j_date').value;
+                    const qStr = (el('#j_search').value || '').toLowerCase();
+                    jobsToExport = state.jobs.filter(j => {
+                        const dateMatch = !qDate || sameDay(j.date, qDate);
+                        const searchMatch = !qStr || j.name.toLowerCase().includes(qStr);
+                        return dateMatch && searchMatch;
+                    });
+                }
 
-    const headers = ['date', 'name', 'cut', 'STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
-    const dataToExport = filteredJobs.map(job => {
-        const qty = job.qty || {};
-        return [
-            job.date,
-            job.name,
-            job.cut || '',
-            qty.STAMP || 0,
-            qty.STK || 0,
-            qty.CTT || 0,
-            qty.LASER || 0,
-            qty.TUBE || 0,
-            qty.PACK || 0
-        ];
-    });
+                // เรียงลำดับตามเวลาตัด
+                jobsToExport.sort((a, b) => (a.cut || "").localeCompare(b.cut || ""));
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs");
-    
-    const today = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(workbook, `Jobs_For_Sorting_${today}.xlsx`);
-}
+                if (jobsToExport.length === 0) {
+                    alert('ไม่พบใบงานสำหรับ Export');
+                    return;
+                }
+
+                const headers = ['date', 'name', 'cut', 'STAMP', 'STK', 'CTT', 'LASER', 'TUBE', 'PACK'];
+                const dataToExport = jobsToExport.map(job => {
+                    const qty = job.qty || {};
+                    return [
+                        job.date,
+                        job.name,
+                        job.cut || '',
+                        qty.STAMP || 0,
+                        qty.STK || 0,
+                        qty.CTT || 0,
+                        qty.LASER || 0,
+                        qty.TUBE || 0,
+                        qty.PACK || 0
+                    ];
+                });
+
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs");
+                
+                const today = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(workbook, `Jobs_For_Sorting_${today}.xlsx`);
+            }
+
             function setupRealtimeSubscriptions() { const jobChannel = supabaseClient.channel('public:jobs'); jobChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, async (payload) => { await internal_load(); }).subscribe(); }
             return { initializeApp };
         })();
