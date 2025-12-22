@@ -2738,7 +2738,23 @@
                 let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
                 orderGroup.forEach(item => {
                     const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
-                    tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}"><td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td><td>${item.product_name || ''}</td><td>${item.shelf_location || ''}</td><td>${item.ink_color || ''}</td><td>${combinedPattern}</td><td>${item.details || ''}</td><td>${item.notes || ''}</td><td>${item.file_attachment || ''}</td></tr>`;
+                    // เพิ่มบรรทัดสำหรับล้างรหัส SET ออกก่อนแสดงผล
+const displayNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+
+tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
+    <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
+    <td>${item.product_name || ''}</td>
+    <td>${item.shelf_location || ''}</td>
+    <td>${item.ink_color || ''}</td>
+    <td>${combinedPattern}</td>
+    <td>${item.details || ''}</td>
+    <td>${displayNotes}</td> <!-- ใช้ตัวแปร displayNotes ที่ล้างรหัสแล้ว -->
+    <td>
+    ${item.file_attachment && item.file_attachment.startsWith('http') 
+        ? `<a href="${item.file_attachment}" target="_blank" style="color: #0071e3; text-decoration: underline; word-break: break-all;">เปิดลิงก์</a>` 
+        : (item.file_attachment || '')}
+</td>
+</tr>`;
                 });
                 tableHTML += "</tbody></table>";
                 
