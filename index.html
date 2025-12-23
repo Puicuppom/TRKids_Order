@@ -2648,6 +2648,7 @@ window.packingSystem = (() => {
                         'shelf_location': item.product_type,
                         'cartoon_pattern': item.cartoon_pattern,
                         'line_pattern': item.line_pattern,
+	     'font': item.font,
                         'item_uid': item.item_uid,
                         'scanned': item.packing_status === 'สแกนแล้ว',
                         'parcelScanned': isParcelScanned,
@@ -2712,7 +2713,7 @@ window.packingSystem = (() => {
 
         let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${orderGroup.length}</span></div></div>`;
         
-        let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
+        let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>ฟอนต์</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
         
         orderGroup.forEach(item => {
             const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
@@ -2723,15 +2724,16 @@ window.packingSystem = (() => {
                 : (item.file_attachment || '');
 
             tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
-                <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
-                <td>${item.product_name || ''}</td>
-                <td>${item.shelf_location || ''}</td>
-                <td>${item.ink_color || ''}</td>
-                <td>${combinedPattern}</td>
-                <td>${item.details || ''}</td>
-                <td>${displayNotes}</td>
-                <td>${fileLink}</td>
-            </tr>`;
+    <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
+    <td>${item.product_name || ''}</td>
+    <td>${item.shelf_location || ''}</td>
+    <td>${item.ink_color || ''}</td>
+    <td>${combinedPattern}</td>
+    <td>${item.font || ''}</td> 
+    <td>${item.details || ''}</td>
+    <td>${displayNotes}</td>
+    <td>${fileLink}</td>
+</tr>`;
         });
         tableHTML += "</tbody></table>";
         
