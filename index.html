@@ -1483,9 +1483,14 @@
                     }
                     
                     container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
+                    const sortedItems = (order.order_items || []).sort((a, b) => {
+                        return (a.item_uid || "").localeCompare(b.item_uid || "", undefined, {numeric: true, sensitivity: 'base'});
+                    });
 
-                    const itemGroups = {};
-                    (order.order_items || []).forEach(item => {
+                    const itemGroups = []; 
+                    const groupMap = {};
+
+                    sortedItems.forEach(item => {
                         const product = fullProductList.find(p => p.id === item.product_id);
                         let uniqueKeyPart = '';
                         if (product && product.product_category && product.product_category.toUpperCase().includes('CONDO STAMP')) {
@@ -1494,14 +1499,15 @@
 
                         const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes, item.file_attachment, uniqueKeyPart].join('||');
                         
-                        if (!itemGroups[key]) {
-                            itemGroups[key] = { ...item, quantity: 1 };
+                        if (!groupMap[key]) {
+                            groupMap[key] = { ...item, quantity: 1 };
+                            itemGroups.push(groupMap[key]);
                         } else {
-                            itemGroups[key].quantity++;
+                            groupMap[key].quantity++;
                         }
                     });
 
-                    Object.values(itemGroups).forEach(groupedItem => { addItemRow(groupedItem); });
+                    itemGroups.forEach(groupedItem => { addItemRow(groupedItem); });
 
                     if (order.billing_details) {
                         const details = order.billing_details;
