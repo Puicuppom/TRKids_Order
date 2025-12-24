@@ -1679,11 +1679,13 @@
                     }
                     
                     let billNo;
+                    let currentWorkOrderName = null; // เก็บชื่อใบงานไว้ใช้คำนวณ Planner
                     if (!isUpdate) {
                         billNo = await generateNextBillNo(channelCode);
                     } else {
                         const order = allOrdersData.find(o => o.id === currentEditingOrderId);
                         billNo = order.bill_no;
+                        currentWorkOrderName = order.work_order_name; // ดึงชื่อใบงานเดิม (ถ้ามี)
                     }
                     
                     const taxInvoiceData = {
@@ -1742,6 +1744,7 @@
                         upsertedOrderId = insertedOrder.id;
                     }
                     
+                    // ลบรายการเดิมออกเพื่อเตรียมใส่ใหม่ (สำหรับการ Update)
                     await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
                     
                     const condoGroups = new Map();
@@ -1788,10 +1791,34 @@
                             allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` });
                         }
                     }
+                    
                     if (allItemsToInsert.length > 0) {
                         const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
                         if (itemsError) throw itemsError;
                     }
+
+                    // --- ส่วนที่เพิ่มใหม่: อัปเดต Planner เมื่อมีการแก้ไขบิลที่มีใบงานแล้ว ---
+                    if (isUpdate && currentWorkOrderName) {
+                        // 1. ดึงข้อมูลอัปเดตของบิลและไอเทมในใบงานนั้นใหม่จาก Database
+                        const { data: refreshedOrders, error: refreshError } = await supabaseClient
+                            .from('orders')
+                            .select('*, order_items(*)')
+                            .eq('work_order_name', currentWorkOrderName);
+
+                        if (!refreshError && refreshedOrders) {
+                            // 2. อัปเดตตัวแปร allOrdersData ในเครื่องให้เป็นปัจจุบัน
+                            refreshedOrders.forEach(refOrder => {
+                                const idx = allOrdersData.findIndex(o => o.id === refOrder.id);
+                                if (idx > -1) {
+                                    allOrdersData[idx] = refOrder;
+                                }
+                            });
+
+                            // 3. เรียกฟังก์ชันคำนวณยอดใน Planner ใหม่
+                            await updatePlannerJob(currentWorkOrderName, []);
+                        }
+                    }
+
                     alert(isUpdate ? 'อัปเดตสำเร็จ!' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
                     setFormMode('create');
                 } catch (error) {
@@ -2836,23 +2863,28 @@ window.packingSystem = (() => {
                 const group = aggregatedData[index];
                 if (group && !group[0].isOrderComplete) ids.push(group[0].order_id);
             });
-            if (ids.length === 0) { alert("ไม่มีบิลที่แสกนครบรอส่ง"); loadingOverlay.style.display = 'none'; return; }
+            if (ids.length === 0) { 
+                alert("ไม่มีบิลที่แสกนครบรอส่ง"); 
+                loadingOverlay.style.display = 'none'; 
+                return; 
+            }
 
             const { error } = await supabaseClient.from('orders').update({
-                status: 'จัดส่งแล้ว', shipped_by: loggedInUsername, shipped_time: new Date().toISOString()
+                status: 'จัดส่งแล้ว', 
+                shipped_by: loggedInUsername, 
+                shipped_time: new Date().toISOString()
             }).in('id', ids);
+            
             if (error) throw error;
-
-            const { data: job } = await supabaseClient.from('jobs').select('qty').eq('name', currentWorkOrderName).single();
-            if (job) {
-                const newQty = { ...job.qty };
-                newQty.PACK = Math.max(0, (newQty.PACK || 0) - ids.length);
-                await supabaseClient.from('jobs').update({ qty: newQty }).eq('name', currentWorkOrderName);
-            }
+            
             alert(`จัดส่งสำเร็จ ${ids.length} รายการ!`);
             successSound.play();
             await loadPackingData(currentWorkOrderName);
-        } catch (err) { alert(err.message); } finally { loadingOverlay.style.display = 'none'; }
+        } catch (err) { 
+            alert(err.message); 
+        } finally { 
+            loadingOverlay.style.display = 'none'; 
+        }
     }
 
     function updateFinalizeButtonVisibility() {
