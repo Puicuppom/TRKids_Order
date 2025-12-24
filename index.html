@@ -1973,23 +1973,48 @@
 
                 const statusesToExport = ['ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)', 'จัดส่งแล้ว'];
                 
+                // --- แก้ไขตรรกะการกรองข้อมูล (Filter) ---
                 const ordersToExport = allOrdersData.filter(order => {
                     const statusMatch = statusesToExport.includes(order.status);
-                    const dateMatch = order.entry_date && order.entry_date >= startDate && order.entry_date <= endDate;
+                    
+                    // 1. วันที่สร้างบิล (YYYY-MM-DD)
+                    const createdDate = order.created_at ? order.created_at.substring(0, 10) : null;
+                    
+                    // 2. วันที่สแกนส่งจาก packing_meta (YYYY-MM-DD)
+                    const scanDate = (order.packing_meta && order.packing_meta.scanTime) ? order.packing_meta.scanTime.substring(0, 10) : null;
+
+                    // เงื่อนไข: บิลใหม่ที่สร้างในช่วงวันที่เลือก OR บิลเก่าที่เพิ่งมาแสกนส่งในช่วงวันที่เลือก
+                    const isNewOrder = (createdDate >= startDate && createdDate <= endDate);
+                    const isScannedInRange = (scanDate >= startDate && scanDate <= endDate);
+
+                    const dateMatch = isNewOrder || isScannedInRange;
+                    
                     return statusMatch && dateMatch;
                 });
 
                 if (ordersToExport.length === 0) {
-                    return alert('ไม่พบข้อมูลในสถานะและช่วงวันที่ที่เลือก');
+                    return alert('ไม่พบข้อมูลในช่วงวันที่เลือก');
                 }
                 
                 loadingOverlay.style.display = 'flex';
 
                 try {
-                    const headers = ['เลขบิล', 'Item UID', 'ชื่อสินค้า', 'หมวดหมู่', 'รายละเอียดสินค้า', 'สถานะ', 'ประเภทเคลม', 'รายละเอียดเคลม'];
+                    const headers = ['เลขบิล', 'Item UID', 'ชื่อสินค้า', 'หมวดหมู่', 'รายละเอียดสินค้า', 'สถานะ', 'เวลาสแกนส่ง', 'ประเภทเคลม', 'รายละเอียดเคลม'];
                     const dataToExport = [];
 
                     ordersToExport.forEach(order => {
+                        const createdDate = order.created_at ? order.created_at.substring(0, 10) : null;
+                        const scanDate = (order.packing_meta && order.packing_meta.scanTime) ? order.packing_meta.scanTime.substring(0, 10) : null;
+                        
+                        // --- ตรรกะแยกสถานะ "ค้างจากวันก่อน" ---
+                        let displayStatus = order.status;
+                        if (order.status === 'จัดส่งแล้ว' && scanDate) {
+                            // ถ้าสแกนส่งในช่วงที่เลือก แต่บิลนั้นสร้างก่อนช่วงวันที่เริ่ม (งานค้าง)
+                            if ((scanDate >= startDate && scanDate <= endDate) && (createdDate < startDate)) {
+                                displayStatus = 'จัดส่งแล้ว (ค้างจากวันก่อน)';
+                            }
+                        }
+
                         if (order.order_items && order.order_items.length > 0) {
                             order.order_items.forEach(item => {
                                 const productDetails = fullProductList.find(p => p.id === item.product_id);
@@ -2004,13 +2029,12 @@
                                     item.product_name,
                                     category,
                                     details,
-                                    order.status,
+                                    displayStatus, // ใช้สถานะที่แยกงานค้างแล้ว
+                                    scanDate ? new Date(order.packing_meta.scanTime).toLocaleString('th-TH') : '-',
                                     order.claim_type || '',
                                     order.claim_details || ''
                                 ]);
                             });
-                        } else {
-                            dataToExport.push([order.bill_no, 'N/A', 'N/A', 'N/A', 'No items in this order', order.status, order.claim_type || '', order.claim_details || '']);
                         }
                     });
 
@@ -2019,7 +2043,7 @@
                     XLSX.utils.book_append_sheet(workbook, worksheet, "Master Status Report");
 
                     worksheet['!cols'] = [
-                        { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 15 }, { wch: 25 }, { wch: 40 }
+                        { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 50 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 40 }
                     ];
 
                     XLSX.writeFile(workbook, `Master_Status_Report_${startDate}_to_${endDate}.xlsx`);
@@ -2345,10 +2369,9 @@
 
             function initializeEventListeners() {
                 if (eventListenersInitialized) return;
-                const today = new Date();
-                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                document.getElementById('master-status-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
-                document.getElementById('master-status-end-date').value = today.toISOString().split('T')[0];
+                const today = new Date().toISOString().split('T')[0]; // ดึงวันที่ปัจจุบัน YYYY-MM-DD
+	document.getElementById('master-status-start-date').value = today; // ตั้งเป็นวันนี้
+	document.getElementById('master-status-end-date').value = today; // ตั้งเป็นวันนี้
 
                 document.getElementById('export-master-status-btn').addEventListener('click', exportMasterStatusReport);
                 container.querySelector('#channel-summary-container').addEventListener('click', (e) => { if (e.target.matches('.channel-summary-item')) { const channel = e.target.dataset.channel; container.querySelector('#filter-complete').value = channel; renderAllTabs(); } });
@@ -3060,10 +3083,9 @@ window.packingSystem = (() => {
                 categoryFilter = container.querySelector('#report-category-filter');
                 productSearch = container.querySelector('#report-product-search');
 
-                const today = new Date();
-                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
-                endDateInput.value = today.toISOString().split('T')[0];
+                const todayStr = new Date().toLocaleDateString('en-CA'); // จะได้ฟอร์แมต YYYY-MM-DD ตามเวลาท้องถิ่น
+	document.getElementById('master-status-start-date').value = todayStr;
+	document.getElementById('master-status-end-date').value = todayStr;
 
                 generateBtn.addEventListener('click', generateReport);
                 exportBtn.addEventListener('click', exportToExcel);
