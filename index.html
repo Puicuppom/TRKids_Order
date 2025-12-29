@@ -991,7 +991,7 @@
             const taxCustomerAddressInput = document.getElementById('tax-customer-address');
             const vatDisplayContainer = document.getElementById('vat-display-container');
             const vatAmountInput = document.getElementById('vat_amount');
-
+            let searchDebounceTimer; 
             let eventListenersInitialized = false; 
             let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
             let currentUserRole = null;
@@ -999,6 +999,91 @@
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
             const ecommerceChannels = ['SPTR', 'FSPTR', 'LZTR', 'TTTR', 'SHOP'];
+ async function performDatabaseSearch(searchTerm) {
+                try {
+                    // ค้นหาจาก เลขบิล, ชื่อลูกค้า หรือ เลขพัสดุ
+                    const { data, error } = await supabaseClient
+                        .from('orders')
+                        .select('*, order_items(*)')
+                        .or(`bill_no.ilike.%${searchTerm}%,customer_name.ilike.%${searchTerm}%,tracking_number.ilike.%${searchTerm}%`)
+                        .order('created_at', { ascending: false })
+                        .limit(100);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        allOrdersData = data; // อัปเดตข้อมูลที่จะแสดงผล
+                        renderAllTabs();     // วาดตารางใหม่
+                    }
+                } catch (err) {
+                    console.error('Search Error:', err);
+                }
+            }
+
+            async function initializeApp(username, role) {
+                adminUserInput.value = username;
+                currentUserRole = role;
+                $('#promotion').select2({ tags: true, placeholder: 'เลือกหรือพิมพ์โปรโมชันใหม่', tokenSeparators: [','] });
+                await loadInitialData(); 
+                setFormMode('create'); 
+                initializeEventListeners();
+                setupRealtimeSubscriptions();
+                document.getElementById('upload-slip-btn').addEventListener('click', () => document.getElementById('slip-file-input').click());
+                document.getElementById('slip-file-input').addEventListener('change', (e) => slipProcessor.process(e.target.files[0]));
+            }
+            
+            async function loadInitialData(isSilent = false) {
+                if (window.isLoadingData) return;
+                window.isLoadingData = true;
+
+                if (!isSilent) {
+                    loadingOverlay.style.display = 'flex';
+                }
+                try {
+                    // 1. ดึงข้อมูลสินค้า, ช่องทาง, หมึก, โปรโมชั่น และใบงานที่ยังผลิตไม่เสร็จก่อน
+                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
+                        supabaseClient.from('products').select('*'),
+                        supabaseClient.from('channels').select('channel_code, channel_name'),
+                        supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
+                        supabaseClient.from('ink_types').select('ink_name').order('id'),
+                        supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
+                    ]);
+
+                    if (productsRes.error) throw new Error('Could not load products');
+                    fullProductList = productsRes.data;
+                    productList = productsRes.data.filter(p => p.is_active !== false).map(p => ({ id: p.id, text: p.product_name }));
+                    
+                    if (channelsRes.error) throw new Error('Could not load channels');
+                    channelList = channelsRes.data; if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
+                    
+                    if (inkTypesRes.error) throw new Error('Could not load ink types');
+                    inkTypeList = inkTypesRes.data;
+
+                    if (workOrdersRes.error) throw new Error('Could not load work orders');
+                    allWorkOrdersData = workOrdersRes.data;
+
+                    // 2. ดึงข้อมูลออร์เดอร์แบบเจาะจง:
+                    // - ดึงทุกออร์เดอร์ที่สถานะ "รอลงข้อมูล", "ลงข้อมูลเสร็จสิ้น", "ใบงาน (กำลังผลิต)" (เพื่อให้หน้าใบงานไม่เป็น 0)
+                    // - และดึง "จัดส่งแล้ว" หรือ "ยกเลิก" เฉพาะ 300 รายการล่าสุด
+                    const { data: ordersData, error: ordersError } = await supabaseClient
+                        .from('orders')
+                        .select('*, order_items(*)')
+                        .or('status.eq.รอลงข้อมูล,status.eq.ลงข้อมูลเสร็จสิ้น,status.eq.ใบงาน (กำลังผลิต),status.in.(จัดส่งแล้ว,ยกเลิก)')
+                        .order('created_at', { ascending: false })
+                        .limit(2000); // เพิ่มขีดจำกัดเป็น 2000 เพื่อให้ครอบคลุมงานค้างทั้งหมด
+
+                    if (ordersError) throw ordersError;
+                    allOrdersData = ordersData;
+                    
+                    renderAllTabs();
+                } catch(err) { 
+                    console.error(err); 
+                    alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
+                } finally { 
+                    if (!isSilent) loadingOverlay.style.display = 'none'; 
+                    setTimeout(() => { window.isLoadingData = false; }, 500); 
+                }
+            }
 
             async function initializeApp(username, role) {
                 adminUserInput.value = username;
@@ -1127,7 +1212,8 @@
             }
             
             function renderAllTabs() {
-                const searchTerms = { waiting: (container.querySelector('#search-waiting')?.value || '').toLowerCase(), complete: (container.querySelector('#search-complete')?.value || '').toLowerCase(), cancelled: (container.querySelector('#search-cancelled')?.value || '').toLowerCase(), shipped: (container.querySelector('#search-shipped')?.value || '').toLowerCase(), work_orders: (container.querySelector('#search-work-orders')?.value || '').toLowerCase() };
+                const globalSearchTerm = (container.querySelector('#search-complete')?.value || '').toLowerCase().trim();
+                const searchTerms = { waiting: globalSearchTerm, complete: globalSearchTerm, cancelled: globalSearchTerm, shipped: globalSearchTerm, work_orders: globalSearchTerm };
                 const filters = { waiting: container.querySelector('#filter-waiting').value, complete: container.querySelector('#filter-complete').value, cancelled: container.querySelector('#filter-cancelled').value, shipped: container.querySelector('#filter-shipped').value, work_orders: container.querySelector('#filter-work-orders').value };
                 const lists = { 'รอลงข้อมูล': container.querySelector('#tab-waiting .order-list'), 'ลงข้อมูลเสร็จสิ้น': container.querySelector('#tab-complete .order-list'), 'ยกเลิก': container.querySelector('#tab-cancelled .order-list'), 'จัดส่งแล้ว': container.querySelector('#tab-shipped .order-list') };
                 const summaryContainer = container.querySelector('#channel-summary-container');
@@ -2579,7 +2665,36 @@
 
                 tabLinks.forEach(link => { link.addEventListener('click', (e) => openTab(e, e.target.dataset.tab)); });
                 ['filter-waiting', 'filter-complete', 'filter-cancelled', 'filter-shipped', 'filter-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('change', renderAllTabs); });
-                ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled', 'search-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('input', renderAllTabs); });
+                // ปรับปรุงระบบค้นหาอัตโนมัติขณะพิมพ์ (บรรทัดประมาณ 1200 กว่าๆ)
+                // --- แก้ไขจุดที่ 2: ระบบเชื่อมโยงช่องค้นหา (Synced Search) ---
+                const searchInputIds = ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled', 'search-work-orders'];
+                searchInputIds.forEach(id => {
+                    const el = container.querySelector(`#${id}`);
+                    if (el) {
+                        el.addEventListener('input', (e) => {
+                            const query = e.target.value; 
+                            // ทำให้ทุกช่องค้นหาในหน้าอื่นมีข้อความเหมือนกันทันที
+                            searchInputIds.forEach(otherId => {
+                                const otherEl = container.querySelector(`#${otherId}`);
+                                if (otherEl && otherEl !== e.target) {
+                                    otherEl.value = query;
+                                }
+                            });
+
+                            renderAllTabs(); // กรองสิ่งที่แสดงอยู่หน้าจอ
+
+                            clearTimeout(searchDebounceTimer);
+                            searchDebounceTimer = setTimeout(async () => {
+                                const trimmedQuery = query.trim();
+                                if (trimmedQuery.length >= 3) {
+                                    await performDatabaseSearch(trimmedQuery);
+                                } else if (trimmedQuery.length === 0) {
+                                    await loadInitialData(true); 
+                                }
+                            }, 600);
+                        });
+                    }
+                });
                 document.getElementById('download-template-btn').addEventListener('click', downloadStandardOrderTemplate); document.getElementById('download-pgtr-template-btn')?.addEventListener('click', downloadPgtrTemplate); document.getElementById('download-wy-template-btn')?.addEventListener('click', downloadWyTemplate);
                 
                 importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click()); 
@@ -3470,10 +3585,3 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
-
-
-
-
-
-
-
