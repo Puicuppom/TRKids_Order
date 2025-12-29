@@ -3161,15 +3161,39 @@ window.packingSystem = (() => {
                 reportPlaceholder.textContent = 'กำลังดึงข้อมูล...';
                 reportTbody.innerHTML = '';
                 exportBtn.style.display = 'none';
+
                 try {
-                    const { data, error } = await supabaseClient.from('orders')
-                        .select('channel_code, order_items(*, products(product_code, product_category))')
-                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate).limit(100000);;
-                    if (error) throw error;
+                    let allData = [];
+                    let from = 0;
+                    let to = 999;
+                    let hasMore = true;
+
+                    // --- วนลูปดึงข้อมูลทีละ 1,000 จนกว่าจะหมด ---
+                    while (hasMore) {
+                        const { data, error } = await supabaseClient.from('orders')
+                            .select('channel_code, order_items(*, products(product_code, product_category))')
+                            .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
+                            .gte('entry_date', startDate)
+                            .lte('entry_date', endDate)
+                            .range(from, to); // ใช้ range แทน limit เพื่อดึงข้อมูลเป็นชุดๆ
+
+                        if (error) throw error;
+
+                        allData = allData.concat(data);
+                        
+                        if (data.length < 1000) {
+                            hasMore = false; // ถ้าได้ข้อมูลมาไม่ถึง 1,000 แสดงว่าหมดแล้ว
+                        } else {
+                            from += 1000;
+                            to += 1000;
+                        }
+                    }
                     
                     const productMap = new Map();
                     const channelSet = new Set();
-                    data.forEach(order => {
+
+                    // ใช้ allData ที่ดึงมาครบแล้วในการคำนวณ
+                    allData.forEach(order => {
                         const channel = (order.channel_code || 'N/A').toUpperCase();
                         channelSet.add(channel);
                         (order.order_items || []).forEach(item => {
@@ -3190,9 +3214,11 @@ window.packingSystem = (() => {
                             }
                         });
                     });
+
                     allChannels = Array.from(channelSet).sort();
                     reportData = Array.from(productMap.values());
                     renderReportTable();
+
                 } catch (err) {
                     console.error('Error generating report:', err);
                     reportPlaceholder.textContent = 'เกิดข้อผิดพลาดในการสร้างรายงาน: ' + err.message;
