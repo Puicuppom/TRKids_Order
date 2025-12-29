@@ -1180,7 +1180,7 @@
                     const groupEl = document.createElement('div'); groupEl.className = 'work-order-group'; let billsHTML = '<ul class="order-list">';
                     billsInWorkOrder.sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || '')).forEach(bill => { const trackingHTML = bill.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; billsHTML += `<li class="order-list-item" data-order-id="${bill.id}"><input type="checkbox" class="order-checkbox"><div class="order-info"><div><strong data-order-id="${bill.id}">${bill.bill_no}</strong><span class="customer-info">${bill.customer_name || 'N/A'}</span></div></div>${trackingHTML}</li>`; });
                     billsHTML += '</ul>';
-                    const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR']; const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
+                    const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR', 'SHOP']; const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
                     
                     let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button>`;
                     if (isWaybillSortChannel) { actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
@@ -3470,6 +3470,7 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
+
 
 
 
