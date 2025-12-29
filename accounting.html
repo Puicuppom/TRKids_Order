@@ -355,30 +355,44 @@
                 summaryContainer.innerHTML = '';
 
                 try {
-                    // Removed: const selectedChannels = channelFilterSelect.val();
-                    
-                    let query = supabaseClient.from('orders').select('*')
-                        .gte('payment_date', startDate)
-                        .lte('payment_date', endDate)
-                        .not('status', 'eq', 'ยกเลิก')
-                        .not('payment_date', 'is', null);
+                    let allFetchedOrders = [];
+                    let from = 0;
+                    let to = 999;
+                    let hasMore = true;
 
-                    // Removed: Filtering logic for channel_code based on dropdown
+                    // --- วนลูปดึงข้อมูลจนกว่าจะครบทุกแถว (แก้ปัญหายอดขายมาไม่ครบ) ---
+                    while (hasMore) {
+                        let query = supabaseClient.from('orders').select('*')
+                            .gte('payment_date', startDate)
+                            .lte('payment_date', endDate)
+                            .not('status', 'eq', 'ยกเลิก')
+                            .not('payment_date', 'is', null)
+                            .range(from, to); // ดึงทีละ 1,000 แถว
 
-                    if (customerKeyword) {
-                        query = query.ilike('customer_name', `%${customerKeyword}%`);
+                        if (customerKeyword) {
+                            query = query.ilike('customer_name', `%${customerKeyword}%`);
+                        }
+                        if (amountKeyword) {
+                            query = query.eq('total_amount', amountKeyword);
+                        }
+
+                        const { data: orders, error } = await query.order('payment_date', { ascending: true });
+                        if (error) throw error;
+                        
+                        allFetchedOrders = allFetchedOrders.concat(orders);
+
+                        if (orders.length < 1000) {
+                            hasMore = false; // ถ้าได้มาไม่ถึง 1,000 แสดงว่าหมดแล้ว
+                        } else {
+                            from += 1000;
+                            to += 1000;
+                        }
                     }
-
-                    if (amountKeyword) {
-                        query = query.eq('total_amount', amountKeyword);
-                    }
-
-                    const { data: orders, error } = await query.order('bill_no', { ascending: true });
-                    if (error) throw error;
                     
-                    currentReportData = orders;
-                    renderReportResults(orders);
-                    if (orders.length > 0) {
+                    currentReportData = allFetchedOrders;
+                    renderReportResults(allFetchedOrders);
+                    
+                    if (allFetchedOrders.length > 0) {
                         exportXlsxBtn.disabled = false;
                         exportPngBtn.disabled = false;
                     }
