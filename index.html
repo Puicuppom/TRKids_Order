@@ -3164,7 +3164,7 @@ window.packingSystem = (() => {
                 try {
                     const { data, error } = await supabaseClient.from('orders')
                         .select('channel_code, order_items(*, products(product_code, product_category))')
-                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate);
+                        .in('status', ['จัดส่งแล้ว', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)']).gte('entry_date', startDate).lte('entry_date', endDate).limit(100000);;
                     if (error) throw error;
                     
                     const productMap = new Map();
@@ -3444,5 +3444,6 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
+
 
 
