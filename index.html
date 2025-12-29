@@ -1076,7 +1076,7 @@
                     const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
                         // แก้บรรทัดนี้: เปลี่ยน ascending เป็น false และเพิ่ม limit
-                        supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(10000), 
+                        supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(100000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
@@ -3444,6 +3444,7 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
+
 
 
 
