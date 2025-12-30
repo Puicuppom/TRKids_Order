@@ -1516,19 +1516,14 @@
                 
                 const claimSection = document.getElementById('claim-details-section');
                 claimSection.style.display = 'none';
-                document.getElementById('claim_type').value = '';
-                document.getElementById('claim_details').value = '';
                 
+                // คืนค่าสถานะ Disabled ให้กับทุกอย่างก่อน
                 const allControls = orderForm.querySelectorAll('input, select, textarea, button');
                 allControls.forEach(el => el.disabled = false);
                 $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', false).trigger('change');
                 addItemBtn.style.display = 'block';
                 document.getElementById('upload-slip-btn').style.display = 'block';
                 document.getElementById('payment-info-section').style.display = 'block';
-                
-                const channelDropdown = container.querySelector('#channel_code');
-                const claimOption = channelDropdown ? channelDropdown.querySelector('option[value="CLAIM"]') : null;
-                if (claimOption) { claimOption.style.display = (mode === 'create') ? 'none' : ''; }
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
@@ -1538,6 +1533,7 @@
                     container.querySelector('#form-title').textContent = `แก้ไข: ${order.bill_no}`;
                     currentEditingOrderId = order.id;
 
+                    // ใส่ข้อมูลลงฟิลด์ต่างๆ
                     Object.keys(order).forEach(key => {
                         const input = container.querySelector(`#${key}`);
                         if (input) {
@@ -1548,93 +1544,68 @@
                                         $('#promotion').append(newOption).trigger('change');
                                     }
                                     $('#promotion').val(order[key]).trigger('change');
-                                } else {
-                                    $(input).val(order[key]).trigger('change');
-                                }
-                            } else {
-                                input.value = order[key];
-                            }
+                                } else { $(input).val(order[key]).trigger('change'); }
+                            } else { input.value = order[key]; }
                         }
                     });
                     
                     if (order.channel_code === 'CLAIM') {
                         claimSection.style.display = 'block';
-                        document.getElementById('claim_type').value = order.claim_type || '';
-                        document.getElementById('claim_details').value = order.claim_details || '';
                         document.getElementById('payment-info-section').style.display = 'none';
                     }
 
-                    if (ecommerceChannels.includes(order.channel_code)) {
-                        container.querySelector('label[for="customer_address"]').textContent = 'เลขพัสดุ';
-                    }
-                    
-                    container.querySelector('#payment_time').value = order.payment_time ? order.payment_time.substring(0, 5) : '';
-                    const sortedItems = (order.order_items || []).sort((a, b) => {
-                        return (a.item_uid || "").localeCompare(b.item_uid || "", undefined, {numeric: true, sensitivity: 'base'});
-                    });
-
-                    const itemGroups = []; 
-                    const groupMap = {};
-
+                    // โหลดรายการสินค้า
+                    const sortedItems = (order.order_items || []).sort((a, b) => (a.item_uid || "").localeCompare(b.item_uid || "", undefined, {numeric: true}));
+                    const itemGroups = []; const groupMap = {};
                     sortedItems.forEach(item => {
                         const product = fullProductList.find(p => p.id === item.product_id);
-                        let uniqueKeyPart = '';
-                        if (product && product.product_category && product.product_category.toUpperCase().includes('CONDO STAMP')) {
-                           uniqueKeyPart = item.item_uid;
-                        }
-
+                        let uniqueKeyPart = (product && product.product_category && product.product_category.toUpperCase().includes('CONDO STAMP')) ? item.item_uid : '';
                         const key = [item.product_id, item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern, item.font, item.line_1, item.line_2, item.line_3, item.notes, item.file_attachment, uniqueKeyPart].join('||');
-                        
-                        if (!groupMap[key]) {
-                            groupMap[key] = { ...item, quantity: 1 };
-                            itemGroups.push(groupMap[key]);
-                        } else {
-                            groupMap[key].quantity++;
-                        }
+                        if (!groupMap[key]) { groupMap[key] = { ...item, quantity: 1 }; itemGroups.push(groupMap[key]); } else { groupMap[key].quantity++; }
                     });
-
                     itemGroups.forEach(groupedItem => { addItemRow(groupedItem); });
 
-                    if (order.billing_details) {
-                        const details = order.billing_details;
-                        requestTaxInvoiceCb.checked = details.request_tax_invoice || false;
-                        requestCashBillCb.checked = details.request_cash_bill || false;
+                    // --- ส่วนสำคัญ: ล็อคถ้า "จัดส่งแล้ว" ---
+                    if (order.status === 'จัดส่งแล้ว') {
+                        // 1. ล็อคข้อมูลลูกค้า
+                        container.querySelector('#channel_code').disabled = true;
+                        container.querySelector('#customer_name').disabled = true;
+                        container.querySelector('#customer_address').disabled = true;
+                        $(container.querySelector('#channel_code')).prop('disabled', true).trigger('change');
+
+                        // 2. ล็อคตารางสินค้าทั้งหมด (ล็อค Select2 และ Input ทุกช่อง)
+                        itemsTbody.querySelectorAll('input, select, button').forEach(el => {
+                            el.disabled = true;
+                        });
+                        $(itemsTbody).find('select').prop('disabled', true).trigger('change'); // ล็อค Select2 ในตาราง
+                        itemsTbody.querySelectorAll('.remove-item-btn').forEach(btn => btn.style.display = 'none'); // ซ่อนปุ่ม X
+                        addItemBtn.style.display = 'none'; // ซ่อนปุ่มเพิ่มแถว
                         
-                        if (requestTaxInvoiceCb.checked || requestCashBillCb.checked) {
-                            taxCustomerNameInput.value = details.tax_customer_name || '';
-                            taxCustomerAddressInput.value = details.tax_customer_address || '';
-                            document.getElementById('tax-id').value = details.tax_id || '';
-
-                            taxInvoiceSection.style.display = 'block';
-                            document.getElementById('tax-id').closest('.form-group').style.display = requestTaxInvoiceCb.checked ? 'block' : 'none';
-
-                            populateTaxItems(details.tax_items); 
+                        // 3. เปิดให้แก้ได้เฉพาะ "ข้อมูลการชำระเงิน"
+                        const paymentFields = ['price', 'shipping_cost', 'discount', 'payment_method', 'payment_date', 'payment_time'];
+                        paymentFields.forEach(id => { container.querySelector(`#${id}`).disabled = false; });
+                        $('#promotion').prop('disabled', false).trigger('change');
+                        
+                        document.getElementById('upload-slip-btn').style.display = 'none';
+                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-payment-only-btn">อัปเดตข้อมูลการชำระเงิน</button>`;
+                    } else {
+                        // สถานะอื่นๆ (ใบงาน/รอลงข้อมูล) ให้แสดงปุ่มปกติ
+                        if (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') {
+                            allControls.forEach(el => el.disabled = true);
+                            $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', true).trigger('change');
+                            addItemBtn.style.display = 'none';
+                            formActions.innerHTML = `<p>สถานะ: ${order.status} (ดูอย่างเดียว)</p>`;
+                        } else if (order.status === 'ใบงาน (กำลังผลิต)') {
+                            formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-work-order-bill-btn">อัปเดต</button>`;
+                        } else if (order.status === 'รอลงข้อมูล') {
+                            formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-waiting-btn">อัปเดต</button> <button type="button" class="btn btn-success" id="move-to-complete-btn">ย้ายไป "ข้อมูลครบ"</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
+                        } else if (order.status === 'ลงข้อมูลเสร็จสิ้น') {
+                            formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-complete-btn">อัปเดต</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
                         }
                     }
-
-                    const isViewOnly = (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') || order.status === 'จัดส่งแล้ว';
-
-                    if (isViewOnly) {
-                        formActions.innerHTML = `<p style="text-align: right; font-weight: bold; color: #555;">สถานะ: ${order.status} (ดูข้อมูลเท่านั้น)</p>`;
-                        allControls.forEach(el => { el.disabled = true; });
-                        $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', true).trigger('change');
-                        addItemBtn.style.display = 'none';
-                        itemsTbody.querySelectorAll('.remove-item-btn').forEach(btn => btn.style.display = 'none');
-                        document.getElementById('upload-slip-btn').style.display = 'none';
-                    } else if (order.status === 'ใบงาน (กำลังผลิต)') {
-                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-work-order-bill-btn">อัปเดต</button>`;
-                    } else if (order.status === 'รอลงข้อมูล') {
-                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-waiting-btn">อัปเดต</button> <button type="button" class="btn btn-success" id="move-to-complete-btn">ย้ายไป "ข้อมูลครบ"</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
-                    } else if (order.status === 'ลงข้อมูลเสร็จสิ้น') {
-                        formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-complete-btn">อัปเดต</button> <button type="button" class="btn btn-danger" id="cancel-bill-btn">ยกเลิกบิล</button>`;
-                    } else {
-                        formActions.innerHTML = `<p style="color: red; text-align: right;">ไม่สามารถแก้ไขได้ในสถานะนี้</p>`;
-                    }
                 }
-                
                 adminUserInput.readOnly = true;
                 container.querySelector('#total_amount').readOnly = true;
-
                 attachFormActionListeners(order);
                 calculateTotal();
             }
@@ -1717,207 +1688,88 @@
                 const isUpdate = !!currentEditingOrderId;
                 try {
                     const channelCode = container.querySelector('#channel_code').value;
-                    if (!channelCode) throw new Error("กรุณาเลือกช่องทาง (จำเป็นสำหรับการสร้างเลขบิล)");
-
-                    if (status === 'ลงข้อมูลเสร็จสิ้น') {
-                        const customerName = container.querySelector('#customer_name').value.trim();
-                        const customerAddressValue = container.querySelector('#customer_address').value.trim();
-                        const priceValue = container.querySelector('#price').value;
-                        const paymentMethod = container.querySelector('#payment_method').value;
-                        const paymentDateValue = container.querySelector('#payment_date').value;
-                        const paymentTimeValue = container.querySelector('#payment_time').value;
-
-                        if (!customerName) throw new Error("กรุณากรอกชื่อลูกค้า ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                        if (!customerAddressValue) {
-                            const addressLabel = container.querySelector('label[for="customer_address"]').textContent;
-                            throw new Error(`กรุณากรอกข้อมูลในช่อง "${addressLabel}" ก่อนบันทึกเป็น 'ข้อมูลครบ'`);
-                        }
-                        const hasAtLeastOneItem = Array.from(itemsTbody.rows).some(row => $(row).find('.item-product').select2('data')[0]?.id);
-                        if (!hasAtLeastOneItem) throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                        
-                        const categoriesForCartoonCheck = ['LASER', 'STAMP', 'UV-DTF'];
-                        for (const row of itemsTbody.rows) {
-                            const selectedData = $(row).find('.item-product').select2('data')[0];
-                            if (!selectedData || !selectedData.id) continue;
-
-                            const product = fullProductList.find(p => p.id == selectedData.id);
-                            if (product && product.product_category) {
-                                const categoryUpper = product.product_category.toUpperCase();
-
-                                const requiresCartoon = categoriesForCartoonCheck.some(cat => categoryUpper.includes(cat));
-                                if (requiresCartoon) {
-                                    const cartoonPattern = row.querySelector('.item-cartoon_pattern').value.trim();
-                                    if (!cartoonPattern) {
-                                        throw new Error(`กรุณากรอก "ลายการ์ตูน" สำหรับสินค้า: ${product.product_name}`);
-                                    }
-                                }
-                                
-                                if (categoryUpper.includes('STAMP')) {
-                                    const inkColor = row.querySelector('.item-ink_color').value;
-                                    if (!inkColor) {
-                                        throw new Error(`กรุณาเลือก "สีหมึก" สำหรับสินค้า STAMP: ${product.product_name}`);
-                                    }
-                                }
-                            }
-                        }
-
-                        if (channelCode !== 'CLAIM') {
-                            if (priceValue === '' || priceValue === null) throw new Error("กรุณากรอกราคา ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                            if (!paymentMethod) throw new Error("กรุณาเลือกวิธีการชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                            if (!paymentDateValue) throw new Error("กรุณาเลือกวันที่ชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                            if (!paymentTimeValue) throw new Error("กรุณากรอกเวลาที่ชำระ ก่อนบันทึกเป็น 'ข้อมูลครบ'");
-                        }
-                    }
-                    
                     let billNo;
-                    let currentWorkOrderName = null; // เก็บชื่อใบงานไว้ใช้คำนวณ Planner
+                    let currentStatus = status;
+
                     if (!isUpdate) {
                         billNo = await generateNextBillNo(channelCode);
                     } else {
                         const order = allOrdersData.find(o => o.id === currentEditingOrderId);
                         billNo = order.bill_no;
-                        currentWorkOrderName = order.work_order_name; // ดึงชื่อใบงานเดิม (ถ้ามี)
-                    }
-                    
-                    const taxInvoiceData = {
-                        request_tax_invoice: requestTaxInvoiceCb.checked,
-                        request_cash_bill: requestCashBillCb.checked,
-                        tax_customer_name: document.getElementById('tax-customer-name').value,
-                        tax_customer_address: document.getElementById('tax-customer-address').value,
-                        tax_id: document.getElementById('tax-id').value,
-                        tax_items: []
-                    };
-                    if(requestTaxInvoiceCb.checked || requestCashBillCb.checked) {
-                        taxItemsTbody.querySelectorAll('tr').forEach(row => {
-                            taxInvoiceData.tax_items.push({
-                                product_name: row.cells[0].textContent,
-                                quantity: parseInt(row.querySelector('.tax-item-qty').value),
-                                unit_price: parseFloat(row.querySelector('.tax-item-unit-price').value)
-                            });
-                        });
+                        currentStatus = status || order.status;
                     }
 
+                    // 1. เตรียมข้อมูล "การเงิน" เพื่ออัปเดตเสมอ
                     const orderData = {
-                        channel_code: channelCode,
-                        bill_no: billNo,
-                        status: isUpdate ? (status || allOrdersData.find(o => o.id === currentEditingOrderId).status) : status,
-                        entry_date: new Date().toISOString().slice(0, 10),
-                        customer_name: container.querySelector('#customer_name').value.trim(),
-                        price: parseFloat(container.querySelector('#price').value),
-                        shipping_cost: parseFloat(container.querySelector('#shipping_cost').value),
-                        discount: parseFloat(container.querySelector('#discount').value),
-                        total_amount: parseFloat(container.querySelector('#total_amount').value),
+                        price: parseFloat(container.querySelector('#price').value) || 0,
+                        shipping_cost: parseFloat(container.querySelector('#shipping_cost').value) || 0,
+                        discount: parseFloat(container.querySelector('#discount').value) || 0,
+                        total_amount: parseFloat(container.querySelector('#total_amount').value) || 0,
                         payment_method: container.querySelector('#payment_method').value,
-                        admin_user: adminUserInput.value,
-                        customer_address: container.querySelector('#customer_address').value.trim(),
                         promotion: ($('#promotion').val() || '').trim(),
-                        payment_date: container.querySelector('#payment_date').value ? container.querySelector('#payment_date').value : null,
-                        payment_time: container.querySelector('#payment_time').value ? container.querySelector('#payment_time').value : null,
-                        billing_details: taxInvoiceData
+                        payment_date: container.querySelector('#payment_date').value || null,
+                        payment_time: container.querySelector('#payment_time').value || null,
+                        status: currentStatus
                     };
 
-                    if (channelCode === 'CLAIM') {
-                        orderData.claim_type = document.getElementById('claim_type').value.trim();
-                        orderData.claim_details = document.getElementById('claim_details').value.trim();
+                    // 2. ถ้าสถานะ "ไม่ใช่" จัดส่งแล้ว ถึงจะยอมให้อัปเดต ชื่อ/ที่อยู่
+                    if (currentStatus !== 'จัดส่งแล้ว') {
+                        orderData.customer_name = container.querySelector('#customer_name').value.trim();
+                        orderData.customer_address = container.querySelector('#customer_address').value.trim();
                     }
 
-                    if (ecommerceChannels.includes(orderData.channel_code)) {
-                        orderData.tracking_number = orderData.customer_address.replace(/\s/g, '');
-                    }
-                    
-                    let upsertedOrderId = currentEditingOrderId;
                     if (isUpdate) {
                         const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
                         if (error) throw error;
                     } else {
+                        orderData.bill_no = billNo;
+                        orderData.admin_user = adminUserInput.value;
+                        orderData.entry_date = new Date().toISOString().slice(0, 10);
                         const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single();
                         if (error) throw error;
-                        upsertedOrderId = insertedOrder.id;
+                        currentEditingOrderId = insertedOrder.id;
                     }
-                    
-                    // ลบรายการเดิมออกเพื่อเตรียมใส่ใหม่ (สำหรับการ Update)
-                    await supabaseClient.from('order_items').delete().eq('order_id', upsertedOrderId);
-                    
-                    const condoGroups = new Map();
-                    itemsTbody.querySelectorAll('tr[data-condo-group-id]').forEach(row => {
-                        const groupId = row.dataset.condoGroupId;
-                        if (!condoGroups.has(groupId)) {
-                            condoGroups.set(groupId, []);
+
+                    // 3. จัดการตารางสินค้า (order_items)
+                    // *** ถ้าสถานะ "จัดส่งแล้ว" จะข้ามขั้นตอนนี้ไปเลย เพื่อไม่ให้ข้อมูลสินค้าเปลี่ยน ***
+                    if (currentStatus !== 'จัดส่งแล้ว') {
+                        await supabaseClient.from('order_items').delete().eq('order_id', currentEditingOrderId);
+                        let allItemsToInsert = [];
+                        let itemSequence = 1;
+                        for (const row of itemsTbody.rows) {
+                            const selectedData = $(row).find('.item-product').select2('data')[0];
+                            if (!selectedData || !selectedData.id) continue;
+                            const originalProduct = fullProductList.find(p => p.id == selectedData.id);
+                            const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
+                            const baseItemData = {
+                                order_id: currentEditingOrderId, bill_no: billNo, product_id: originalProduct.id,
+                                product_name: originalProduct.product_name,
+                                ink_color: row.querySelector('.item-ink_color').value,
+                                product_type: row.querySelector('.item-shelf_location').value,
+                                cartoon_pattern: row.querySelector('.item-cartoon_pattern').value,
+                                line_pattern: row.querySelector('.item-line_pattern').value,
+                                font: row.querySelector('.item-font').value,
+                                line_1: row.querySelector('.item-line_1').value,
+                                line_2: row.querySelector('.item-line_2').value,
+                                line_3: row.querySelector('.item-line_3').value,
+                                notes: row.querySelector('.item-notes').value,
+                                file_attachment: row.querySelector('.item-file_attachment').value
+                            };
+                            for (let i = 0; i < quantity; i++) {
+                                allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` });
+                            }
                         }
-                        condoGroups.get(groupId).push(row);
-                    });
-
-                    condoGroups.forEach((rows) => {
-                        const setId = `[SET-${Date.now()}-${Math.random().toString(16).slice(2)}]`;
-                        rows.forEach(row => {
-                            const notesInput = row.querySelector('.item-notes');
-                            const currentNotes = notesInput.value.replace(/\[SET-.*?\]/g, '').trim();
-                            notesInput.value = `${currentNotes} ${setId}`.trim();
-                        });
-                    });
-
-                    let allItemsToInsert = [];
-                    let itemSequence = 1;
-                    for (const row of itemsTbody.rows) {
-                        const selectedData = $(row).find('.item-product').select2('data')[0];
-                        if (!selectedData || !selectedData.id) continue;
-                        const originalProduct = fullProductList.find(p => p.id == selectedData.id);
-                        if (!originalProduct) continue;
-                        const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
-                        const baseItemData = {
-                            order_id: upsertedOrderId, bill_no: billNo, product_id: originalProduct.id,
-                            product_name: originalProduct.product_name,
-                            ink_color: row.querySelector('.item-ink_color').value.trim(),
-                            product_type: row.querySelector('.item-shelf_location').value.trim(),
-                            cartoon_pattern: row.querySelector('.item-cartoon_pattern').value.trim(),
-                            line_pattern: row.querySelector('.item-line_pattern').value.trim(),
-                            font: row.querySelector('.item-font').value.trim(),
-                            line_1: row.querySelector('.item-line_1').value.trim(),
-                            line_2: row.querySelector('.item-line_2').value.trim(),
-                            line_3: row.querySelector('.item-line_3').value.trim(),
-                            notes: row.querySelector('.item-notes').value.trim(),
-                            file_attachment: row.querySelector('.item-file_attachment').value.trim()
-                        };
-                        for (let i = 0; i < quantity; i++) {
-                            allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` });
-                        }
-                    }
-                    
-                    if (allItemsToInsert.length > 0) {
-                        const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
-                        if (itemsError) throw itemsError;
-                    }
-
-                    // --- ส่วนที่เพิ่มใหม่: อัปเดต Planner เมื่อมีการแก้ไขบิลที่มีใบงานแล้ว ---
-                    if (isUpdate && currentWorkOrderName) {
-                        // 1. ดึงข้อมูลอัปเดตของบิลและไอเทมในใบงานนั้นใหม่จาก Database
-                        const { data: refreshedOrders, error: refreshError } = await supabaseClient
-                            .from('orders')
-                            .select('*, order_items(*)')
-                            .eq('work_order_name', currentWorkOrderName);
-
-                        if (!refreshError && refreshedOrders) {
-                            // 2. อัปเดตตัวแปร allOrdersData ในเครื่องให้เป็นปัจจุบัน
-                            refreshedOrders.forEach(refOrder => {
-                                const idx = allOrdersData.findIndex(o => o.id === refOrder.id);
-                                if (idx > -1) {
-                                    allOrdersData[idx] = refOrder;
-                                }
-                            });
-
-                            // 3. เรียกฟังก์ชันคำนวณยอดใน Planner ใหม่
-                            await updatePlannerJob(currentWorkOrderName, []);
+                        if (allItemsToInsert.length > 0) {
+                            const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
+                            if (itemsError) throw itemsError;
                         }
                     }
 
-                    alert(isUpdate ? 'อัปเดตสำเร็จ!' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
+                    alert('บันทึกข้อมูลสำเร็จ');
                     setFormMode('create');
                 } catch (error) {
-                    console.error('Error saving order:', error);
-                    alert(`เกิดพลาด: ${error.message}`);
-                } finally {
-                    loadingOverlay.style.display = 'none';
-                }
+                    alert('บันทึกไม่สำเร็จ: ' + error.message);
+                } finally { loadingOverlay.style.display = 'none'; }
             }
 
             function enterTrackingEditMode(trackingSpan) { 
@@ -2174,7 +2026,19 @@
                 }
             }
 
-            function attachFormActionListeners(order) { const idMap = { 'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 'update-complete-btn': () => saveOrUpdateOrder(null), 'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'), 'update-work-order-bill-btn': () => saveOrUpdateOrder(null) }; for(const id in idMap) { const btn = document.getElementById(id); if (btn) btn.addEventListener('click', idMap[id]); } }
+            function attachFormActionListeners(order) { 
+                const idMap = { 
+                    'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 
+                    'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 
+                    'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 
+                    'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 
+                    'update-complete-btn': () => saveOrUpdateOrder(null), 
+                    'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'), 
+                    'update-work-order-bill-btn': () => saveOrUpdateOrder(null),
+                    'update-payment-only-btn': () => saveOrUpdateOrder(null) // เชื่อมปุ่มอัปเดตการเงิน
+                }; 
+                for(const id in idMap) { const btn = document.getElementById(id); if (btn) btn.addEventListener('click', idMap[id]); } 
+            }
             function checkAndApplyStampInkLogic(rowElement) { const linkedInkRowUid = rowElement.dataset.linkedInkRowUid; if (linkedInkRowUid) { const oldInkRow = itemsTbody.querySelector(`tr[data-row-uid="${linkedInkRowUid}"]`); if (oldInkRow) { $(oldInkRow).find('.item-product').select2('destroy'); oldInkRow.remove(); } } rowElement.removeAttribute('data-linked-ink-row-uid'); const productId = $(rowElement).find('.item-product').val(); const inkColor = $(rowElement).find('.item-ink_color').val(); const product = fullProductList.find(p => p.id == productId); if (!product || !product.product_category || !product.product_category.toUpperCase().includes('STAMP')) { return; } const targetColors = { 'เขียว': 'เขียว', 'ดำ': 'ดำ', 'แดง': 'แดง', 'น้ำเงิน': 'น้ำเงิน' }; const matchedColor = Object.keys(targetColors).find(c => inkColor.includes(c) && inkColor.includes('พลาสติก')); if (!matchedColor) { return; } const inkProductName = `หมึกแฟลชพลาสติก 5 ml. (${matchedColor})`; const inkProductToAdd = fullProductList.find(p => p.product_name === inkProductName); if (!inkProductToAdd) { console.warn(`Could not find product: ${inkProductName}`); return; } const newInkRowUid = 'ink-' + Date.now() + Math.random(); const newInkRow = addItemRow({ product_id: inkProductToAdd.id, quantity: 1 }, newInkRowUid); newInkRow.dataset.isAutoAdded = "true"; newInkRow.style.backgroundColor = '#f0fff0'; rowElement.dataset.linkedInkRowUid = newInkRowUid; }
             
             function addCondoStampSet(productId) {
