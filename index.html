@@ -1687,20 +1687,39 @@
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
-                    const channelCode = container.querySelector('#channel_code').value;
+                    // 1. ดึงค่าช่องทาง (Channel Code) แบบแม่นยำ
+                    // ลองดึงจาก Element โดยตรง ถ้าไม่ได้ให้ดึงจาก Select2
+                    let channelCode = container.querySelector('#channel_code').value;
+                    if (!channelCode) {
+                        channelCode = $('#channel_code').val();
+                    }
+                    
+                    // เช็คว่าถ้าเป็นออร์เดอร์ใหม่ "ต้อง" มีช่องทาง
+                    if (!isUpdate && !channelCode) {
+                        throw new Error("กรุณาเลือกช่องทางก่อนบันทึก");
+                    }
+
                     let billNo;
                     let currentStatus = status;
 
+                    // 2. จัดการเลขบิลและสถานะ
                     if (!isUpdate) {
+                        // ออร์เดอร์ใหม่: สร้างเลขบิลใหม่
                         billNo = await generateNextBillNo(channelCode);
+                        currentStatus = status; // เช่น 'รอลงข้อมูล' หรือ 'ลงข้อมูลเสร็จสิ้น'
                     } else {
-                        const order = allOrdersData.find(o => o.id === currentEditingOrderId);
-                        billNo = order.bill_no;
-                        currentStatus = status || order.status;
+                        // ออร์เดอร์เก่า: ใช้เลขบิลเดิม
+                        const oldOrder = allOrdersData.find(o => o.id === currentEditingOrderId);
+                        billNo = oldOrder.bill_no;
+                        channelCode = oldOrder.channel_code; // ใช้ช่องทางเดิมป้องกันค่าหาย
+                        currentStatus = status || oldOrder.status;
                     }
 
-                    // 1. เตรียมข้อมูล "การเงิน" เพื่ออัปเดตเสมอ
+                    // 3. เตรียมข้อมูลหลัก (Order Data)
                     const orderData = {
+                        channel_code: channelCode,
+                        bill_no: billNo,
+                        status: currentStatus,
                         price: parseFloat(container.querySelector('#price').value) || 0,
                         shipping_cost: parseFloat(container.querySelector('#shipping_cost').value) || 0,
                         discount: parseFloat(container.querySelector('#discount').value) || 0,
@@ -1709,40 +1728,67 @@
                         promotion: ($('#promotion').val() || '').trim(),
                         payment_date: container.querySelector('#payment_date').value || null,
                         payment_time: container.querySelector('#payment_time').value || null,
-                        status: currentStatus
+                        customer_name: container.querySelector('#customer_name').value.trim(),
+                        customer_address: container.querySelector('#customer_address').value.trim()
                     };
 
-                    // 2. ถ้าสถานะ "ไม่ใช่" จัดส่งแล้ว ถึงจะยอมให้อัปเดต ชื่อ/ที่อยู่
-                    if (currentStatus !== 'จัดส่งแล้ว') {
-                        orderData.customer_name = container.querySelector('#customer_name').value.trim();
-                        orderData.customer_address = container.querySelector('#customer_address').value.trim();
+                    // ข้อมูลสำหรับออร์เดอร์เคลม
+                    if (channelCode === 'CLAIM') {
+                        orderData.claim_type = document.getElementById('claim_type').value.trim();
+                        orderData.claim_details = document.getElementById('claim_details').value.trim();
                     }
 
+                    // ข้อมูลใบกำกับภาษี/บิลเงินสด
+                    const taxInvoiceData = {
+                        request_tax_invoice: requestTaxInvoiceCb.checked,
+                        request_cash_bill: requestCashBillCb.checked,
+                        tax_customer_name: document.getElementById('tax-customer-name').value,
+                        tax_customer_address: document.getElementById('tax-customer-address').value,
+                        tax_id: document.getElementById('tax-id').value,
+                        tax_items: []
+                    };
+                    if(requestTaxInvoiceCb.checked || requestCashBillCb.checked) {
+                        taxItemsTbody.querySelectorAll('tr').forEach(row => {
+                            taxInvoiceData.tax_items.push({
+                                product_name: row.cells[0].textContent,
+                                quantity: parseInt(row.querySelector('.tax-item-qty').value),
+                                unit_price: parseFloat(row.querySelector('.tax-item-unit-price').value)
+                            });
+                        });
+                    }
+                    orderData.billing_details = taxInvoiceData;
+
+                    // 4. บันทึกลงฐานข้อมูล (Table: orders)
+                    let targetOrderId = currentEditingOrderId;
                     if (isUpdate) {
                         const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
                         if (error) throw error;
                     } else {
-                        orderData.bill_no = billNo;
                         orderData.admin_user = adminUserInput.value;
                         orderData.entry_date = new Date().toISOString().slice(0, 10);
                         const { data: insertedOrder, error } = await supabaseClient.from('orders').insert(orderData).select().single();
                         if (error) throw error;
-                        currentEditingOrderId = insertedOrder.id;
+                        targetOrderId = insertedOrder.id;
                     }
 
-                    // 3. จัดการตารางสินค้า (order_items)
-                    // *** ถ้าสถานะ "จัดส่งแล้ว" จะข้ามขั้นตอนนี้ไปเลย เพื่อไม่ให้ข้อมูลสินค้าเปลี่ยน ***
+                    // 5. จัดการรายการสินค้า (Table: order_items)
+                    // ถ้าออร์เดอร์จัดส่งแล้ว จะไม่แก้รายการสินค้าเพื่อป้องกันข้อมูลเพี้ยน
                     if (currentStatus !== 'จัดส่งแล้ว') {
-                        await supabaseClient.from('order_items').delete().eq('order_id', currentEditingOrderId);
+                        await supabaseClient.from('order_items').delete().eq('order_id', targetOrderId);
+                        
                         let allItemsToInsert = [];
                         let itemSequence = 1;
                         for (const row of itemsTbody.rows) {
                             const selectedData = $(row).find('.item-product').select2('data')[0];
                             if (!selectedData || !selectedData.id) continue;
+                            
                             const originalProduct = fullProductList.find(p => p.id == selectedData.id);
                             const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
+                            
                             const baseItemData = {
-                                order_id: currentEditingOrderId, bill_no: billNo, product_id: originalProduct.id,
+                                order_id: targetOrderId, 
+                                bill_no: billNo, 
+                                product_id: originalProduct.id,
                                 product_name: originalProduct.product_name,
                                 ink_color: row.querySelector('.item-ink_color').value,
                                 product_type: row.querySelector('.item-shelf_location').value,
@@ -1755,21 +1801,31 @@
                                 notes: row.querySelector('.item-notes').value,
                                 file_attachment: row.querySelector('.item-file_attachment').value
                             };
+                            
                             for (let i = 0; i < quantity; i++) {
-                                allItemsToInsert.push({ ...baseItemData, item_uid: `${billNo}-${itemSequence++}` });
+                                allItemsToInsert.push({ 
+                                    ...baseItemData, 
+                                    item_uid: `${billNo}-${itemSequence++}` 
+                                });
                             }
                         }
+                        
                         if (allItemsToInsert.length > 0) {
                             const { error: itemsError } = await supabaseClient.from('order_items').insert(allItemsToInsert);
                             if (itemsError) throw itemsError;
                         }
                     }
 
-                    alert('บันทึกข้อมูลสำเร็จ');
+                    alert(isUpdate ? 'อัปเดตข้อมูลสำเร็จ' : `บันทึกสำเร็จ! เลขบิล: ${billNo}`);
                     setFormMode('create');
+                    if (window.orderSystem) window.orderSystem.loadInitialData(true);
+
                 } catch (error) {
-                    alert('บันทึกไม่สำเร็จ: ' + error.message);
-                } finally { loadingOverlay.style.display = 'none'; }
+                    console.error('Save error:', error);
+                    alert(`บันทึกไม่สำเร็จ: ${error.message}`);
+                } finally {
+                    loadingOverlay.style.display = 'none';
+                }
             }
 
             function enterTrackingEditMode(trackingSpan) { 
