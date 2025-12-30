@@ -1649,7 +1649,12 @@
                 } catch (error) { alert('โหลดข้อมูลไม่ได้: ' + error.message); } 
                 finally { loadingOverlay.style.display = 'none'; } 
             }
-            async function moveOrder(orderId, newStatus) { if (!confirm(`ต้องการย้ายบิลไป "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: newStatus }).eq('id', orderId); if (error) throw error; alert(`ย้ายสำเร็จ!`); setFormMode('create'); } catch(error) { alert('พลาด: ' + error.message); } finally { loadingOverlay.style.display = 'none'; } }
+            async function moveOrder(orderId, newStatus) { if (!confirm(`ต้องการย้ายบิลไป "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ 
+    status: 'ใบงาน (กำลังผลิต)', // เพิ่มบรรทัดนี้เพื่อให้สถานะย้อนกลับ
+    packing_meta: null, 
+    shipped_by: null, 
+    shipped_time: null 
+}).eq('id', g[0].order_id); if (error) throw error; alert(`ย้ายสำเร็จ!`); setFormMode('create'); } catch(error) { alert('พลาด: ' + error.message); } finally { loadingOverlay.style.display = 'none'; } }
             function getFontOptionsForChannel(channelCode) { const fontList = (channelCode === 'WY') ? wyFonts : standardFonts; const options = fontList.map(f => `<option value="${f}">${f}</option>`).join(''); return `<option value="">--เลือก--</option>${options}`; }
             function updateAllFontDropdowns(channelCode) { const newFontOptionsHTML = getFontOptionsForChannel(channelCode); const fontDropdowns = itemsTbody.querySelectorAll('.item-font'); fontDropdowns.forEach(fontSelect => { const selectedValue = fontSelect.value; fontSelect.innerHTML = newFontOptionsHTML; if (fontSelect.querySelector(`option[value="${selectedValue}"]`)) { fontSelect.value = selectedValue; } else { fontSelect.value = ""; } }); }
 
@@ -3040,7 +3045,12 @@ window.packingSystem = (() => {
         if (currentIndex < 0 || !confirm('ยืนยัน "แพ็คใหม่"?')) return;
         const g = aggregatedData[currentIndex];
         await supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', g.map(i => i.item_uid));
-        await supabaseClient.from('orders').update({ packing_meta: null, shipped_by: null, shipped_time: null }).eq('id', g[0].order_id);
+        await supabaseClient.from('orders').update({ 
+    status: 'ใบงาน (กำลังผลิต)', // เติมบรรทัดนี้เพื่อดึงสถานะกลับมา
+    packing_meta: null, 
+    shipped_by: null, 
+    shipped_time: null 
+}).eq('id', g[0].order_id);
         await loadPackingData(currentWorkOrderName);
     });
     backBtn.addEventListener('click', loadWorkOrdersForPacking);
