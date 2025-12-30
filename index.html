@@ -2712,8 +2712,6 @@
             return { initializeApp, loadInitialData };
         })();
 // --- PACKING SYSTEM MODULE (FULL FUNCTIONS + PARTIAL SHIP + LINK FIX) ---
-// --- PACKING SYSTEM MODULE (UPDATED WITH AUTO-RESET LOGIC) ---
-// --- PACKING SYSTEM MODULE (FIXED: NO CLEAR ON DONE + FINISHED STATUS) ---
 window.packingSystem = (() => {
     const container = document.getElementById("packing-system-container");
     const selectionView = container.querySelector("#work-order-selection-view");
@@ -2740,46 +2738,6 @@ window.packingSystem = (() => {
     let completedIndices = new Set();
     let currentIndex = -1;
     let currentWorkOrderName = null;
-    let inactivityTimer = null;
-
-    function clearResetTimer() {
-        if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
-    }
-
-    function startInactivityTimer() {
-        clearResetTimer();
-        // เริ่มนับถอยหลังรีเซ็ต เฉพาะเมื่อยังสแกนไม่ครบเท่านั้น
-        if (currentIndex !== -1 && aggregatedData[currentIndex]) {
-            const group = aggregatedData[currentIndex];
-            const isDone = group[0].isOrderComplete || completedIndices.has(currentIndex);
-            if (!isDone) {
-                inactivityTimer = setTimeout(() => {
-                    performReset(currentIndex, true);
-                }, 60000);
-            }
-        }
-    }
-
-    async function performReset(index, isAuto = false) {
-        if (index < 0 || !aggregatedData[index]) return;
-        const g = aggregatedData[index];
-        // ห้ามรีเซ็ตถ้าส่งแล้ว หรือ สแกนครบแล้ว
-        if (g[0].isOrderComplete || completedIndices.has(index)) return;
-
-        if (!isAuto) {
-            if (!confirm('ยืนยัน "แพ็คใหม่" สำหรับออร์เดอร์นี้? ข้อมูลการสแกนทั้งหมดจะถูกล้าง')) return;
-        }
-
-        try {
-            await Promise.all([
-                supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', g.map(i => i.item_uid)),
-                supabaseClient.from('orders').update({ packing_meta: null, shipped_by: null, shipped_time: null }).eq('id', g[0].order_id)
-            ]);
-            if (isAuto) { updateStatus("⚠️ หมดเวลา: รีเซ็ตข้อมูลที่ค้างไว้", "error"); errorSound.play(); }
-            else { updateStatus("🔄 รีเซ็ตข้อมูลเรียบร้อย", "success"); }
-            await loadPackingData(currentWorkOrderName, index); 
-        } catch (err) { console.error("Reset Error:", err); }
-    }
 
     function naturalSortCompare(a, b) {
         const re = /(\d+)/g;
@@ -2796,12 +2754,11 @@ window.packingSystem = (() => {
     }
 
     async function loadWorkOrdersForPacking() {
-        clearResetTimer();
         showPackingView("selection");
         workOrderList.innerHTML = "<li>กำลังโหลด...</li>";
         const { data: workOrders, error: woError } = await supabaseClient.from("work_orders").select("*").eq('status', 'กำลังผลิต').order("created_at", { ascending: false });
         if (woError) { workOrderList.innerHTML = "<li>โหลดผิดพลาด</li>"; return; }
-        if (!workOrders || workOrders.length === 0) { workOrderList.innerHTML = "<li>ไม่พบใบงานที่กำลังผลิต</li>"; return; }
+        if (!workOrders || workOrders.length === 0) { workOrderList.innerHTML = "<li>ไม่พบใบงาน</li>"; return; }
         
         const { data: allProductionOrders } = await supabaseClient.from("orders").select("work_order_name, tracking_number, packing_meta, order_items(packing_status)").in('work_order_name', workOrders.map(wo => wo.work_order_name));
         
@@ -2826,7 +2783,7 @@ window.packingSystem = (() => {
         });
     }
 
-    async function loadPackingData(workOrderName, targetIndex = -1) {
+    async function loadPackingData(workOrderName) {
         loadingOverlay.style.display = "flex";
         currentWorkOrderName = workOrderName;
         const { data, error } = await supabaseClient.from("orders").select("*, order_items(*)").eq("work_order_name", workOrderName).order('bill_no', { ascending: true });
@@ -2834,13 +2791,12 @@ window.packingSystem = (() => {
         if (error) { alert("ดึงข้อมูลไม่ได้: " + error.message); return; }
         const ordersWithTracking = data.filter(order => order.tracking_number && order.tracking_number.trim() !== "");
         prepareDataForPacking(ordersWithTracking);
-        
         if (aggregatedData.length > 0) {
             headerTitle.textContent = `จัดของ: ${workOrderName}`;
             showPackingView("main");
             renderOrderNav();
-            let indexToShow = targetIndex !== -1 ? targetIndex : aggregatedData.findIndex((_, i) => !completedIndices.has(i) && !aggregatedData[i][0].isOrderComplete);
-            displayOrder(indexToShow !== -1 ? indexToShow : 0);
+            const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i) && !aggregatedData[i][0].isOrderComplete);
+            displayOrder(nextIndex !== -1 ? nextIndex : 0);
         }
     }
 
@@ -2863,7 +2819,7 @@ window.packingSystem = (() => {
                         'shelf_location': item.product_type,
                         'cartoon_pattern': item.cartoon_pattern,
                         'line_pattern': item.line_pattern,
-                        'font': item.font,
+	     'font': item.font,
                         'item_uid': item.item_uid,
                         'scanned': item.packing_status === 'สแกนแล้ว',
                         'parcelScanned': isParcelScanned,
@@ -2886,6 +2842,7 @@ window.packingSystem = (() => {
         aggregatedData.forEach((group, index) => {
             if (group.every(i => i.scanned)) completedIndices.add(index);
         });
+        currentIndex = -1;
         updateFinalizeButtonVisibility();
     }
 
@@ -2907,33 +2864,15 @@ window.packingSystem = (() => {
         updateCounter();
     }
 
-    async function displayOrder(index) {
+    function displayOrder(index) {
         if (index < 0 || index >= aggregatedData.length) return;
-
-        // --- จุดแก้ไขสำคัญ: Auto-Reset เฉพาะออเดอร์ที่ยังสแกนไม่เสร็จ ---
-        if (currentIndex !== -1 && currentIndex !== index) {
-            const prevGroup = aggregatedData[currentIndex];
-            const hasStarted = prevGroup[0].parcelScanned || prevGroup.some(item => item.scanned);
-            const notComplete = !prevGroup[0].isOrderComplete;
-            const notFullyScanned = !completedIndices.has(currentIndex); // เพิ่มเงื่อนไขนี้
-
-            if (hasStarted && notComplete && notFullyScanned) {
-                performReset(currentIndex, true);
-            }
-        }
-
         currentIndex = index;
         const orderGroup = aggregatedData[index];
-        const isFullyScanned = completedIndices.has(index);
-        
         orderGroup.sort((a, b) => (a.scanned === b.scanned) ? naturalSortCompare(a.item_uid, b.item_uid) : (a.scanned ? 1 : -1));
 
         const scannedItems = orderGroup.filter(item => item.scanned).length;
         
         let notifHTML = '';
-        if (isFullyScanned && !orderGroup[0].isOrderComplete) {
-            notifHTML += `<div style="background-color: #d4edda; color: #155724; padding: 20px; border: 2px solid #c3e6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.5em; font-weight: bold;">✅ สแกนครบถ้วน! พร้อมจัดส่ง</div>`;
-        }
         if (orderGroup[0].claim_type) {
             notifHTML += `<div style="background-color: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;"><strong>⚠️ ออร์เดอร์เคลม:</strong> ${orderGroup[0].claim_type}: ${orderGroup[0].claim_details || ''}</div>`;
         }
@@ -2943,28 +2882,29 @@ window.packingSystem = (() => {
             notifHTML += `<div style="background-color: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em;"><strong>‼️ โปรดทราบ:</strong> ออร์เดอร์นี้ต้องการ <strong>บิลเงินสด</strong></div>`;
         }
 
-        let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold; color: ${isFullyScanned ? '#28a745' : '#000'}" id="packing-item-counter">${scannedItems}/${orderGroup.length}</span></div></div>`;
+        let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${orderGroup.length}</span></div></div>`;
         
         let tableHTML = `<table><thead><tr><th style="width: 120px;">QR ItemUID</th><th>สินค้า</th><th>ชั้น</th><th>สีหมึก</th><th>ลาย//เส้น</th><th>ฟอนต์</th><th>รายละเอียด</th><th>หมายเหตุ</th><th>ไฟล์</th></tr></thead><tbody>`;
         
         orderGroup.forEach(item => {
             const combinedPattern = [item.cartoon_pattern, item.line_pattern].filter(Boolean).join(" // ");
             const displayNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
+            // แก้ไข: เพิ่มการตรวจสอบ URL และสร้างลิงก์ที่ชัดเจน
             const fileLink = (item.file_attachment && (item.file_attachment.startsWith('http') || item.file_attachment.includes('www.'))) 
                 ? `<a href="${item.file_attachment.startsWith('http') ? item.file_attachment : 'https://' + item.file_attachment}" target="_blank" style="color: #0071e3; text-decoration: underline; font-weight: bold;">เปิดลิงก์</a>`
                 : (item.file_attachment || '');
 
             tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
-                <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
-                <td>${item.product_name || ''}</td>
-                <td>${item.shelf_location || ''}</td>
-                <td>${item.ink_color || ''}</td>
-                <td>${combinedPattern}</td>
-                <td>${item.font || ''}</td> 
-                <td>${item.details || ''}</td>
-                <td>${displayNotes}</td>
-                <td>${fileLink}</td>
-            </tr>`;
+    <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
+    <td>${item.product_name || ''}</td>
+    <td>${item.shelf_location || ''}</td>
+    <td>${item.ink_color || ''}</td>
+    <td>${combinedPattern}</td>
+    <td>${item.font || ''}</td> 
+    <td>${item.details || ''}</td>
+    <td>${displayNotes}</td>
+    <td>${fileLink}</td>
+</tr>`;
         });
         tableHTML += "</tbody></table>";
         
@@ -2982,13 +2922,11 @@ window.packingSystem = (() => {
                 }
             } 
         });
-        startInactivityTimer();
     }
 
     async function handleParcelScan() {
         const scanValue = parcelScanInput.value.trim().toUpperCase();
         if (!scanValue || currentIndex < 0) return;
-        startInactivityTimer();
         const group = aggregatedData[currentIndex];
         if (scanValue === String(group[0].tracking_number).trim().toUpperCase()) {
             await supabaseClient.from("orders").update({ packing_meta: { parcelScanned: true, scannedBy: loggedInUsername, scanTime: new Date().toISOString() } }).eq('id', group[0].order_id);
@@ -3005,7 +2943,6 @@ window.packingSystem = (() => {
     async function scanItem() {
         const scanValue = itemScanInput.value.trim().toUpperCase();
         if (!scanValue || currentIndex < 0) return;
-        startInactivityTimer();
         const group = aggregatedData[currentIndex];
         const itemToScan = group.find(item => !item.scanned && item.item_uid === scanValue);
         if (itemToScan) {
@@ -3019,13 +2956,10 @@ window.packingSystem = (() => {
                 updateStatus("✅ สแกนครบแล้ว!", "success");
                 updateFinalizeButtonVisibility();
                 renderOrderNav();
-                clearResetTimer();
-                displayOrder(currentIndex); // โชว์สถานะ Success ก่อนข้าม
-
                 setTimeout(() => {
                     const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i) && !aggregatedData[i][0].isOrderComplete);
                     if (nextIndex !== -1) displayOrder(nextIndex);
-                }, 1500); // ขยายเวลาเป็น 1.5 วินาทีเพื่อให้ดูสถานะเสร็จสิ้นทัน
+                }, 700);
             } else {
                 updateInputStates();
                 displayOrder(currentIndex);
@@ -3044,21 +2978,35 @@ window.packingSystem = (() => {
                 const group = aggregatedData[index];
                 if (group && !group[0].isOrderComplete) ids.push(group[0].order_id);
             });
-            if (ids.length === 0) { alert("ไม่มีบิลที่สแกนครบรอจัดส่ง"); loadingOverlay.style.display = 'none'; return; }
+            if (ids.length === 0) { 
+                alert("ไม่มีบิลที่แสกนครบรอส่ง"); 
+                loadingOverlay.style.display = 'none'; 
+                return; 
+            }
+
             const { error } = await supabaseClient.from('orders').update({
-                status: 'จัดส่งแล้ว', shipped_by: loggedInUsername, shipped_time: new Date().toISOString()
+                status: 'จัดส่งแล้ว', 
+                shipped_by: loggedInUsername, 
+                shipped_time: new Date().toISOString()
             }).in('id', ids);
+            
             if (error) throw error;
+            
             alert(`จัดส่งสำเร็จ ${ids.length} รายการ!`);
             successSound.play();
             await loadPackingData(currentWorkOrderName);
-        } catch (err) { alert(err.message); } finally { loadingOverlay.style.display = 'none'; }
+        } catch (err) { 
+            alert(err.message); 
+        } finally { 
+            loadingOverlay.style.display = 'none'; 
+        }
     }
 
     function updateFinalizeButtonVisibility() {
         let hasPending = false;
         completedIndices.forEach(idx => { if (aggregatedData[idx] && !aggregatedData[idx][0].isOrderComplete) hasPending = true; });
         if (shipAllScannedBtn) shipAllScannedBtn.style.display = hasPending ? 'inline-block' : 'none';
+
         if (currentWorkOrderName && aggregatedData.length > 0 && completedIndices.size === aggregatedData.length) {
             if (aggregatedData.every(g => g[0].isOrderComplete)) finalizeWoBtn.style.display = 'inline-block';
         } else { finalizeWoBtn.style.display = 'none'; }
@@ -3074,12 +3022,11 @@ window.packingSystem = (() => {
         const g = aggregatedData[currentIndex];
         const isParcelScanned = g[0].parcelScanned;
         const isDone = g[0].isOrderComplete;
-        const isFull = completedIndices.has(currentIndex);
-        parcelScanInput.disabled = isParcelScanned || isDone || isFull;
-        itemScanInput.disabled = !isParcelScanned || isDone || isFull;
+        parcelScanInput.disabled = isParcelScanned || isDone;
+        itemScanInput.disabled = !isParcelScanned || isDone || g.every(i => i.scanned);
         if (isDone) updateStatus("✅ จัดส่งเรียบร้อย", "success");
-        else if (isFull) updateStatus("🟢 สแกนครบถ้วนแล้ว", "success");
         else if (!isParcelScanned) { updateStatus("รอสแกนเลขพัสดุ...", ""); parcelScanInput.focus(); }
+        else if (g.every(i => i.scanned)) updateStatus("🟢 แสกนครบแล้ว!", "success");
         else { updateStatus("รอสแกนสินค้า...", ""); itemScanInput.focus(); }
     };
 
@@ -3087,15 +3034,19 @@ window.packingSystem = (() => {
         const f = searchInput.value.toLowerCase();
         orderList.querySelectorAll(".order-item").forEach(it => it.style.display = it.dataset.trackingId.toLowerCase().includes(f) ? "" : "none");
     });
-
     parcelScanInput.addEventListener("change", handleParcelScan);
     itemScanInput.addEventListener("change", scanItem);
-    resetBtn.addEventListener("click", () => performReset(currentIndex, false));
-    backBtn.addEventListener('click', () => { clearResetTimer(); loadWorkOrdersForPacking(); });
+    resetBtn.addEventListener("click", async () => {
+        if (currentIndex < 0 || !confirm('ยืนยัน "แพ็คใหม่"?')) return;
+        const g = aggregatedData[currentIndex];
+        await supabaseClient.from('order_items').update({ packing_status: null, item_scan_time: null }).in('item_uid', g.map(i => i.item_uid));
+        await supabaseClient.from('orders').update({ packing_meta: null, shipped_by: null, shipped_time: null }).eq('id', g[0].order_id);
+        await loadPackingData(currentWorkOrderName);
+    });
+    backBtn.addEventListener('click', loadWorkOrdersForPacking);
     shipAllScannedBtn.addEventListener("click", shipAllScannedOrders);
-    
     finalizeWoBtn.addEventListener('click', async () => {
-        if (!confirm('ยืนยันการปิดใบงาน?')) return;
+        if (!confirm('ปิดใบงานนี้?')) return;
         await supabaseClient.from('work_orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', currentWorkOrderName);
         await supabaseClient.from('jobs').update({ status: 'DONE' }).eq('name', currentWorkOrderName);
         alert("ปิดใบงานเรียบร้อย"); loadWorkOrdersForPacking();
