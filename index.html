@@ -578,6 +578,7 @@
                                 <button id="select-all-shipped-btn" class="btn btn-secondary">เลือกทั้งหมด</button>
                                 <button id="claim-selected-shipped-btn" class="btn btn-info">เคลมบิลที่เลือก</button>
                                 <button id="export-shipped-btn" class="btn btn-success">Export ข้อมูลที่เลือก</button>
+	             <button id="export-tracking-csv-btn" class="btn" style="background-color: #6610f2; color: white;">Export CSV เลขพัสดุ</button>
                             </div>
                             <ul class="order-list"></ul>
                         </div>
@@ -1989,6 +1990,40 @@
                 XLSX.writeFile(workbook, `ShippedData_${new Date().toISOString().slice(0,10)}.xlsx`);
             }
             
+// ฟังก์ชันใหม่ 1: เปิด Modal
+            function openCarrierSelection() {
+                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
+                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export');
+                document.getElementById('carrier-selection-modal').style.display = 'flex';
+            }
+
+            // ฟังก์ชันใหม่ 2: สร้างไฟล์ CSV
+            function processTrackingExport() {
+                const carrierName = $('#carrier-select').val();
+                if (!carrierName) return alert('กรุณาเลือกชื่อขนส่ง');
+
+                const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
+                const ordersToExport = allOrdersData.filter(order => selectedIds.includes(String(order.id)));
+
+                const headers = ['เลขบิล', 'Trackno', 'ชื่อขนส่ง'];
+                const rows = ordersToExport.map(order => [
+                    order.bill_no,
+                    order.tracking_number || '',
+                    carrierName
+                ]);
+
+                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `Tracking_${carrierName}_${new Date().toISOString().slice(0,10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                document.getElementById('carrier-selection-modal').style.display = 'none';
+            }
+
             function exportMasterStatusReport() {
                 const startDate = document.getElementById('master-status-start-date').value;
                 const endDate = document.getElementById('master-status-end-date').value;
@@ -2630,6 +2665,19 @@
                 document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting')); 
                 document.getElementById('cancel-selected-complete-btn').addEventListener('click', () => cancelSelectedOrders('complete'));
                 document.getElementById('select-all-shipped-btn').addEventListener('click', () => selectAll('shipped')); document.getElementById('claim-selected-shipped-btn').addEventListener('click', () => handleClaimSelectedOrders()); document.getElementById('export-shipped-btn').addEventListener('click', exportShippedData);
+// --- วางโค้ดใหม่เริ่มตรงนี้ ---
+document.getElementById('export-tracking-csv-btn').addEventListener('click', openCarrierSelection);
+document.getElementById('confirm-export-tracking-btn').addEventListener('click', processTrackingExport);
+document.getElementById('cancel-carrier-modal').addEventListener('click', () => { 
+    document.getElementById('carrier-selection-modal').style.display = 'none'; 
+});
+$('#carrier-select').select2({
+    data: ['Flash', 'Kerry', 'J&T', 'Post'].map(c => ({id: c, text: c})),
+    tags: true, 
+    placeholder: 'เลือกหรือพิมพ์ชื่อขนส่ง',
+    dropdownParent: $('#carrier-selection-modal .modal-content')
+});
+// --- จบโค้ดใหม่ ---
                 document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled')); document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล')); document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
 	            eventListenersInitialized = true;
             }
@@ -3489,7 +3537,22 @@ window.packingSystem = (() => {
             </form>
         </div>
     </div>
-    
+
+<!-- Carrier Selection Modal -->
+<div id="carrier-selection-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <h3>เลือกชื่อขนส่ง</h3>
+        <p style="font-size: 14px; color: #666;">เลือกขนส่งที่ต้องการระบุในไฟล์ CSV</p>
+        <div class="modal-form-group">
+            <select id="carrier-select" style="width: 100%;"></select>
+        </div>
+        <div class="modal-actions">
+            <button type="button" id="cancel-carrier-modal" class="btn btn-secondary">ยกเลิก</button>
+            <button type="button" id="confirm-export-tracking-btn" class="btn btn-success">ดาวน์โหลด CSV</button>
+        </div>
+    </div>
+</div>    
+
     <!-- Picking Slip Modal -->
     <div id="picking-slip-modal" class="modal-overlay">
         <div class="modal-content">
