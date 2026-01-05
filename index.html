@@ -1147,10 +1147,9 @@
 
                 const channel = supabaseClient.channel('public:orders_and_items');
                 channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, handleRealtimeUpdate)
-                       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
-                       .subscribe();
-            }
-
+       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
+       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => loadInitialData(true)) // เพิ่มบรรทัดนี้
+       .subscribe();}
             async function loadInitialData(isSilent = false) {
                 if (window.isLoadingData) return;
                 window.isLoadingData = true;
@@ -1672,6 +1671,7 @@
                 for (const channelCode of channelGroups) { const groupSelectedIds = ordersByChannel[channelCode].map(o => o.id); try { const today = new Date(); const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, ''); const workOrderDate = today.toISOString().slice(0, 10); const { data, error } = await supabaseClient.from('work_orders').select('batch_number').eq('channel_code', channelCode).eq('production_date', workOrderDate).order('batch_number', { ascending: false }).limit(1); if (error) throw error; const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0; const batchNumber = lastBatchNumber + 1; const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`; const { error: woError } = await supabaseClient.from('work_orders').insert({ work_order_name: workOrderName, channel_code: channelCode, production_date: workOrderDate, batch_number: batchNumber, order_count: groupSelectedIds.length, created_by: loggedInUsername, status: 'กำลังผลิต' }); if (woError) throw woError; const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', groupSelectedIds); if (updateError) throw updateError; const billsInWorkOrder = ordersByChannel[channelCode]; const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: billsInWorkOrder.length }; billsInWorkOrder.forEach(order => { (order.order_items || []).forEach(item => { const product = fullProductList.find(p => p.id === item.product_id); if (product && product.product_category) { const category = product.product_category.toUpperCase(); if (category.includes('STAMP')) qty.STAMP++; if (category.includes('STK')) qty.STK++; if (category.includes('UV')) qty.CTT++; if (category.includes('LASER')) qty.LASER++; if (category.includes('TUBE')) qty.TUBE++; } }); }); const creationTime = new Date(); const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`; const { error: plannerError } = await supabaseClient.from('jobs').insert({ name: workOrderName, date: workOrderDate, cut: cutTime, qty: qty, }); if (plannerError) { console.error('Planner Sync failed:', plannerError); throw new Error(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่ Sync ไป Planner ล้มเหลว`); } successMessages.push(`สร้างใบงาน "${workOrderName}" สำเร็จ`); } catch (error) { console.error(`Error for channel ${channelCode}:`, error); errorMessages.push(`พลาดกับช่องทาง ${channelCode}: ${error.message}`); } }
                 loadingOverlay.style.display = 'none'; let finalAlertMessage = successMessages.join('\n'); if(errorMessages.length > 0) { finalAlertMessage += '\n\nข้อผิดพลาด:\n' + errorMessages.join('\n'); }
                 alert(finalAlertMessage);
+	await loadInitialData(true); // เพิ่มบรรทัดนี้ต่อท้าย alert
             }
 
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); if (!confirm(`ต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกสำเร็จ!'); } catch (error) { alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
@@ -1680,9 +1680,9 @@
             function selectAllInWorkOrder(buttonElement) { const billsContainer = buttonElement.closest('.work-order-bills'); const checkboxes = billsContainer.querySelectorAll('.order-checkbox'); const isAllChecked = Array.from(checkboxes).every(cb => cb.checked); checkboxes.forEach(cb => cb.checked = !isAllChecked); }
             async function updateWorkOrderCount(workOrderName) { const { count, error: countError } = await supabaseClient.from('orders').select('id', { count: 'exact', head: true }).eq('work_order_name', workOrderName); if (countError) { console.error('Error counting:', countError); throw countError; } if (count === 0) { console.log(`WO "${workOrderName}" is empty. Updating status.`); const { error: updateError } = await supabaseClient.from('work_orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', workOrderName); if (updateError) { console.error('Error updating empty WO:', updateError); throw updateError; } } else { const { error: updateError } = await supabaseClient.from('work_orders').update({ order_count: count }).eq('work_order_name', workOrderName); if (updateError) { console.error('Error updating WO count:', updateError); throw updateError; } } }
             async function updatePlannerJob(workOrderName, selectedIds = []) { const remainingBills = allOrdersData.filter(order => order.work_order_name === workOrderName && !selectedIds.includes(String(order.id))); if (remainingBills.length > 0) { const newQty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: 0 }; newQty.PACK = remainingBills.length; remainingBills.forEach(order => { (order.order_items || []).forEach(item => { const product = fullProductList.find(p => p.id === item.product_id); if (product && product.product_category) { const category = product.product_category.toUpperCase(); if (category.includes('STAMP')) newQty.STAMP++; if (category.includes('STK')) newQty.STK++; if (category.includes('UV')) newQty.CTT++; if (category.includes('LASER')) newQty.LASER++; if (category.includes('TUBE')) newQty.TUBE++; } }); }); const { error: updateJobError } = await supabaseClient.from('jobs').update({ qty: newQty }).eq('name', workOrderName); if (updateJobError) console.error('Failed to update job qty:', updateJobError); } else { const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error('Failed to delete job:', deleteJobError); } }
-            async function revertSelectedBills(buttonElement, newStatus) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการคืน ${selectedIds.length} บิล ไปที่ "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: newStatus, work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('คืนสถานะสำเร็จ!'); } catch (error) { console.error('Error reverting:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
-            async function cancelSelectedBillsFromWorkOrder(buttonElement) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการ **ยกเลิก** ${selectedIds.length} บิล?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('ยกเลิกสำเร็จ!'); } catch (error) { console.error('Error cancelling:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
-            async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            async function revertSelectedBills(buttonElement, newStatus) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการคืน ${selectedIds.length} บิล ไปที่ "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: newStatus, work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('คืนสถานะสำเร็จ!');  await loadInitialData(true);} catch (error) { console.error('Error reverting:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            async function cancelSelectedBillsFromWorkOrder(buttonElement) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการ **ยกเลิก** ${selectedIds.length} บิล?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('ยกเลิกสำเร็จ!'); await loadInitialData(true); } catch (error) { console.error('Error cancelling:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`);await loadInitialData(true); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
             async function saveOrUpdateOrder(status) {
                 loadingOverlay.style.display = 'flex';
@@ -2277,10 +2277,171 @@
             }
 
 
-            function showPickingSlipModal(workOrderName) { const modal = document.getElementById('picking-slip-modal'); const modalTitle = document.getElementById('picking-slip-modal-title'); const previewContainer = document.getElementById('picking-slip-preview'); const pngContainer = document.getElementById('picking-slip-png-container'); modalTitle.textContent = `ใบเบิก: ${workOrderName}`; const itemsInWorkOrder = []; allOrdersData.forEach(order => { if (order.work_order_name === workOrderName && order.order_items) { order.order_items.forEach(item => { const fullProduct = fullProductList.find(p => p.id === item.product_id); itemsInWorkOrder.push({ ...item, ...fullProduct }); }); } }); if (itemsInWorkOrder.length === 0) { alert('ไม่พบสินค้า'); return; } const mainItemsAggregated = {}; const excludedCategories = ['UV', 'STK', 'TUBE']; itemsInWorkOrder.filter(item => item.product_category && !excludedCategories.some(cat => item.product_category.toUpperCase().includes(cat))).forEach(item => { const key = item.product_id; if (!mainItemsAggregated[key]) { mainItemsAggregated[key] = { name: item.product_name, code: item.product_code, location: item.storage_location || 'N/A', category: item.product_category, qty: 0 }; } mainItemsAggregated[key].qty += 1; }); for (const key in mainItemsAggregated) { const item = mainItemsAggregated[key]; if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') { item.qty = Math.ceil(item.qty / 5); } } const mainItems = Object.values(mainItemsAggregated).sort((a, b) => a.location.localeCompare(b.location)); const sparePartsAggregated = {}; itemsInWorkOrder.filter(item => item.rubber_code).forEach(item => { const key = item.rubber_code; if (!sparePartsAggregated[key]) { sparePartsAggregated[key] = { name: `หน้ายาง+โฟม ${item.rubber_code}`, qty: 0 }; } sparePartsAggregated[key].qty += 1; }); const spareParts = Object.values(sparePartsAggregated); const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }); const picker = loggedInUsername || ''; let mainItemsHtml = '<h3>สินค้าหลัก</h3><table><thead><tr><th>จุดเก็บ</th><th>รหัส</th><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>'; mainItems.forEach(item => { mainItemsHtml += `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td>${item.qty}</td></tr>`; }); mainItemsHtml += '</tbody></table>'; let sparePartsHtml = spareParts.length > 0 ? '<h3>อะไหล่</h3><table><thead><tr><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>' : ''; if(spareParts.length > 0) { spareParts.forEach(part => { sparePartsHtml += `<tr><td>${part.name}</td><td>${part.qty}</td></tr>`; }); sparePartsHtml += '</tbody></table>'; } previewContainer.innerHTML = mainItemsHtml + sparePartsHtml; const pngHeaderHtml = `<div class="png-header"><div class="png-header-box"><b>เพจ:</b> ${workOrderName.split('-')[0]} <b>รอบ:</b> ${workOrderName.split('-')[2].replace('R','')}</div><div class="png-header-box"><b>วันที่:</b> ${today}</div></div>`; const pngMainTable = `<table><thead><tr><th>จุดเก็บ</th><th>รหัส</th><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>${mainItems.map(item => `<tr><td>${item.location}</td><td>${item.code}</td><td>${item.name}</td><td style="text-align:center;">${item.qty}</td></tr>`).join('')}</tbody></table>`; const pngSpareTable = spareParts.length > 0 ? `<table><thead><tr><th>รายการ</th><th>จำนวน</th></tr></thead><tbody>${spareParts.map(part => `<tr><td>${part.name}</td><td style="text-align:center;">${part.qty}</td></tr>`).join('')}</tbody></table>` : ''; const pngSignatureHtml = `<div class="png-signature-boxes"><div class="png-signature-box"><div class="title">ผู้เบิก</div><div class="space">${picker}</div></div><div class="png-signature-box"><div class="title">ผู้จ่าย</div><div class="space"></div></div><div class="png-signature-box"><div class="title">ผู้รับ</div><div class="space"></div></div></div>`; const pngFooterHtml = `<div class="png-footer">Page 1 of 1</div>`; pngContainer.innerHTML = `<div class="png-body">${pngHeaderHtml}${pngMainTable}${pngSpareTable}</div>${pngSignatureHtml}${pngFooterHtml}`; document.getElementById('export-picking-slip-png-btn').onclick = () => exportPickingSlipAsPNG(workOrderName); document.getElementById('export-picking-slip-csv-btn').onclick = () => exportPickingSlipAsCSV(workOrderName); modal.style.display = 'flex'; }
-            function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
-            function exportPickingSlipAsPNG(workOrderName) { const element = document.getElementById("picking-slip-png-container"); loadingOverlay.style.display = 'flex'; html2canvas(element, { scale: 2 }).then(canvas => { const link = document.createElement('a'); link.download = `ใบเบิก_${workOrderName}.png`; link.href = canvas.toDataURL("image/png"); link.click(); loadingOverlay.style.display = 'none'; }).catch(err => { console.error('Error PNG:', err); alert('สร้าง PNG ผิดพลาด'); loadingOverlay.style.display = 'none'; }); }
-            function exportPickingSlipAsCSV(workOrderName) { const headers = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จำนวนเบิก']; const itemsInWorkOrder = []; allOrdersData.forEach(order => { if (order.work_order_name === workOrderName && order.order_items) { order.order_items.forEach(item => { const fullProduct = fullProductList.find(p => p.id === item.product_id); itemsInWorkOrder.push({ transactionCode: workOrderName, productCode: fullProduct ? fullProduct.product_code : 'N/A', productName: item.product_name, quantity: 1, category: fullProduct ? fullProduct.product_category : '' }); }); } }); if (itemsInWorkOrder.length === 0) { alert('ไม่พบข้อมูล'); return; } const aggregatedItems = {}; itemsInWorkOrder.forEach(item => { const key = item.productCode; if (!aggregatedItems[key]) { aggregatedItems[key] = { ...item, quantity: 0 }; } aggregatedItems[key].quantity += 1; }); Object.values(aggregatedItems).forEach(item => { if (item.category && item.category.trim().toUpperCase() === 'CONDO STAMP') { item.quantity = Math.ceil(item.quantity / 5); } }); const finalRows = Object.values(aggregatedItems); const escapeCsv = (field) => { const str = String(field || ''); if (str.includes(',') || str.includes('"') || str.includes('\n')) { return `"${str.replace(/"/g, '""')}"`; } return str; }; const csvContent = [ headers.join(','), ...finalRows.map(row => [ escapeCsv(row.transactionCode), escapeCsv(row.productCode), escapeCsv(row.productName), escapeCsv(row.quantity) ].join(',')) ].join('\n'); const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `${workOrderName}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+            function showPickingSlipModal(workOrderName) {
+            const modal = document.getElementById('picking-slip-modal');
+            const modalTitle = document.getElementById('picking-slip-modal-title');
+            const previewContainer = document.getElementById('picking-slip-preview');
+            const pngContainer = document.getElementById('picking-slip-png-container');
+            modalTitle.textContent = `ใบเบิก: ${workOrderName}`;
+
+            const itemsInWorkOrder = [];
+            allOrdersData.forEach(order => {
+                if (order.work_order_name === workOrderName && order.order_items) {
+                    order.order_items.forEach(item => {
+                        const fullProduct = fullProductList.find(p => p.id === item.product_id);
+                        itemsInWorkOrder.push({ ...item, ...fullProduct });
+                    });
+                }
+            });
+
+            if (itemsInWorkOrder.length === 0) { alert('ไม่พบสินค้า'); return; }
+
+            // --- 1. เตรียมข้อมูลสินค้าหลัก (สำหรับ PNG / Excel / CSV) ---
+            const mainItemsAggregated = {};
+            const excludedCategories = ['UV', 'STK', 'TUBE']; 
+            
+            itemsInWorkOrder.filter(item => {
+                const cat = (item.product_category || '').toUpperCase();
+                return !excludedCategories.some(ex => cat.includes(ex));
+            }).forEach(item => {
+                const key = item.product_id;
+                if (!mainItemsAggregated[key]) {
+                    mainItemsAggregated[key] = {
+                        woName: workOrderName,
+                        code: item.product_code || 'N/A',
+                        name: item.product_name,
+                        location: item.storage_location || 'N/A',
+                        category: (item.product_category || '').toUpperCase(),
+                        spareName: item.rubber_code ? `หน้ายาง+โฟม ${item.rubber_code}` : '-',
+                        qty: 0
+                    };
+                }
+                mainItemsAggregated[key].qty += 1;
+            });
+
+            // ตรรกะ Condo Stamp หาร 5
+            const finalMainList = Object.values(mainItemsAggregated).map(item => {
+                let displayQty = item.qty;
+                if (item.category.includes('CONDO STAMP')) {
+                    displayQty = Math.ceil(item.qty / 5);
+                }
+                return { ...item, finalQty: displayQty };
+            }).sort((a, b) => a.location.localeCompare(b.location));
+
+            // --- 2. เตรียมข้อมูลอะไหล่ (สำหรับตารางแยกใน PNG) ---
+            const sparePartsAggregated = {};
+            itemsInWorkOrder.forEach(item => {
+                if (item.rubber_code) {
+                    const key = item.rubber_code;
+                    if (!sparePartsAggregated[key]) {
+                        sparePartsAggregated[key] = { name: `หน้ายาง+โฟม ${item.rubber_code}`, qty: 0 };
+                    }
+                    sparePartsAggregated[key].qty += 1;
+                }
+            });
+            const finalSpareList = Object.values(sparePartsAggregated);
+
+            // --- 3. วาด Preview และตารางสำหรับ PNG (แยก 2 ตารางฟอร์แมตเดิม) ---
+            const today = new Date().toLocaleDateString('th-TH');
+            const renderTables = (isForPNG = false) => {
+                const style = isForPNG ? 'border: 1px solid black; padding: 8px;' : '';
+                const tableStyle = 'width: 100%; border-collapse: collapse; margin-bottom: 20px;';
+                
+                let html = isForPNG ? `<div style="padding:30px; background:white; width:800px; font-family:Sarabun, sans-serif; color:black;">` : `<div>`;
+                if(isForPNG) {
+                    html += `<div style="display:flex; justify-content:space-between; border:2px solid black; padding:10px; margin-bottom:20px; font-size:18px;">
+                                <b>ใบเบิก: ${workOrderName}</b> <b>วันที่: ${today}</b>
+                             </div>`;
+                }
+
+                html += `<h3>สินค้าหลัก</h3><table style="${tableStyle}">
+                    <thead><tr style="background:#f2f2f2;">
+                        <th style="${style}">จุดเก็บ</th><th style="${style}">รหัส</th><th style="${style}">รายการ</th><th style="${style}">จำนวน</th>
+                    </tr></thead><tbody>`;
+                finalMainList.forEach(item => {
+                    html += `<tr><td style="${style}">${item.location}</td><td style="${style}">${item.code}</td><td style="${style}">${item.name}</td><td style="${style} text-align:center;">${item.finalQty}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+
+                if(finalSpareList.length > 0) {
+                    html += `<h3>อะไหล่ (หน้ายาง/โฟม)</h3><table style="${tableStyle}">
+                        <thead><tr style="background:#f2f2f2;"><th style="${style}">รายการ</th><th style="${style}">จำนวน</th></tr></thead><tbody>`;
+                    finalSpareList.forEach(spare => {
+                        html += `<tr><td style="${style}">${spare.name}</td><td style="${style} text-align:center;">${spare.qty}</td></tr>`;
+                    });
+                    html += `</tbody></table>`;
+                }
+
+                if(isForPNG) {
+                    html += `<div style="display:flex; justify-content:space-around; margin-top:40px;">
+                                <div style="border:1px solid black; width:180px; height:80px; text-align:center; padding-top:10px;">ผู้เบิก</div>
+                                <div style="border:1px solid black; width:180px; height:80px; text-align:center; padding-top:10px;">ผู้จ่าย</div>
+                             </div></div>`;
+                } else { html += `</div>`; }
+                return html;
+            };
+
+            previewContainer.innerHTML = renderTables(false);
+            pngContainer.innerHTML = renderTables(true);
+
+            // ผูกปุ่มส่งออก
+            document.getElementById('export-all-picking-btn').onclick = () => {
+                exportOneClickAllFiles(finalMainList, workOrderName);
+            };
+
+            modal.style.display = 'flex';
+        }
+
+        function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
+
+        // --- ฟังก์ชันหลักสำหรับการดาวน์โหลด 3 ไฟล์ในคลิกเดียว ---
+        async function exportOneClickAllFiles(mainData, workOrderName) {
+            loadingOverlay.style.display = 'flex';
+            try {
+                // 1. Export PNG (รูปภาพฟอร์แมตดั้งเดิม)
+                const canvas = await html2canvas(document.getElementById("picking-slip-png-container"), { scale: 2 });
+                const pngLink = document.createElement('a');
+                pngLink.download = `ใบเบิก_${workOrderName}.png`;
+                pngLink.href = canvas.toDataURL("image/png");
+                pngLink.click();
+
+                // 2. Export XLSX (Excel มีคอลัมน์ รายการอะไหล่)
+                const excelHeaders = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'รายการอะไหล่', 'จำนวนเบิก'];
+                const excelRows = [excelHeaders];
+                mainData.forEach(item => {
+                    excelRows.push([item.woName, item.code, item.name, item.location, item.spareName, item.finalQty]);
+                });
+                const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "ใบเบิก");
+                XLSX.writeFile(workbook, `ใบเบิก_${workOrderName}.xlsx`);
+
+                // 3. Export CSV (ตัดคอลัมน์ รายการอะไหล่ ออก)
+                const csvHeaders = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'จำนวนเบิก'];
+                const csvRows = [csvHeaders.join(',')];
+                mainData.forEach(item => {
+                    const row = [
+                        `"${item.woName}"`, 
+                        `"${item.code}"`, 
+                        `"${item.name}"`, 
+                        `"${item.location}"`, 
+                        item.finalQty
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                const csvContent = "\uFEFF" + csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const csvLink = document.createElement("a");
+                csvLink.href = URL.createObjectURL(blob);
+                csvLink.download = `ใบเบิก_${workOrderName}.csv`;
+                csvLink.click();
+
+            } catch (err) {
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการ Export");
+            }
+            loadingOverlay.style.display = 'none';
+        }
             
             async function handleClaimSelectedOrders() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
@@ -3559,8 +3720,10 @@ window.packingSystem = (() => {
             <h2 id="picking-slip-modal-title">ใบเบิกสินค้า</h2>
             <div id="picking-slip-preview"></div>
             <div class="modal-actions">
-                <button type="button" id="export-picking-slip-png-btn" class="btn btn-info">Export PNG</button>
-                <button type="button" id="export-picking-slip-csv-btn" class="btn btn-success">Export CSV</button>
+                <!-- เปลี่ยนเป็นปุ่มเดียว -->
+                <button type="button" id="export-all-picking-btn" class="btn btn-primary" style="background-color: #6610f2;">
+                    🚀 Export All (PNG, CSV, XLSX)
+                </button>
                 <button type="button" id="cancel-picking-slip-modal-btn" class="btn btn-secondary">ปิด</button>
             </div>
         </div>
