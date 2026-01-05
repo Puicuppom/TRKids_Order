@@ -2383,15 +2383,14 @@
                 }
 
                 if(isForPNG) {
-                    // ปรับปรุงช่องเซ็นชื่อให้มีพื้นที่ว่าง (Height: 80px)
-                    html += `<div style="display:flex; justify-content:space-between; margin-top:auto; padding-top:20px;">
-                                <div style="border:1px solid black; width:48%; height:85px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:auto; padding-top:10px;">
+                                <div style="border:1px solid black; width:48%; height:65px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
                                     <div style="text-align:center; font-size:12px; font-weight:bold;">ผู้เบิก (Requester)</div>
-                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 50px;"></div>
+                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 30px;"></div>
                                 </div>
-                                <div style="border:1px solid black; width:48%; height:85px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
+                                <div style="border:1px solid black; width:48%; height:65px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
                                     <div style="text-align:center; font-size:12px; font-weight:bold;">ผู้จ่าย (Issuer)</div>
-                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 50px;"></div>
+                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 30px;"></div>
                                 </div>
                              </div>`;
                 }
