@@ -2297,7 +2297,7 @@
             if (itemsInWorkOrder.length === 0) { alert('ไม่พบสินค้า'); return; }
 
             // --- 1. เตรียมข้อมูลสินค้าหลัก (สำหรับ PNG / Excel / CSV) ---
-            const mainItemsAggregated = {};
+            const mainItemsMap = {};
             const excludedCategories = ['UV', 'STK', 'TUBE']; 
             
             itemsInWorkOrder.filter(item => {
@@ -2305,22 +2305,21 @@
                 return !excludedCategories.some(ex => cat.includes(ex));
             }).forEach(item => {
                 const key = item.product_id;
-                if (!mainItemsAggregated[key]) {
-                    mainItemsAggregated[key] = {
+                if (!mainItemsMap[key]) {
+                    mainItemsMap[key] = {
                         woName: workOrderName,
                         code: item.product_code || 'N/A',
                         name: item.product_name,
                         location: item.storage_location || 'N/A',
                         category: (item.product_category || '').toUpperCase(),
-                        spareName: item.rubber_code ? `หน้ายาง+โฟม ${item.rubber_code}` : '-',
                         qty: 0
                     };
                 }
-                mainItemsAggregated[key].qty += 1;
+                mainItemsMap[key].qty += 1;
             });
 
             // ตรรกะ Condo Stamp หาร 5
-            const finalMainList = Object.values(mainItemsAggregated).map(item => {
+            const finalMainList = Object.values(mainItemsMap).map(item => {
                 let displayQty = item.qty;
                 if (item.category.includes('CONDO STAMP')) {
                     displayQty = Math.ceil(item.qty / 5);
@@ -2328,29 +2327,29 @@
                 return { ...item, finalQty: displayQty };
             }).sort((a, b) => a.location.localeCompare(b.location));
 
-            // --- 2. เตรียมข้อมูลอะไหล่ (สำหรับตารางแยกใน PNG) ---
-            const sparePartsAggregated = {};
+            // --- 2. เตรียมข้อมูลสรุปอะไหล่ (สำหรับตาราง PNG และ Excel แท็บ 2) ---
+            const sparePartsMap = {};
             itemsInWorkOrder.forEach(item => {
                 if (item.rubber_code) {
                     const key = item.rubber_code;
-                    if (!sparePartsAggregated[key]) {
-                        sparePartsAggregated[key] = { name: `หน้ายาง+โฟม ${item.rubber_code}`, qty: 0 };
+                    if (!sparePartsMap[key]) {
+                        sparePartsMap[key] = { name: `หน้ายาง+โฟม ${item.rubber_code}`, qty: 0 };
                     }
-                    sparePartsAggregated[key].qty += 1;
+                    sparePartsMap[key].qty += 1;
                 }
             });
-            const finalSpareList = Object.values(sparePartsAggregated);
+            const finalSpareList = Object.values(sparePartsMap);
 
             // --- 3. วาด Preview และตารางสำหรับ PNG (แยก 2 ตารางฟอร์แมตเดิม) ---
             const today = new Date().toLocaleDateString('th-TH');
-            const renderTables = (isForPNG = false) => {
+            const renderHtmlTables = (isForPNG = false) => {
                 const style = isForPNG ? 'border: 1px solid black; padding: 8px;' : '';
                 const tableStyle = 'width: 100%; border-collapse: collapse; margin-bottom: 20px;';
                 
                 let html = isForPNG ? `<div style="padding:30px; background:white; width:800px; font-family:Sarabun, sans-serif; color:black;">` : `<div>`;
                 if(isForPNG) {
                     html += `<div style="display:flex; justify-content:space-between; border:2px solid black; padding:10px; margin-bottom:20px; font-size:18px;">
-                                <b>ใบเบิก: ${workOrderName}</b> <b>วันที่: ${today}</b>
+                                <b>ใบเบิกใบงาน: ${workOrderName}</b> <b>วันที่: ${today}</b>
                              </div>`;
                 }
 
@@ -2364,8 +2363,8 @@
                 html += `</tbody></table>`;
 
                 if(finalSpareList.length > 0) {
-                    html += `<h3>อะไหล่ (หน้ายาง/โฟม)</h3><table style="${tableStyle}">
-                        <thead><tr style="background:#f2f2f2;"><th style="${style}">รายการ</th><th style="${style}">จำนวน</th></tr></thead><tbody>`;
+                    html += `<h3>สรุปอะไหล่ (หน้ายาง/โฟม)</h3><table style="${tableStyle}">
+                        <thead><tr style="background:#f2f2f2;"><th style="${style}">รายการอะไหล่</th><th style="${style}">รวมจำนวนที่ต้องใช้</th></tr></thead><tbody>`;
                     finalSpareList.forEach(spare => {
                         html += `<tr><td style="${style}">${spare.name}</td><td style="${style} text-align:center;">${spare.qty}</td></tr>`;
                     });
@@ -2381,12 +2380,12 @@
                 return html;
             };
 
-            previewContainer.innerHTML = renderTables(false);
-            pngContainer.innerHTML = renderTables(true);
+            previewContainer.innerHTML = renderHtmlTables(false);
+            pngContainer.innerHTML = renderHtmlTables(true);
 
             // ผูกปุ่มส่งออก
             document.getElementById('export-all-picking-btn').onclick = () => {
-                exportOneClickAllFiles(finalMainList, workOrderName);
+                exportAllPickingFinal(finalMainList, finalSpareList, workOrderName);
             };
 
             modal.style.display = 'flex';
@@ -2394,29 +2393,35 @@
 
         function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
 
-        // --- ฟังก์ชันหลักสำหรับการดาวน์โหลด 3 ไฟล์ในคลิกเดียว ---
-        async function exportOneClickAllFiles(mainData, workOrderName) {
+        // --- ฟังก์ชันส่งออก 3 ไฟล์ (PNG, XLSX 2 Sheets, CSV 5 Cols) ---
+        async function exportAllPickingFinal(mainData, spareData, workOrderName) {
             loadingOverlay.style.display = 'flex';
             try {
-                // 1. Export PNG (รูปภาพฟอร์แมตดั้งเดิม)
+                // 1. Export PNG (ฟอร์แมตดั้งเดิม 2 ตาราง)
                 const canvas = await html2canvas(document.getElementById("picking-slip-png-container"), { scale: 2 });
                 const pngLink = document.createElement('a');
                 pngLink.download = `ใบเบิก_${workOrderName}.png`;
                 pngLink.href = canvas.toDataURL("image/png");
                 pngLink.click();
 
-                // 2. Export XLSX (Excel มีคอลัมน์ รายการอะไหล่)
-                const excelHeaders = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'รายการอะไหล่', 'จำนวนเบิก'];
-                const excelRows = [excelHeaders];
-                mainData.forEach(item => {
-                    excelRows.push([item.woName, item.code, item.name, item.location, item.spareName, item.finalQty]);
-                });
-                const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "ใบเบิก");
-                XLSX.writeFile(workbook, `ใบเบิก_${workOrderName}.xlsx`);
+                // 2. Export XLSX (2 แท็บ)
+                const wb = XLSX.utils.book_new();
+                
+                // แท็บที่ 1: รายการหยิบสินค้า (5 คอลัมน์)
+                const ws1Headers = [['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'จำนวนเบิก']];
+                const ws1Rows = mainData.map(item => [item.woName, item.code, item.name, item.location, item.finalQty]);
+                const ws1 = XLSX.utils.aoa_to_sheet(ws1Headers.concat(ws1Rows));
+                XLSX.utils.book_append_sheet(wb, ws1, "รายการหยิบสินค้า");
 
-                // 3. Export CSV (ตัดคอลัมน์ รายการอะไหล่ ออก)
+                // แท็บที่ 2: สรุปอะไหล่
+                const ws2Headers = [['รายการอะไหล่', 'จำนวนรวม']];
+                const ws2Rows = spareData.map(item => [item.name, item.qty]);
+                const ws2 = XLSX.utils.aoa_to_sheet(ws2Headers.concat(ws2Rows));
+                XLSX.utils.book_append_sheet(wb, ws2, "สรุปอะไหล่");
+
+                XLSX.writeFile(wb, `ใบเบิก_${workOrderName}.xlsx`);
+
+                // 3. Export CSV (5 คอลัมน์ เหมือนฟอร์แมตเดิม)
                 const csvHeaders = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'จำนวนเบิก'];
                 const csvRows = [csvHeaders.join(',')];
                 mainData.forEach(item => {
