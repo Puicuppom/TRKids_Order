@@ -189,18 +189,29 @@
         #picking-slip-preview table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
         #picking-slip-preview th, #picking-slip-preview td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         #picking-slip-preview th { background-color: #f2f2f2; }
-        #picking-slip-png-container { position: absolute; left: -9999px; top: 0; width: 800px; height: 1135px; padding: 30px; background: white; font-family: 'Tahoma', sans-serif; color: black; display: flex; flex-direction: column; }
-        #picking-slip-png-container .png-body { flex-grow: 1; }
-        #picking-slip-png-container table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px; }
-        #picking-slip-png-container th, #picking-slip-png-container td { border: 1px solid black; padding: 8px; text-align: left; word-wrap: break-word; }
-        #planner-system-container th { background-color: black; color: white; font-weight: bold; text-align: center; }
-        #picking-slip-png-container .png-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 15px; }
-        #picking-slip-png-container .png-header-box { border: 1px solid black; padding: 10px; text-align: center; flex-grow: 1; }
-        #picking-slip-png-container .png-signature-boxes { display: flex; justify-content: space-around; margin-top: auto; padding-top: 25px; gap: 20px; }
-        #picking-slip-png-container .png-signature-box { border: 1px solid black; width: 220px; padding: 8px; }
-        #picking-slip-png-container .png-signature-box .title { font-weight: bold; text-align: center; margin-bottom: 5px; }
-        #picking-slip-png-container .png-signature-box .space { height: 60px; border-bottom: 1px dotted black; margin-bottom: 5px; text-align: center; padding-top: 5px; }
-        #picking-slip-png-container .png-footer { text-align: right; padding-top: 15px; font-size: 12px; color: #555; }
+        #picking-slip-png-container { 
+    position: absolute; 
+    left: -9999px; 
+    top: 0; 
+    width: 148mm; 
+    min-height: 210mm; 
+    padding: 10mm; 
+    background: white; 
+    font-family: 'Sarabun', sans-serif; 
+    color: black; 
+    display: flex; 
+    flex-direction: column; 
+    box-sizing: border-box;
+}
+#picking-slip-png-container table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
+#picking-slip-png-container th, #picking-slip-png-container td { 
+    border: 1px solid black; 
+    padding: 3px 5px; /* ลด Padding ลง */
+    text-align: left; 
+    font-size: 11px; /* ปรับตัวหนังสือในตารางให้เล็กลง */
+    word-wrap: break-word; 
+}
+#picking-slip-png-container h3 { font-size: 13px; margin: 10px 0 5px 0; }
         
         /* --- RESPONSIVE DESIGN --- */
         #mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
@@ -2343,19 +2354,19 @@
             // --- 3. วาด Preview และตารางสำหรับ PNG (แยก 2 ตารางฟอร์แมตเดิม) ---
             const today = new Date().toLocaleDateString('th-TH');
             const renderHtmlTables = (isForPNG = false) => {
-                const style = isForPNG ? 'border: 1px solid black; padding: 8px;' : '';
-                const tableStyle = 'width: 100%; border-collapse: collapse; margin-bottom: 20px;';
+                const style = isForPNG ? '' : 'border: 1px solid #ddd; padding: 6px; font-size: 12px;';
+                const tableStyle = isForPNG ? '' : 'style="width: 100%; border-collapse: collapse; margin-bottom: 20px;"';
                 
-                let html = isForPNG ? `<div style="padding:30px; background:white; width:800px; font-family:Sarabun, sans-serif; color:black;">` : `<div>`;
+                let html = `<div>`;
                 if(isForPNG) {
-                    html += `<div style="display:flex; justify-content:space-between; border:2px solid black; padding:10px; margin-bottom:20px; font-size:18px;">
+                    html += `<div style="display:flex; justify-content:space-between; border-bottom:2px solid black; padding-bottom:5px; margin-bottom:15px; font-size: 13px;">
                                 <b>ใบเบิกใบงาน: ${workOrderName}</b> <b>วันที่: ${today}</b>
                              </div>`;
                 }
 
-                html += `<h3>สินค้าหลัก</h3><table style="${tableStyle}">
+                html += `<h3 style="margin-top:0;">📦 สินค้าหลัก</h3><table ${tableStyle}>
                     <thead><tr style="background:#f2f2f2;">
-                        <th style="${style}">จุดเก็บ</th><th style="${style}">รหัส</th><th style="${style}">รายการ</th><th style="${style}">จำนวน</th>
+                        <th style="${style} width:25%;">จุดเก็บ</th><th style="${style} width:20%;">รหัส</th><th style="${style} width:40%;">รายการ</th><th style="${style} width:15%;">จำนวน</th>
                     </tr></thead><tbody>`;
                 finalMainList.forEach(item => {
                     html += `<tr><td style="${style}">${item.location}</td><td style="${style}">${item.code}</td><td style="${style}">${item.name}</td><td style="${style} text-align:center;">${item.finalQty}</td></tr>`;
@@ -2363,8 +2374,8 @@
                 html += `</tbody></table>`;
 
                 if(finalSpareList.length > 0) {
-                    html += `<h3>สรุปอะไหล่ (หน้ายาง/โฟม)</h3><table style="${tableStyle}">
-                        <thead><tr style="background:#f2f2f2;"><th style="${style}">รายการอะไหล่</th><th style="${style}">รวมจำนวนที่ต้องใช้</th></tr></thead><tbody>`;
+                    html += `<h3>🔧 อะไหล่ (หน้ายาง/โฟม)</h3><table ${tableStyle}>
+                        <thead><tr style="background:#f2f2f2;"><th style="${style}">รายการอะไหล่</th><th style="${style} width:20%;">จำนวน</th></tr></thead><tbody>`;
                     finalSpareList.forEach(spare => {
                         html += `<tr><td style="${style}">${spare.name}</td><td style="${style} text-align:center;">${spare.qty}</td></tr>`;
                     });
@@ -2372,14 +2383,21 @@
                 }
 
                 if(isForPNG) {
-                    html += `<div style="display:flex; justify-content:space-around; margin-top:40px;">
-                                <div style="border:1px solid black; width:180px; height:80px; text-align:center; padding-top:10px;">ผู้เบิก</div>
-                                <div style="border:1px solid black; width:180px; height:80px; text-align:center; padding-top:10px;">ผู้จ่าย</div>
-                             </div></div>`;
-                } else { html += `</div>`; }
+                    // ปรับปรุงช่องเซ็นชื่อให้มีพื้นที่ว่าง (Height: 80px)
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:auto; padding-top:20px;">
+                                <div style="border:1px solid black; width:48%; height:85px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
+                                    <div style="text-align:center; font-size:12px; font-weight:bold;">ผู้เบิก (Requester)</div>
+                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 50px;"></div>
+                                </div>
+                                <div style="border:1px solid black; width:48%; height:85px; display:flex; flex-direction:column; justify-content:space-between; padding:5px;">
+                                    <div style="text-align:center; font-size:12px; font-weight:bold;">ผู้จ่าย (Issuer)</div>
+                                    <div style="border-bottom:1px dotted black; margin: 0 10px 5px 10px; height: 50px;"></div>
+                                </div>
+                             </div>`;
+                }
+                html += `</div>`;
                 return html;
             };
-
             previewContainer.innerHTML = renderHtmlTables(false);
             pngContainer.innerHTML = renderHtmlTables(true);
 
@@ -2398,7 +2416,7 @@
             loadingOverlay.style.display = 'flex';
             try {
                 // 1. Export PNG (ฟอร์แมตดั้งเดิม 2 ตาราง)
-                const canvas = await html2canvas(document.getElementById("picking-slip-png-container"), { scale: 2 });
+                const canvas = await html2canvas(document.getElementById("picking-slip-png-container"), { scale: 3 });
                 const pngLink = document.createElement('a');
                 pngLink.download = `ใบเบิก_${workOrderName}.png`;
                 pngLink.href = canvas.toDataURL("image/png");
