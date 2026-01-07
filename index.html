@@ -1114,7 +1114,7 @@
                             .select('*, order_items(*)')
                             .or(`status.in.("รอลงข้อมูล","ลงข้อมูลเสร็จสิ้น","ใบงาน (กำลังผลิต)"),created_at.gte.${isoDateLimit}`)
                             .order('created_at', { ascending: false })
-                            .limit(5000), 
+                            .limit(1000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
@@ -1232,16 +1232,47 @@
                 if (!isSilent) {
                     loadingOverlay.style.display = 'flex';
                 }
+                
                 try {
-                    const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
+                    // ----- START: จุดที่แก้ไข -----
+                    // 1. ดึงข้อมูลพื้นฐานอื่นๆ ที่ไม่เกี่ยวกับ Orders มาก่อน
+                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
-                        // แก้บรรทัดนี้: เปลี่ยน ascending เป็น false และเพิ่ม limit
-                        supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(1000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
                         supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
                     ]);
+
+                    // 2. ดึงข้อมูล Orders แบบแยกส่วน (Hybrid Fetch)
+                    //    - ส่วน A: ดึงงานที่ยัง Active อยู่ทั้งหมด (ไม่จำกัดจำนวน)
+                    const activeOrdersPromise = supabaseClient.from('orders')
+                        .select('*, order_items(*)')
+                        .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
+                        .order('created_at', { ascending: false });
+
+                    //    - ส่วน B: ดึงงานที่จบแล้ว (จัดส่ง/ยกเลิก) แค่ 1000 รายการล่าสุด
+                    const finishedOrdersPromise = supabaseClient.from('orders')
+                        .select('*, order_items(*)')
+                        .in('status', ['จัดส่งแล้ว', 'ยกเลิก'])
+                        .order('created_at', { ascending: false })
+                        .limit(1000);
+
+                    // 3. สั่งให้ดึงข้อมูล Orders ทั้ง 2 ชุดพร้อมกัน
+                    const [{ data: activeOrders, error: activeError }, { data: finishedOrders, error: finishedError }] = await Promise.all([
+                        activeOrdersPromise,
+                        finishedOrdersPromise
+                    ]);
+
+                    // 4. ตรวจสอบ Error ของการดึงข้อมูล Orders
+                    if (activeError || finishedError) {
+                        console.error("Order Fetch Error:", activeError || finishedError);
+                        throw new Error('Could not load orders');
+                    }
+
+                    // 5. นำข้อมูล Orders ทั้ง 2 ชุดมารวมกัน
+                    allOrdersData = [...(activeOrders || []), ...(finishedOrders || [])];
+                    // ----- END: จุดที่แก้ไข -----
 
                     if (productsRes.error) throw new Error('Could not load products');
                     fullProductList = productsRes.data;
@@ -1250,7 +1281,10 @@
                         .map(p => ({ id: p.id, text: p.product_name }));
                     
                     if (channelsRes.error) throw new Error('Could not load channels');
-                    channelList = channelsRes.data; if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
+                    channelList = channelsRes.data; 
+                    if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { 
+                        channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); 
+                    }
                     channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
                     
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
@@ -1259,26 +1293,27 @@
                     const isEditingOrder = isSilent && container.querySelector('#tab-create')?.classList.contains('active');
 
                     if (!isEditingOrder) {
-                        if (promotionsRes.error) throw new Error('Could not load promotions');
                         const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
                         const promotionSelect = $('#promotion'); 
                         const currentValue = promotionSelect.val();
                         promotionSelect.empty();
-                        uniquePromotions.forEach(promo => { const option = new Option(promo, promo, false, false); promotionSelect.append(option); });
+                        uniquePromotions.forEach(promo => { 
+                            const option = new Option(promo, promo, false, false); 
+                            promotionSelect.append(option); 
+                        });
                         promotionSelect.val(currentValue).trigger('change');
                         
                         populateChannelDropdowns();
                     }
-
-                    if (ordersRes.error) throw new Error('Could not load orders');
-                    allOrdersData = ordersRes.data;
                     
-                    if (workOrdersRes.error) throw new Error('Could not load work orders');
+                    if (workOrdersRes.error) throw workOrdersRes.error;
                     allWorkOrdersData = workOrdersRes.data;
                     
                     renderAllTabs();
-                } catch(err) { console.error(err); alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); }
-                finally { 
+                } catch(err) { 
+                    console.error(err); 
+                    alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
+                } finally { 
                     if (!isSilent) {
                         loadingOverlay.style.display = 'none'; 
                     }
@@ -3920,4 +3955,3 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
-
