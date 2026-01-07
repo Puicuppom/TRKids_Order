@@ -1043,19 +1043,78 @@
                 document.getElementById('upload-slip-btn').addEventListener('click', () => document.getElementById('slip-file-input').click());
                 document.getElementById('slip-file-input').addEventListener('change', (e) => slipProcessor.process(e.target.files[0]));
             }
-            
+
+            function setupRealtimeSubscriptions() {
+                const handleRealtimeUpdate = async (payload) => {
+                    console.log('Realtime change received:', payload);
+                    const { eventType, new: newRecord, old: oldRecord, table } = payload;
+                    let needsReRender = false;
+
+                    if (table === 'orders') {
+                        needsReRender = true;
+                        switch (eventType) {
+                            case 'INSERT':
+                                allOrdersData.push(newRecord);
+                                break;
+                            case 'UPDATE':
+                                const indexToUpdate = allOrdersData.findIndex(order => order.id === newRecord.id);
+                                if (indexToUpdate > -1) {
+                                    const existingItems = allOrdersData[indexToUpdate].order_items;
+                                    allOrdersData[indexToUpdate] = { ...newRecord, order_items: newRecord.order_items || existingItems };
+                                }
+                                break;
+                            case 'DELETE':
+                                allOrdersData = allOrdersData.filter(order => order.id !== oldRecord.id);
+                                break;
+                        }
+                    } else if (table === 'order_items') {
+                        const orderId = newRecord?.order_id || oldRecord?.order_id;
+                        if(orderId) {
+                            const { data: updatedOrder, error } = await supabaseClient
+                                .from('orders')
+                                .select('*, order_items(*)')
+                                .eq('id', orderId)
+                                .single();
+
+                            if (updatedOrder) {
+                                const indexToUpdate = allOrdersData.findIndex(order => order.id === updatedOrder.id);
+                                if (indexToUpdate > -1) {
+                                    allOrdersData[indexToUpdate] = updatedOrder;
+                                    needsReRender = true;
+                                }
+                            }
+                        }
+                    }
+                    if (needsReRender) { renderAllTabs(); }
+                };
+
+                const channel = supabaseClient.channel('public:orders_and_items');
+                channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, handleRealtimeUpdate)
+                       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
+                       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => loadInitialData(true)) 
+                       .subscribe();
+            }
+
             async function loadInitialData(isSilent = false) {
-                // [FIX] เพิ่มตัวป้องกันไม่ให้ฟังก์ชันทำงานซ้อนกัน หากกำลังโหลดข้อมูลอยู่แล้ว
                 if (window.isLoadingData) return;
                 window.isLoadingData = true;
 
-                if (!isSilent) {
-                    loadingOverlay.style.display = 'flex';
-                }
+                if (!isSilent) { loadingOverlay.style.display = 'flex'; }
+                
                 try {
-                    // [OPTIMIZATION] Step 1: ดึงข้อมูลส่วนเล็กๆ ที่จำเป็นก่อน (สินค้า, ช่องทาง, ใบงานที่กำลังผลิต)
-                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
+                    // คำนวณวันที่ย้อนหลัง 14 วัน
+                    const dateLimit = new Date();
+                    dateLimit.setDate(dateLimit.getDate() - 14);
+                    const isoDateLimit = dateLimit.toISOString();
+
+                    const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
+                        // ดึง (งานที่ยังไม่จบ) OR (งานทุกสถานะที่สร้างไม่เกิน 14 วันล่าสุด)
+                        supabaseClient.from('orders')
+                            .select('*, order_items(*)')
+                            .or(`status.in.("รอลงข้อมูล","ลงข้อมูลเสร็จสิ้น","ใบงาน (กำลังผลิต)"),created_at.gte.${isoDateLimit}`)
+                            .order('created_at', { ascending: false })
+                            .limit(5000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
@@ -1067,34 +1126,36 @@
                     productList = productsRes.data.filter(p => p.is_active !== false).map(p => ({ id: p.id, text: p.product_name }));
                     
                     if (channelsRes.error) throw new Error('Could not load channels');
-                    channelList = channelsRes.data; if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
+                    channelList = channelsRes.data; 
+                    if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
+                    channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
                     
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
                     inkTypeList = inkTypesRes.data;
 
-                    if (workOrdersRes.error) throw new Error('Could not load work orders');
+                    const isEditingOrder = isSilent && container.querySelector('#tab-create')?.classList.contains('active');
+                    if (!isEditingOrder) {
+                        const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
+                        const promotionSelect = $('#promotion'); 
+                        const currentValue = promotionSelect.val();
+                        promotionSelect.empty();
+                        uniquePromotions.forEach(promo => { const option = new Option(promo, promo, false, false); promotionSelect.append(option); });
+                        promotionSelect.val(currentValue).trigger('change');
+                        populateChannelDropdowns();
+                    }
+
+                    if (ordersRes.error) throw ordersRes.error;
+                    allOrdersData = ordersRes.data;
+                    
+                    if (workOrdersRes.error) throw workOrdersRes.error;
                     allWorkOrdersData = workOrdersRes.data;
-
-                    // [FIX & OPTIMIZATION] Step 2: ดึงข้อมูลออร์เดอร์ด้วย Query ที่มีประสิทธิภาพ
-                    // โดยจะดึงออร์เดอร์ที่ยังอยู่ในกระบวนการทั้งหมด + ออร์เดอร์ล่าสุดที่จบไปแล้ว 2,000 รายการ
-                    // ซึ่งจะช่วยแก้ปัญหา Error 500 จากการดึงข้อมูลมากเกินไป
-                    const { data: ordersData, error: ordersError } = await supabaseClient
-                        .from('orders')
-                        .select('*, order_items(*)')
-                        .or('status.eq.รอลงข้อมูล,status.eq.ลงข้อมูลเสร็จสิ้น,status.eq.ใบงาน (กำลังผลิต),status.in.(จัดส่งแล้ว,ยกเลิก)')
-                        .order('created_at', { ascending: false })
-                        .limit(2000);
-
-                    if (ordersError) throw ordersError;
-                    allOrdersData = ordersData;
                     
                     renderAllTabs();
                 } catch(err) { 
                     console.error(err); 
                     alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
                 } finally { 
-                    if (!isSilent) loadingOverlay.style.display = 'none'; 
-                    // [FIX] ตั้งค่าตัวป้องกันกลับคืนหลังจากโหลดเสร็จ พร้อมหน่วงเวลาเล็กน้อย
+                    if (!isSilent) { loadingOverlay.style.display = 'none'; }
                     setTimeout(() => { window.isLoadingData = false; }, 500); 
                 }
             }
@@ -1175,7 +1236,7 @@
                     const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
                         // แก้บรรทัดนี้: เปลี่ยน ascending เป็น false และเพิ่ม limit
-                        supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(100000), 
+                        supabaseClient.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(2000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
