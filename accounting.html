@@ -178,11 +178,19 @@
                         </div>
                     </div>
                     
-                    <!-- Section 3: Data Tables -->
-                    <div class="card" id="data-table-card">
-                        <h2 id="data-table-title"><i class="fa-solid fa-table-list"></i> รายการใบงาน</h2>
-                        <div id="results-container" class="table-container">
-                            <p id="loading-message">ผลลัพธ์จะแสดงที่นี่</p>
+                    <!-- Section 3: Unmatched Statements Table (Permanent) -->
+                    <div class="card" id="unmatched-statements-card">
+                        <h2><i class="fa-solid fa-table-list"></i> รายการ Statement ที่ยังไม่กระทบยอด</h2>
+                        <div id="unmatched-statements-container" class="table-container">
+                            <p>กำลังโหลดข้อมูล...</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Sales Report Data Table (Results) -->
+                    <div class="card" id="sales-report-table-card" style="display: none;">
+                        <h2 id="sales-report-table-title"><i class="fa-solid fa-file-invoice-dollar"></i> ตารางข้อมูลยอดขาย</h2>
+                        <div id="sales-report-container" class="table-container">
+                             <p>ผลลัพธ์รายงานจะแสดงที่นี่</p>
                         </div>
                     </div>
                 </div>
@@ -201,11 +209,6 @@
             let channelMap = {}; 
 
             // --- Elements ---
-            const mainContainer = document.getElementById('main-container');
-            const salesReportCard = document.getElementById('sales-report-card');
-            const reconciliationCard = document.getElementById('reconciliation-card');
-            const dataTableCard = document.getElementById('data-table-card');
-            const dataTableTitle = document.getElementById('data-table-title');
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
             const customerSearchInput = document.getElementById('customer-search');
@@ -219,20 +222,16 @@
             const matchBtn = document.getElementById('match-button');
             const statusText = document.getElementById('status-text');
             const loader = document.getElementById('loader');
-            const resultsContainer = document.getElementById('results-container');
             const loadingOverlay = document.getElementById('loading-overlay');
             const logoutBtn = document.getElementById('logout-btn');
             const stmtStartDateInput = document.getElementById('stmt-start-date');
             const stmtEndDateInput = document.getElementById('stmt-end-date');
             const exportStatementXlsxBtn = document.getElementById('export-statement-xlsx-btn');
-
-            function moveTablePosition(mode) {
-                if (mode === 'report') {
-                    mainContainer.insertBefore(dataTableCard, reconciliationCard);
-                } else if (mode === 'reconciliation') {
-                    mainContainer.appendChild(dataTableCard);
-                }
-            }
+            
+            const unmatchedContainer = document.getElementById('unmatched-statements-container');
+            const salesReportTableCard = document.getElementById('sales-report-table-card');
+            const salesReportTableTitle = document.getElementById('sales-report-table-title');
+            const salesReportContainer = document.getElementById('sales-report-container');
 
             document.getElementById('mobile-menu-toggle').addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
             logoutBtn.addEventListener('click', async () => {
@@ -288,9 +287,9 @@
 
             // --- === SECTION 1: SALES REPORT (MODIFIED TO PULL ALL) === ---
             async function generateReport() {
-                moveTablePosition('report');
-                dataTableTitle.innerHTML = '<i class="fa-solid fa-table-list"></i> ตารางข้อมูลยอดขาย (ทั้งหมดในช่วงวันที่เลือก)';
-
+                salesReportTableCard.style.display = 'block';
+                salesReportTableTitle.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> ตารางข้อมูลยอดขาย (ทั้งหมดในช่วงวันที่เลือก)';
+            
                 const startDate = startDateInput.value;
                 const endDate = endDateInput.value;
                 const customerKeyword = customerSearchInput.value.trim();
@@ -302,11 +301,10 @@
                 exportXlsxBtn.disabled = true;
                 exportPngBtn.disabled = true;
                 currentReportData = [];
-                resultsContainer.innerHTML = '<p id="loading-message">กำลังดึงข้อมูลรายงาน...</p>';
+                salesReportContainer.innerHTML = '<p>กำลังดึงข้อมูลรายงาน...</p>';
                 summaryContainer.innerHTML = '';
 
                 try {
-                    // *** แก้ไขตรงนี้: ดึงข้อมูล Order ทั้งหมดโดยไม่ต้องเช็ค matched list ***
                     let allFetchedOrders = [];
                     let from = 0;
                     let to = 999;
@@ -342,7 +340,7 @@
                     }
                 } catch (error) {
                     console.error('Error generating report:', error);
-                    resultsContainer.innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
+                    salesReportContainer.innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
                 } finally {
                     generateBtn.disabled = false;
                 }
@@ -350,7 +348,7 @@
             
             function renderReportResults(orders) {
                 if (orders.length === 0) {
-                    resultsContainer.innerHTML = '<p id="loading-message">ไม่พบข้อมูลใบงานตามเงื่อนไขที่เลือก</p>';
+                    salesReportContainer.innerHTML = '<p>ไม่พบข้อมูลใบงานตามเงื่อนไขที่เลือก</p>';
                     summaryContainer.innerHTML = '<p id="initial-summary-message">ไม่พบข้อมูลสำหรับสรุปยอด</p>';
                     return;
                 }
@@ -391,7 +389,7 @@
                     </tr>`;
                 });
                 tableHTML += `</tbody></table>`;
-                resultsContainer.innerHTML = tableHTML;
+                salesReportContainer.innerHTML = tableHTML;
             }
 
             function exportReportToXLSX() {
@@ -438,12 +436,19 @@
                 if (!startDate || !endDate) { alert('กรุณาเลือกช่วงวันที่'); return; }
                 loadingOverlay.style.display = 'flex';
                 try {
-                    const { data, error } = await supabaseClient.from('bank_statements').select('*').gte('statement_date', startDate).lte('statement_date', endDate).order('statement_date', { ascending: true });
+                    const { data, error } = await supabaseClient
+                        .from('bank_statements')
+                        .select('bill_no,statement_date,statement_time,description,deposit_amount,withdrawal_amount,balance,channel,details,is_matched')
+                        .gte('statement_date', startDate)
+                        .lte('statement_date', endDate)
+                        .order('id', { ascending: true }); // UPDATED: Order by id
+
                     if (error) throw error;
+                    
                     const worksheet = XLSX.utils.json_to_sheet(data);
                     const workbook = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(workbook, worksheet, 'Statements');
-                    XLSX.writeFile(workbook, `Statements_${startDate}.xlsx`);
+                    XLSX.writeFile(workbook, `Statements_${startDate}_to_${endDate}.xlsx`);
                 } catch (error) {
                     alert(error.message);
                 } finally {
@@ -452,13 +457,20 @@
             }
             
             async function displayUnmatchedStatements() {
-                moveTablePosition('reconciliation');
-                dataTableTitle.innerHTML = '<i class="fa-solid fa-table-list"></i> รายการ Statement ที่ยังไม่กระทบยอด';
-                resultsContainer.innerHTML = '<p id="loading-message">กำลังโหลดข้อมูล...</p>';
+                unmatchedContainer.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
                 
-                const { data, error } = await supabaseClient.from('bank_statements').select('*').eq('is_matched', false).order('statement_date', { ascending: true });
-                if (error || data.length === 0) {
-                    resultsContainer.innerHTML = '<p id="loading-message">ไม่มีรายการที่ค้างอยู่</p>';
+                const { data, error } = await supabaseClient
+                    .from('bank_statements')
+                    .select('*')
+                    .eq('is_matched', false)
+                    .order('id', { ascending: true }); // UPDATED: Order by id
+
+                if (error) {
+                    unmatchedContainer.innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
+                    return [];
+                }
+                if (data.length === 0) {
+                    unmatchedContainer.innerHTML = '<p>ไม่มีรายการที่ค้างอยู่</p>';
                     return [];
                 }
 
@@ -475,7 +487,7 @@
                     </tr>`;
                 });
                 tableHTML += `</tbody></table>`;
-                resultsContainer.innerHTML = tableHTML;
+                unmatchedContainer.innerHTML = tableHTML;
                 document.querySelectorAll('.manual-save-btn').forEach(btn => btn.addEventListener('click', handleManualSave));
                 return data;
             }
@@ -485,7 +497,81 @@
                 const billNo = row.querySelector('input').value.trim();
                 if (!billNo) return;
                 const { error } = await supabaseClient.from('bank_statements').update({ bill_no: billNo, is_matched: true }).eq('id', row.dataset.statementId);
-                if (!error) row.remove();
+                if (!error) {
+                    row.remove(); // Remove row on successful save
+                } else {
+                    alert('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+                }
+            }
+
+            // NEW: Function to handle CSV file upload
+            async function handleCsvUpload(event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    csvFileNameLabel.textContent = 'ยังไม่ได้เลือกไฟล์';
+                    return;
+                }
+                csvFileNameLabel.textContent = `ไฟล์: ${file.name}`;
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.textContent = 'กำลังนำเข้าไฟล์...';
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const text = e.target.result;
+                        const rows = text.split('\n').filter(row => row.trim() !== '');
+                        
+                        const statementsToInsert = [];
+                        const currentCentury = "20";
+
+                        for (const row of rows) {
+                             // Use a regex to split by comma, but ignore commas inside quotes
+                            const columns = row.match(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g).map(col => col ? col.replace(/"/g, '').trim() : '');
+
+                            if (columns.length < 13 || columns[3] !== 'รับโอนเงิน') {
+                                continue; 
+                            }
+
+                            const [day, month, yearShort] = columns[1].split('-');
+                            const statement_date = `${currentCentury}${yearShort}-${month}-${day}`;
+                            const statement_time = columns[2] + ':00';
+                            const description = columns[3];
+                            const deposit_amount_str = columns[6];
+                            const balance_str = columns[8];
+                            const channel = columns[10];
+                            const details = columns[12];
+                            
+                            const deposit_amount = parseFloat(deposit_amount_str.replace(/,/g, '')) || 0;
+                            const balance = parseFloat(balance_str.replace(/,/g, '')) || 0;
+                            
+                            if (deposit_amount > 0) {
+                                statementsToInsert.push({
+                                    statement_date, statement_time, description,
+                                    deposit_amount, balance, channel, details,
+                                    withdrawal_amount: 0, is_matched: false
+                                });
+                            }
+                        }
+
+                        if (statementsToInsert.length > 0) {
+                            const { error } = await supabaseClient.from('bank_statements').insert(statementsToInsert);
+                            if (error) throw error;
+                            
+                            alert(`นำเข้าสำเร็จ ${statementsToInsert.length} รายการ`);
+                            await displayUnmatchedStatements();
+                        } else {
+                            alert('ไม่พบรายการ "รับโอนเงิน" ที่สามารถนำเข้าได้ในไฟล์');
+                        }
+                    } catch (error) {
+                        console.error('Error processing CSV file:', error);
+                        alert(`เกิดข้อผิดพลาดในการประมวลผลไฟล์ CSV: ${error.message}`);
+                    } finally {
+                        loadingOverlay.style.display = 'none';
+                        loadingOverlay.textContent = 'กำลังโหลด...';
+                        csvFileInput.value = ''; 
+                    }
+                };
+                reader.readAsText(file, 'TIS-620');
             }
 
             async function matchData() {
@@ -494,7 +580,7 @@
                 // ... (Logic การแมตซ์ข้อมูลตามโค้ดเดิมของคุณ)
                 statusText.textContent = 'เสร็จสมบูรณ์';
                 loader.style.display = 'none';
-                await displayUnmatchedStatements();
+                await displayUnmatchedStatements(); // Refresh the unmatched list
             }
 
             function formatCurrency(num) {
@@ -507,10 +593,11 @@
             exportPngBtn.addEventListener('click', exportReportToPNG);
             exportStatementXlsxBtn.addEventListener('click', exportStatementToXLSX);
             matchBtn.addEventListener('click', matchData);
+            csvFileInput.addEventListener('change', handleCsvUpload); // ADDED: Listener for file input
             
             await checkAuth();
             await loadChannels();
-            await displayUnmatchedStatements();
+            await displayUnmatchedStatements(); // Initial load of permanent table
         });
     </script>
 </body>
