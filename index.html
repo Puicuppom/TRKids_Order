@@ -1045,6 +1045,7 @@
             }
             
             async function loadInitialData(isSilent = false) {
+                // [FIX] เพิ่มตัวป้องกันไม่ให้ฟังก์ชันทำงานซ้อนกัน หากกำลังโหลดข้อมูลอยู่แล้ว
                 if (window.isLoadingData) return;
                 window.isLoadingData = true;
 
@@ -1052,7 +1053,7 @@
                     loadingOverlay.style.display = 'flex';
                 }
                 try {
-                    // 1. ดึงข้อมูลสินค้า, ช่องทาง, หมึก, โปรโมชั่น และใบงานที่ยังผลิตไม่เสร็จก่อน
+                    // [OPTIMIZATION] Step 1: ดึงข้อมูลส่วนเล็กๆ ที่จำเป็นก่อน (สินค้า, ช่องทาง, ใบงานที่กำลังผลิต)
                     const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
                         supabaseClient.from('channels').select('channel_code, channel_name'),
@@ -1074,15 +1075,15 @@
                     if (workOrdersRes.error) throw new Error('Could not load work orders');
                     allWorkOrdersData = workOrdersRes.data;
 
-                    // 2. ดึงข้อมูลออร์เดอร์แบบเจาะจง:
-                    // - ดึงทุกออร์เดอร์ที่สถานะ "รอลงข้อมูล", "ลงข้อมูลเสร็จสิ้น", "ใบงาน (กำลังผลิต)" (เพื่อให้หน้าใบงานไม่เป็น 0)
-                    // - และดึง "จัดส่งแล้ว" หรือ "ยกเลิก" เฉพาะ 300 รายการล่าสุด
+                    // [FIX & OPTIMIZATION] Step 2: ดึงข้อมูลออร์เดอร์ด้วย Query ที่มีประสิทธิภาพ
+                    // โดยจะดึงออร์เดอร์ที่ยังอยู่ในกระบวนการทั้งหมด + ออร์เดอร์ล่าสุดที่จบไปแล้ว 2,000 รายการ
+                    // ซึ่งจะช่วยแก้ปัญหา Error 500 จากการดึงข้อมูลมากเกินไป
                     const { data: ordersData, error: ordersError } = await supabaseClient
                         .from('orders')
                         .select('*, order_items(*)')
                         .or('status.eq.รอลงข้อมูล,status.eq.ลงข้อมูลเสร็จสิ้น,status.eq.ใบงาน (กำลังผลิต),status.in.(จัดส่งแล้ว,ยกเลิก)')
                         .order('created_at', { ascending: false })
-                        .limit(2000); // เพิ่มขีดจำกัดเป็น 2000 เพื่อให้ครอบคลุมงานค้างทั้งหมด
+                        .limit(2000);
 
                     if (ordersError) throw ordersError;
                     allOrdersData = ordersData;
@@ -1093,6 +1094,7 @@
                     alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
                 } finally { 
                     if (!isSilent) loadingOverlay.style.display = 'none'; 
+                    // [FIX] ตั้งค่าตัวป้องกันกลับคืนหลังจากโหลดเสร็จ พร้อมหน่วงเวลาเล็กน้อย
                     setTimeout(() => { window.isLoadingData = false; }, 500); 
                 }
             }
@@ -1158,9 +1160,10 @@
 
                 const channel = supabaseClient.channel('public:orders_and_items');
                 channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, handleRealtimeUpdate)
-       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
-       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => loadInitialData(true)) // เพิ่มบรรทัดนี้
-       .subscribe();}
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => loadInitialData(true)) 
+                       .subscribe();}
+
             async function loadInitialData(isSilent = false) {
                 if (window.isLoadingData) return;
                 window.isLoadingData = true;
@@ -1231,14 +1234,12 @@
                 if (summaryContainer) { const completedOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น'); const channelCounts = completedOrders.reduce((acc, order) => { const channel = order.channel_code || 'N/A'; acc[channel] = (acc[channel] || 0) + 1; return acc; }, {}); summaryContainer.innerHTML = ''; const sortedChannels = Object.keys(channelCounts).sort(); if (sortedChannels.length > 0) { let summaryHTML = ''; for (const channel of sortedChannels) { summaryHTML += `<span class="channel-summary-item" data-channel="${channel}">${channel}: ${channelCounts[channel]} บิล</span>`; } summaryContainer.innerHTML = summaryHTML; } else { summaryContainer.innerHTML = `<span class="channel-summary-placeholder">ไม่มีบิลรอสร้างใบงาน</span>`; } }
                 workOrdersListContainer.innerHTML = ''; Object.values(lists).forEach(list => { if(list) list.innerHTML = ''; });
                 
-                const sortedOrdersForDisplay = [...allOrdersData].sort((a, b) => (b.bill_no || '').localeCompare(a.bill_no || ''));
-                
-                sortedOrdersForDisplay.forEach(order => {
-                    const list = lists[order.status]; if (list) {
-                        const tabId = list.parentElement.id; const filterKey = tabId.split('-')[1]; const filterValue = filters[filterKey]; const searchTerm = searchTerms[filterKey] || '';
+                const renderOrderListItems = (orders, listElement, filterValue, searchTerm) => {
+                    let htmlContent = '';
+                    orders.forEach(order => {
                         const matchesSearch = !searchTerm || (order.bill_no && order.bill_no.toLowerCase().includes(searchTerm)) || (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm)) || (order.tracking_number && order.tracking_number.toLowerCase().includes(searchTerm));
-                        if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) { 
-                            const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
+                        if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) {
+                            const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
                             
                             let billingIndicator = '';
                             if (order.billing_details) {
@@ -1249,7 +1250,7 @@
                                 }
                             }
                             let infoHTML = `<div><strong data-order-id="${order.id}">${order.bill_no || 'N/A'}</strong> <span class="customer-info">${order.customer_name || 'N/A'}${billingIndicator}</span></div>`;
-                            
+
                             if (order.channel_code === 'CLAIM' && (order.claim_type || order.claim_details)) {
                                 const claimType = order.claim_type ? `<strong>${order.claim_type}</strong>` : '';
                                 const claimDetails = order.claim_details || '';
@@ -1258,13 +1259,42 @@
                             }
 
                             if (order.status === 'จัดส่งแล้ว' && order.shipped_by) {
-                                const shippedTime = new Date(order.shipped_time).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'});
+                                const shippedTime = new Date(order.shipped_time).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
                                 infoHTML += `<div class="shipping-details">โดย: ${order.shipped_by} (${shippedTime})</div>`;
                             }
-                            list.innerHTML += `<li class="order-list-item" data-order-id="${order.id}"><input type="checkbox" class="order-checkbox"><div class="order-info">${infoHTML}</div>${trackingHTML}</li>`; 
+                            htmlContent += `<li class="order-list-item" data-order-id="${order.id}"><input type="checkbox" class="order-checkbox"><div class="order-info">${infoHTML}</div>${trackingHTML}</li>`;
                         }
+                    });
+                    listElement.innerHTML = htmlContent;
+                };
+
+                // [NEW] แยกการเรียงข้อมูลสำหรับ "จัดส่งแล้ว" โดยเฉพาะ
+                const shippedOrders = allOrdersData
+                    .filter(o => o.status === 'จัดส่งแล้ว')
+                    .sort((a, b) => (b.shipped_time || '').localeCompare(a.shipped_time || '')); // เรียงจากเวลาที่ส่งล่าสุดไปเก่า
+                
+                // [NEW] แท็บอื่นๆ ยังคงเรียงตามเลขบิลเหมือนเดิม
+                const otherStatuses = ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ยกเลิก'];
+                otherStatuses.forEach(status => {
+                    const ordersForStatus = allOrdersData
+                        .filter(o => o.status === status)
+                        .sort((a, b) => (b.bill_no || '').localeCompare(a.bill_no || ''));
+                    
+                    const listKey = status.replace(/ /g, '-').toLowerCase(); // e.g., 'รอลงข้อมูล' -> 'รอลงข้อมูล'
+                    let tabKey;
+                    if (status === 'รอลงข้อมูล') tabKey = 'waiting';
+                    else if (status === 'ลงข้อมูลเสร็จสิ้น') tabKey = 'complete';
+                    else if (status === 'ยกเลิก') tabKey = 'cancelled';
+                    
+                    if (tabKey && lists[status]) {
+                        renderOrderListItems(ordersForStatus, lists[status], filters[tabKey], searchTerms[tabKey]);
                     }
                 });
+                
+                // วาดรายการสำหรับ "จัดส่งแล้ว" โดยใช้ข้อมูลที่เรียงลำดับใหม่
+                if(lists['จัดส่งแล้ว']) {
+                    renderOrderListItems(shippedOrders, lists['จัดส่งแล้ว'], filters.shipped, searchTerms.shipped);
+                }
 
                 const workOrdersFilter = filters.work_orders; const workOrdersSearch = searchTerms.work_orders;
                 allWorkOrdersData.forEach(wo => {
@@ -1682,7 +1712,7 @@
                 for (const channelCode of channelGroups) { const groupSelectedIds = ordersByChannel[channelCode].map(o => o.id); try { const today = new Date(); const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, ''); const workOrderDate = today.toISOString().slice(0, 10); const { data, error } = await supabaseClient.from('work_orders').select('batch_number').eq('channel_code', channelCode).eq('production_date', workOrderDate).order('batch_number', { ascending: false }).limit(1); if (error) throw error; const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0; const batchNumber = lastBatchNumber + 1; const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`; const { error: woError } = await supabaseClient.from('work_orders').insert({ work_order_name: workOrderName, channel_code: channelCode, production_date: workOrderDate, batch_number: batchNumber, order_count: groupSelectedIds.length, created_by: loggedInUsername, status: 'กำลังผลิต' }); if (woError) throw woError; const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', groupSelectedIds); if (updateError) throw updateError; const billsInWorkOrder = ordersByChannel[channelCode]; const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: billsInWorkOrder.length }; billsInWorkOrder.forEach(order => { (order.order_items || []).forEach(item => { const product = fullProductList.find(p => p.id === item.product_id); if (product && product.product_category) { const category = product.product_category.toUpperCase(); if (category.includes('STAMP')) qty.STAMP++; if (category.includes('STK')) qty.STK++; if (category.includes('UV')) qty.CTT++; if (category.includes('LASER')) qty.LASER++; if (category.includes('TUBE')) qty.TUBE++; } }); }); const creationTime = new Date(); const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`; const { error: plannerError } = await supabaseClient.from('jobs').insert({ name: workOrderName, date: workOrderDate, cut: cutTime, qty: qty, }); if (plannerError) { console.error('Planner Sync failed:', plannerError); throw new Error(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่ Sync ไป Planner ล้มเหลว`); } successMessages.push(`สร้างใบงาน "${workOrderName}" สำเร็จ`); } catch (error) { console.error(`Error for channel ${channelCode}:`, error); errorMessages.push(`พลาดกับช่องทาง ${channelCode}: ${error.message}`); } }
                 loadingOverlay.style.display = 'none'; let finalAlertMessage = successMessages.join('\n'); if(errorMessages.length > 0) { finalAlertMessage += '\n\nข้อผิดพลาด:\n' + errorMessages.join('\n'); }
                 alert(finalAlertMessage);
-	await loadInitialData(true); // เพิ่มบรรทัดนี้ต่อท้าย alert
+	await loadInitialData(true);
             }
 
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); if (!confirm(`ต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกสำเร็จ!'); } catch (error) { alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
