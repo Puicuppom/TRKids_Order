@@ -982,7 +982,7 @@
             return { start };
         })();
         // --- ORDER SYSTEM MODULE ---
-        window.orderSystem = (() => {
+         window.orderSystem = (() => {
             const container = document.getElementById('order-system-container');
             const adminUserInput = container.querySelector('#admin_user');
             const itemsTbody = container.querySelector('#items-tbody');
@@ -1011,9 +1011,9 @@
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
             const ecommerceChannels = ['SPTR', 'FSPTR', 'LZTR', 'TTTR', 'SHOP'];
- async function performDatabaseSearch(searchTerm) {
+
+            async function performDatabaseSearch(searchTerm) {
                 try {
-                    // ค้นหาจาก เลขบิล, ชื่อลูกค้า หรือ เลขพัสดุ
                     const { data, error } = await supabaseClient
                         .from('orders')
                         .select('*, order_items(*)')
@@ -1024,8 +1024,8 @@
                     if (error) throw error;
 
                     if (data && data.length > 0) {
-                        allOrdersData = data; // อัปเดตข้อมูลที่จะแสดงผล
-                        renderAllTabs();     // วาดตารางใหม่
+                        allOrdersData = data;
+                        renderAllTabs();
                     }
                 } catch (err) {
                     console.error('Search Error:', err);
@@ -1102,24 +1102,36 @@
                 if (!isSilent) { loadingOverlay.style.display = 'flex'; }
                 
                 try {
-                    // คำนวณวันที่ย้อนหลัง 14 วัน
-                    const dateLimit = new Date();
-                    dateLimit.setDate(dateLimit.getDate() - 14);
-                    const isoDateLimit = dateLimit.toISOString();
-
-                    const [productsRes, ordersRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
+                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
                         supabaseClient.from('products').select('*'),
-                        // ดึง (งานที่ยังไม่จบ) OR (งานทุกสถานะที่สร้างไม่เกิน 14 วันล่าสุด)
-                        supabaseClient.from('orders')
-                            .select('*, order_items(*)')
-                            .or(`status.in.("รอลงข้อมูล","ลงข้อมูลเสร็จสิ้น","ใบงาน (กำลังผลิต)"),created_at.gte.${isoDateLimit}`)
-                            .order('created_at', { ascending: false })
-                            .limit(1000), 
                         supabaseClient.from('channels').select('channel_code, channel_name'),
                         supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
                         supabaseClient.from('ink_types').select('ink_name').order('id'),
                         supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
                     ]);
+
+                    const activeOrdersPromise = supabaseClient.from('orders')
+                        .select('*, order_items(*)')
+                        .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
+                        .order('created_at', { ascending: false });
+
+                    const finishedOrdersPromise = supabaseClient.from('orders')
+                        .select('*, order_items(*)')
+                        .in('status', ['จัดส่งแล้ว', 'ยกเลิก'])
+                        .order('created_at', { ascending: false })
+                        .limit(1000);
+
+                    const [{ data: activeOrders, error: activeError }, { data: finishedOrders, error: finishedError }] = await Promise.all([
+                        activeOrdersPromise,
+                        finishedOrdersPromise
+                    ]);
+
+                    if (activeError || finishedError) {
+                        console.error("Order Fetch Error:", activeError || finishedError);
+                        throw new Error('Could not load orders');
+                    }
+
+                    allOrdersData = [...(activeOrders || []), ...(finishedOrders || [])];
 
                     if (productsRes.error) throw new Error('Could not load products');
                     fullProductList = productsRes.data;
@@ -1143,9 +1155,6 @@
                         promotionSelect.val(currentValue).trigger('change');
                         populateChannelDropdowns();
                     }
-
-                    if (ordersRes.error) throw ordersRes.error;
-                    allOrdersData = ordersRes.data;
                     
                     if (workOrdersRes.error) throw workOrdersRes.error;
                     allWorkOrdersData = workOrdersRes.data;
@@ -1156,167 +1165,6 @@
                     alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
                 } finally { 
                     if (!isSilent) { loadingOverlay.style.display = 'none'; }
-                    setTimeout(() => { window.isLoadingData = false; }, 500); 
-                }
-            }
-
-            async function initializeApp(username, role) {
-                adminUserInput.value = username;
-                currentUserRole = role;
-                $('#promotion').select2({ tags: true, placeholder: 'เลือกหรือพิมพ์โปรโมชันใหม่', tokenSeparators: [','] });
-                await loadInitialData(); 
-                setFormMode('create'); 
-                initializeEventListeners();
-                setupRealtimeSubscriptions();
-                document.getElementById('upload-slip-btn').addEventListener('click', () => document.getElementById('slip-file-input').click());
-                document.getElementById('slip-file-input').addEventListener('change', (e) => slipProcessor.process(e.target.files[0]));
-            }
-            
-            function setupRealtimeSubscriptions() {
-                const handleRealtimeUpdate = async (payload) => {
-                    console.log('Realtime change received:', payload);
-                    const { eventType, new: newRecord, old: oldRecord, table } = payload;
-                    let needsReRender = false;
-
-                    if (table === 'orders') {
-                        needsReRender = true;
-                        switch (eventType) {
-                            case 'INSERT':
-                                allOrdersData.push(newRecord);
-                                break;
-                            case 'UPDATE':
-                                const indexToUpdate = allOrdersData.findIndex(order => order.id === newRecord.id);
-                                if (indexToUpdate > -1) {
-                                    const existingItems = allOrdersData[indexToUpdate].order_items;
-                                    allOrdersData[indexToUpdate] = { ...newRecord, order_items: newRecord.order_items || existingItems };
-                                }
-                                break;
-                            case 'DELETE':
-                                allOrdersData = allOrdersData.filter(order => order.id !== oldRecord.id);
-                                break;
-                        }
-                    } else if (table === 'order_items') {
-                        const orderId = newRecord?.order_id || oldRecord?.order_id;
-                        if(orderId) {
-                            const { data: updatedOrder, error } = await supabaseClient
-                                .from('orders')
-                                .select('*, order_items(*)')
-                                .eq('id', orderId)
-                                .single();
-
-                            if (updatedOrder) {
-                                const indexToUpdate = allOrdersData.findIndex(order => order.id === updatedOrder.id);
-                                if (indexToUpdate > -1) {
-                                    allOrdersData[indexToUpdate] = updatedOrder;
-                                    needsReRender = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if (needsReRender) {
-                        renderAllTabs();
-                    }
-                };
-
-                const channel = supabaseClient.channel('public:orders_and_items');
-                channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, handleRealtimeUpdate)
-               .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, handleRealtimeUpdate)
-               .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => loadInitialData(true)) 
-                       .subscribe();}
-
-            async function loadInitialData(isSilent = false) {
-                if (window.isLoadingData) return;
-                window.isLoadingData = true;
-
-                if (!isSilent) {
-                    loadingOverlay.style.display = 'flex';
-                }
-                
-                try {
-                    // ----- START: จุดที่แก้ไข -----
-                    // 1. ดึงข้อมูลพื้นฐานอื่นๆ ที่ไม่เกี่ยวกับ Orders มาก่อน
-                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
-                        supabaseClient.from('products').select('*'),
-                        supabaseClient.from('channels').select('channel_code, channel_name'),
-                        supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
-                        supabaseClient.from('ink_types').select('ink_name').order('id'),
-                        supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
-                    ]);
-
-                    // 2. ดึงข้อมูล Orders แบบแยกส่วน (Hybrid Fetch)
-                    //    - ส่วน A: ดึงงานที่ยัง Active อยู่ทั้งหมด (ไม่จำกัดจำนวน)
-                    const activeOrdersPromise = supabaseClient.from('orders')
-                        .select('*, order_items(*)')
-                        .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
-                        .order('created_at', { ascending: false });
-
-                    //    - ส่วน B: ดึงงานที่จบแล้ว (จัดส่ง/ยกเลิก) แค่ 1000 รายการล่าสุด
-                    const finishedOrdersPromise = supabaseClient.from('orders')
-                        .select('*, order_items(*)')
-                        .in('status', ['จัดส่งแล้ว', 'ยกเลิก'])
-                        .order('created_at', { ascending: false })
-                        .limit(1000);
-
-                    // 3. สั่งให้ดึงข้อมูล Orders ทั้ง 2 ชุดพร้อมกัน
-                    const [{ data: activeOrders, error: activeError }, { data: finishedOrders, error: finishedError }] = await Promise.all([
-                        activeOrdersPromise,
-                        finishedOrdersPromise
-                    ]);
-
-                    // 4. ตรวจสอบ Error ของการดึงข้อมูล Orders
-                    if (activeError || finishedError) {
-                        console.error("Order Fetch Error:", activeError || finishedError);
-                        throw new Error('Could not load orders');
-                    }
-
-                    // 5. นำข้อมูล Orders ทั้ง 2 ชุดมารวมกัน
-                    allOrdersData = [...(activeOrders || []), ...(finishedOrders || [])];
-                    // ----- END: จุดที่แก้ไข -----
-
-                    if (productsRes.error) throw new Error('Could not load products');
-                    fullProductList = productsRes.data;
-                    productList = productsRes.data
-                        .filter(p => p.is_active !== false)
-                        .map(p => ({ id: p.id, text: p.product_name }));
-                    
-                    if (channelsRes.error) throw new Error('Could not load channels');
-                    channelList = channelsRes.data; 
-                    if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { 
-                        channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); 
-                    }
-                    channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
-                    
-                    if (inkTypesRes.error) throw new Error('Could not load ink types');
-                    inkTypeList = inkTypesRes.data;
-
-                    const isEditingOrder = isSilent && container.querySelector('#tab-create')?.classList.contains('active');
-
-                    if (!isEditingOrder) {
-                        const uniquePromotions = [...new Set(promotionsRes.data.map(p => p.promotion))];
-                        const promotionSelect = $('#promotion'); 
-                        const currentValue = promotionSelect.val();
-                        promotionSelect.empty();
-                        uniquePromotions.forEach(promo => { 
-                            const option = new Option(promo, promo, false, false); 
-                            promotionSelect.append(option); 
-                        });
-                        promotionSelect.val(currentValue).trigger('change');
-                        
-                        populateChannelDropdowns();
-                    }
-                    
-                    if (workOrdersRes.error) throw workOrdersRes.error;
-                    allWorkOrdersData = workOrdersRes.data;
-                    
-                    renderAllTabs();
-                } catch(err) { 
-                    console.error(err); 
-                    alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message); 
-                } finally { 
-                    if (!isSilent) {
-                        loadingOverlay.style.display = 'none'; 
-                    }
                     setTimeout(() => { window.isLoadingData = false; }, 500); 
                 }
             }
@@ -1364,19 +1212,16 @@
                     listElement.innerHTML = htmlContent;
                 };
 
-                // [NEW] แยกการเรียงข้อมูลสำหรับ "จัดส่งแล้ว" โดยเฉพาะ
                 const shippedOrders = allOrdersData
                     .filter(o => o.status === 'จัดส่งแล้ว')
-                    .sort((a, b) => (b.shipped_time || '').localeCompare(a.shipped_time || '')); // เรียงจากเวลาที่ส่งล่าสุดไปเก่า
+                    .sort((a, b) => (b.shipped_time || '').localeCompare(a.shipped_time || ''));
                 
-                // [NEW] แท็บอื่นๆ ยังคงเรียงตามเลขบิลเหมือนเดิม
                 const otherStatuses = ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ยกเลิก'];
                 otherStatuses.forEach(status => {
                     const ordersForStatus = allOrdersData
                         .filter(o => o.status === status)
                         .sort((a, b) => (b.bill_no || '').localeCompare(a.bill_no || ''));
                     
-                    const listKey = status.replace(/ /g, '-').toLowerCase(); // e.g., 'รอลงข้อมูล' -> 'รอลงข้อมูล'
                     let tabKey;
                     if (status === 'รอลงข้อมูล') tabKey = 'waiting';
                     else if (status === 'ลงข้อมูลเสร็จสิ้น') tabKey = 'complete';
@@ -1387,7 +1232,6 @@
                     }
                 });
                 
-                // วาดรายการสำหรับ "จัดส่งแล้ว" โดยใช้ข้อมูลที่เรียงลำดับใหม่
                 if(lists['จัดส่งแล้ว']) {
                     renderOrderListItems(shippedOrders, lists['จัดส่งแล้ว'], filters.shipped, searchTerms.shipped);
                 }
@@ -1654,7 +1498,6 @@
                 const claimSection = document.getElementById('claim-details-section');
                 claimSection.style.display = 'none';
                 
-                // คืนค่าสถานะ Disabled ให้กับทุกอย่างก่อน
                 const allControls = orderForm.querySelectorAll('input, select, textarea, button');
                 allControls.forEach(el => el.disabled = false);
                 $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', false).trigger('change');
@@ -1670,7 +1513,6 @@
                     container.querySelector('#form-title').textContent = `แก้ไข: ${order.bill_no}`;
                     currentEditingOrderId = order.id;
 
-                    // ใส่ข้อมูลลงฟิลด์ต่างๆ
                     Object.keys(order).forEach(key => {
                         const input = container.querySelector(`#${key}`);
                         if (input) {
@@ -1691,7 +1533,6 @@
                         document.getElementById('payment-info-section').style.display = 'none';
                     }
 
-                    // โหลดรายการสินค้า
                     const sortedItems = (order.order_items || []).sort((a, b) => (a.item_uid || "").localeCompare(b.item_uid || "", undefined, {numeric: true}));
                     const itemGroups = []; const groupMap = {};
                     sortedItems.forEach(item => {
@@ -1702,23 +1543,19 @@
                     });
                     itemGroups.forEach(groupedItem => { addItemRow(groupedItem); });
 
-                    // --- ส่วนสำคัญ: ล็อคถ้า "จัดส่งแล้ว" ---
                     if (order.status === 'จัดส่งแล้ว') {
-                        // 1. ล็อคข้อมูลลูกค้า
                         container.querySelector('#channel_code').disabled = true;
                         container.querySelector('#customer_name').disabled = true;
                         container.querySelector('#customer_address').disabled = true;
                         $(container.querySelector('#channel_code')).prop('disabled', true).trigger('change');
 
-                        // 2. ล็อคตารางสินค้าทั้งหมด (ล็อค Select2 และ Input ทุกช่อง)
                         itemsTbody.querySelectorAll('input, select, button').forEach(el => {
                             el.disabled = true;
                         });
-                        $(itemsTbody).find('select').prop('disabled', true).trigger('change'); // ล็อค Select2 ในตาราง
-                        itemsTbody.querySelectorAll('.remove-item-btn').forEach(btn => btn.style.display = 'none'); // ซ่อนปุ่ม X
-                        addItemBtn.style.display = 'none'; // ซ่อนปุ่มเพิ่มแถว
+                        $(itemsTbody).find('select').prop('disabled', true).trigger('change');
+                        itemsTbody.querySelectorAll('.remove-item-btn').forEach(btn => btn.style.display = 'none');
+                        addItemBtn.style.display = 'none';
                         
-                        // 3. เปิดให้แก้ได้เฉพาะ "ข้อมูลการชำระเงิน"
                         const paymentFields = ['price', 'shipping_cost', 'discount', 'payment_method', 'payment_date', 'payment_time'];
                         paymentFields.forEach(id => { container.querySelector(`#${id}`).disabled = false; });
                         $('#promotion').prop('disabled', false).trigger('change');
@@ -1726,7 +1563,6 @@
                         document.getElementById('upload-slip-btn').style.display = 'none';
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-payment-only-btn">อัปเดตข้อมูลการชำระเงิน</button>`;
                     } else {
-                        // สถานะอื่นๆ (ใบงาน/รอลงข้อมูล) ให้แสดงปุ่มปกติ
                         if (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') {
                             allControls.forEach(el => el.disabled = true);
                             $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', true).trigger('change');
@@ -1757,12 +1593,22 @@
                 } catch (error) { alert('โหลดข้อมูลไม่ได้: ' + error.message); } 
                 finally { loadingOverlay.style.display = 'none'; } 
             }
-            async function moveOrder(orderId, newStatus) { if (!confirm(`ต้องการย้ายบิลไป "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ 
-    status: 'ใบงาน (กำลังผลิต)', // เพิ่มบรรทัดนี้เพื่อให้สถานะย้อนกลับ
-    packing_meta: null, 
-    shipped_by: null, 
-    shipped_time: null 
-}).eq('id', g[0].order_id); if (error) throw error; alert(`ย้ายสำเร็จ!`); setFormMode('create'); } catch(error) { alert('พลาด: ' + error.message); } finally { loadingOverlay.style.display = 'none'; } }
+            
+            async function moveOrder(orderId, newStatus) { 
+                if (!confirm(`ต้องการย้ายบิลไป "${newStatus}"?`)) return; 
+                loadingOverlay.style.display = 'flex'; 
+                try { 
+                    const { error } = await supabaseClient.from('orders').update({ status: newStatus }).eq('id', orderId); 
+                    if (error) throw error; 
+                    alert(`ย้ายสำเร็จ!`); 
+                    setFormMode('create'); 
+                } catch(error) { 
+                    alert('พลาด: ' + error.message); 
+                } finally { 
+                    loadingOverlay.style.display = 'none'; 
+                } 
+            }
+
             function getFontOptionsForChannel(channelCode) { const fontList = (channelCode === 'WY') ? wyFonts : standardFonts; const options = fontList.map(f => `<option value="${f}">${f}</option>`).join(''); return `<option value="">--เลือก--</option>${options}`; }
             function updateAllFontDropdowns(channelCode) { const newFontOptionsHTML = getFontOptionsForChannel(channelCode); const fontDropdowns = itemsTbody.querySelectorAll('.item-font'); fontDropdowns.forEach(fontSelect => { const selectedValue = fontSelect.value; fontSelect.innerHTML = newFontOptionsHTML; if (fontSelect.querySelector(`option[value="${selectedValue}"]`)) { fontSelect.value = selectedValue; } else { fontSelect.value = ""; } }); }
 
@@ -1808,11 +1654,28 @@
                 for (const channelCode of channelGroups) { const groupSelectedIds = ordersByChannel[channelCode].map(o => o.id); try { const today = new Date(); const datePart = today.toLocaleDateString('th-TH', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, ''); const workOrderDate = today.toISOString().slice(0, 10); const { data, error } = await supabaseClient.from('work_orders').select('batch_number').eq('channel_code', channelCode).eq('production_date', workOrderDate).order('batch_number', { ascending: false }).limit(1); if (error) throw error; const lastBatchNumber = data.length > 0 ? data[0].batch_number : 0; const batchNumber = lastBatchNumber + 1; const workOrderName = `${channelCode}-${datePart}-R${batchNumber}`; const { error: woError } = await supabaseClient.from('work_orders').insert({ work_order_name: workOrderName, channel_code: channelCode, production_date: workOrderDate, batch_number: batchNumber, order_count: groupSelectedIds.length, created_by: loggedInUsername, status: 'กำลังผลิต' }); if (woError) throw woError; const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ใบงาน (กำลังผลิต)', work_order_name: workOrderName }).in('id', groupSelectedIds); if (updateError) throw updateError; const billsInWorkOrder = ordersByChannel[channelCode]; const qty = { STAMP: 0, STK: 0, CTT: 0, LASER: 0, TUBE: 0, PACK: billsInWorkOrder.length }; billsInWorkOrder.forEach(order => { (order.order_items || []).forEach(item => { const product = fullProductList.find(p => p.id === item.product_id); if (product && product.product_category) { const category = product.product_category.toUpperCase(); if (category.includes('STAMP')) qty.STAMP++; if (category.includes('STK')) qty.STK++; if (category.includes('UV')) qty.CTT++; if (category.includes('LASER')) qty.LASER++; if (category.includes('TUBE')) qty.TUBE++; } }); }); const creationTime = new Date(); const cutTime = `${String(creationTime.getHours()).padStart(2, '0')}:${String(creationTime.getMinutes()).padStart(2, '0')}`; const { error: plannerError } = await supabaseClient.from('jobs').insert({ name: workOrderName, date: workOrderDate, cut: cutTime, qty: qty, }); if (plannerError) { console.error('Planner Sync failed:', plannerError); throw new Error(`สร้างใบงาน "${workOrderName}" สำเร็จ แต่ Sync ไป Planner ล้มเหลว`); } successMessages.push(`สร้างใบงาน "${workOrderName}" สำเร็จ`); } catch (error) { console.error(`Error for channel ${channelCode}:`, error); errorMessages.push(`พลาดกับช่องทาง ${channelCode}: ${error.message}`); } }
                 loadingOverlay.style.display = 'none'; let finalAlertMessage = successMessages.join('\n'); if(errorMessages.length > 0) { finalAlertMessage += '\n\nข้อผิดพลาด:\n' + errorMessages.join('\n'); }
                 alert(finalAlertMessage);
-	await loadInitialData(true);
+	            await loadInitialData(true);
             }
 
             async function cancelSelectedOrders(tabKey) { const selectedIds = getSelectedOrderIds(container.querySelector(`#tab-${tabKey} .order-list`)); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); if (!confirm(`ต้องการยกเลิก ${selectedIds.length} ออร์เดอร์?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: 'ยกเลิก' }).in('id', selectedIds); if (error) throw error; alert('ยกเลิกสำเร็จ!'); } catch (error) { alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
-            async function moveSelectedOrders(tabKey, newStatus) { const listContainer = container.querySelector(`#tab-${tabKey} .order-list`); const selectedIds = getSelectedOrderIds(listContainer); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); if (!confirm(`ต้องการย้าย ${selectedIds.length} ออร์เดอร์ ไปที่ "${newStatus}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: newStatus }).in('id', selectedIds); if (error) throw error; alert('ย้ายสำเร็จ!'); } catch (error) { alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
+            
+            async function moveSelectedOrders(tabKey, newStatus) { 
+                const listContainer = container.querySelector(`#tab-${tabKey} .order-list`); 
+                const selectedIds = getSelectedOrderIds(listContainer); 
+                if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); 
+                if (!confirm(`ต้องการย้าย ${selectedIds.length} ออร์เดอร์ ไปที่ "${newStatus}"?`)) return; 
+                loadingOverlay.style.display = 'flex'; 
+                try { 
+                    const { error } = await supabaseClient.from('orders').update({ status: newStatus }).in('id', selectedIds); 
+                    if (error) throw error; 
+                    alert('ย้ายสำเร็จ!'); 
+                } catch (error) { 
+                    alert(`เกิดพลาด: ${error.message}`); 
+                } finally { 
+                    loadingOverlay.style.display = 'none'; 
+                } 
+            }
+
             async function restoreSelectedOrders(newStatus) { const selectedIds = getSelectedOrderIds(container.querySelector('#tab-cancelled .order-list')); if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์'); const statusText = newStatus === 'รอลงข้อมูล' ? 'รอลงข้อมูล' : 'ลงข้อมูลเสร็จสิ้น'; if (!confirm(`ต้องการดึง ${selectedIds.length} รายการ กลับไปที่ "${statusText}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ status: newStatus }).in('id', selectedIds); if (error) throw error; alert('ดึงกลับสำเร็จ!'); } catch (error) { alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             function selectAllInWorkOrder(buttonElement) { const billsContainer = buttonElement.closest('.work-order-bills'); const checkboxes = billsContainer.querySelectorAll('.order-checkbox'); const isAllChecked = Array.from(checkboxes).every(cb => cb.checked); checkboxes.forEach(cb => cb.checked = !isAllChecked); }
             async function updateWorkOrderCount(workOrderName) { const { count, error: countError } = await supabaseClient.from('orders').select('id', { count: 'exact', head: true }).eq('work_order_name', workOrderName); if (countError) { console.error('Error counting:', countError); throw countError; } if (count === 0) { console.log(`WO "${workOrderName}" is empty. Updating status.`); const { error: updateError } = await supabaseClient.from('work_orders').update({ status: 'จัดส่งแล้ว' }).eq('work_order_name', workOrderName); if (updateError) { console.error('Error updating empty WO:', updateError); throw updateError; } } else { const { error: updateError } = await supabaseClient.from('work_orders').update({ order_count: count }).eq('work_order_name', workOrderName); if (updateError) { console.error('Error updating WO count:', updateError); throw updateError; } } }
@@ -1821,18 +1684,154 @@
             async function cancelSelectedBillsFromWorkOrder(buttonElement) { const workOrderName = buttonElement.dataset.workOrderName; const groupEl = buttonElement.closest('.work-order-group'); const selectedIds = getSelectedOrderIds(groupEl); if (selectedIds.length === 0) return alert('กรุณาเลือกบิล'); if (!confirm(`ต้องการ **ยกเลิก** ${selectedIds.length} บิล?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ยกเลิก', work_order_name: null }).in('id', selectedIds); if (updateError) throw updateError; await updateWorkOrderCount(workOrderName); await updatePlannerJob(workOrderName, selectedIds); alert('ยกเลิกสำเร็จ!'); await loadInitialData(true); } catch (error) { console.error('Error cancelling:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             async function cancelWorkOrder(workOrderName) { if (!confirm(`ต้องการ **ยกเลิกใบงาน** "${workOrderName}"?`)) return; loadingOverlay.style.display = 'flex'; try { const { error: updateError } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น', work_order_name: null }).eq('work_order_name', workOrderName); if (updateError) throw updateError; const { error: deleteError } = await supabaseClient.from('work_orders').delete().eq('work_order_name', workOrderName); if (deleteError) throw deleteError; const { error: deleteJobError } = await supabaseClient.from('jobs').delete().eq('name', workOrderName); if (deleteJobError) console.error(`Failed to delete job ${workOrderName}:`, deleteJobError.message); alert(`ยกเลิกใบงาน "${workOrderName}" เรียบร้อย`);await loadInitialData(true); } catch (error) { console.error('Error cancelling WO:', error); alert(`เกิดพลาด: ${error.message}`); } finally { loadingOverlay.style.display = 'none'; } }
             
+            function validateOrderForCompletion(order) {
+                if (!order) return { isValid: false, reason: "ไม่พบข้อมูลออร์เดอร์" };
+
+                if (!order.customer_name || !order.customer_name.trim()) {
+                    return { isValid: false, reason: "ไม่มีชื่อลูกค้า" };
+                }
+                if (!order.customer_address || !order.customer_address.trim()) {
+                    return { isValid: false, reason: "ไม่มีที่อยู่/เลขพัสดุ" };
+                }
+
+                if (order.channel_code !== 'CLAIM') {
+                    if (order.total_amount <= 0) {
+                        return { isValid: false, reason: "ยอดสุทธิเป็น 0 หรือไม่ถูกต้อง" };
+                    }
+                    if (!order.payment_method) {
+                        return { isValid: false, reason: "ไม่ระบุวิธีการชำระเงิน" };
+                    }
+                    if (order.payment_method === 'โอน' && (!order.payment_date || !order.payment_time)) {
+                        return { isValid: false, reason: "ไม่มีข้อมูลวัน/เวลาโอน" };
+                    }
+                }
+
+                if (!order.order_items || order.order_items.length === 0) {
+                    return { isValid: false, reason: "ไม่มีรายการสินค้า" };
+                }
+
+                for (const item of order.order_items) {
+                    const product = fullProductList.find(p => p.id === item.product_id);
+                    if (!product || !product.product_category) continue;
+
+                    const category = product.product_category.toUpperCase();
+                    const productName = product.product_name;
+
+                    const check = (value, fieldName) => {
+                        if (!value || !String(value).trim()) {
+                            return `สินค้า '${productName}' ข้อมูลไม่ครบ (ต้องการ ${fieldName})`;
+                        }
+                        return null;
+                    };
+
+                    let errorReason = null;
+                    if (category.includes('STAMP')) {
+                        errorReason = check(item.ink_color, 'สีหมึก') || check(item.cartoon_pattern, 'ลายการ์ตูน') || check(item.font, 'ฟอนต์') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
+                    } else if (category.includes('UV') || category.includes('LASER') || category.includes('TUBE')) {
+                        errorReason = check(item.cartoon_pattern, 'ลายการ์ตูน') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
+                    } else if (category.includes('STK')) {
+                        errorReason = check(item.font, 'ฟอนต์') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
+                    }
+                    if (errorReason) return { isValid: false, reason: errorReason };
+                }
+
+                return { isValid: true };
+            }
+
             async function saveOrUpdateOrder(status) {
                 loadingOverlay.style.display = 'flex';
                 const isUpdate = !!currentEditingOrderId;
                 try {
-                    // 1. ดึงค่าช่องทาง (Channel Code) แบบแม่นยำ
-                    // ลองดึงจาก Element โดยตรง ถ้าไม่ได้ให้ดึงจาก Select2
-                    let channelCode = container.querySelector('#channel_code').value;
-                    if (!channelCode) {
-                        channelCode = $('#channel_code').val();
+                    const oldOrder = isUpdate ? allOrdersData.find(o => o.id === currentEditingOrderId) : null;
+                    const effectiveStatusForValidation = status || (oldOrder ? oldOrder.status : null);
+
+                    const channelCode = container.querySelector('#channel_code').value || $('#channel_code').val();
+                    const customerName = container.querySelector('#customer_name').value.trim();
+                    const customerAddress = container.querySelector('#customer_address').value.trim();
+                    const paymentMethod = container.querySelector('#payment_method').value;
+                    const paymentDate = container.querySelector('#payment_date').value;
+                    const paymentTime = container.querySelector('#payment_time').value;
+                    const totalAmount = parseFloat(container.querySelector('#total_amount').value) || 0;
+
+                    if (!customerName) {
+                        throw new Error("กรุณากรอก 'ชื่อลูกค้า' ก่อนทำการบันทึก");
                     }
-                    
-                    // เช็คว่าถ้าเป็นออร์เดอร์ใหม่ "ต้อง" มีช่องทาง
+
+                    if (effectiveStatusForValidation === 'ลงข้อมูลเสร็จสิ้น') {
+                        if (!customerAddress) {
+                            throw new Error("กรุณากรอก 'ที่อยู่ลูกค้า / เลขพัสดุ' สำหรับออร์เดอร์ที่ข้อมูลครบถ้วนแล้ว");
+                        }
+
+                        if (channelCode !== 'CLAIM') {
+                            if (totalAmount <= 0) {
+                                throw new Error("ข้อมูลไม่ครบถ้วน: กรุณากรอก 'ราคา' สินค้าให้ถูกต้อง (ยอดสุทธิต้องมากกว่า 0)");
+                            }
+                            
+                            if (!paymentMethod) {
+                                throw new Error("กรุณาเลือก 'วิธีการชำระเงิน' เนื่องจากมียอดชำระ");
+                            }
+                            if (paymentMethod === 'โอน') {
+                                if (!paymentDate || !paymentTime) {
+                                    throw new Error("กรุณากรอก 'วันที่' และ 'เวลาที่ชำระ' สำหรับออร์เดอร์ที่ชำระเงินโดยการโอนแล้ว");
+                                }
+                            }
+                        }
+
+                        let hasAtLeastOneItem = false;
+                        for (const row of itemsTbody.rows) {
+                            if ($(row).find('.item-product').select2('data')[0]?.id) {
+                                hasAtLeastOneItem = true;
+                                break;
+                            }
+                        }
+                        if (!hasAtLeastOneItem) {
+                            throw new Error("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ สำหรับออร์เดอร์ที่ข้อมูลครบถ้วนแล้ว");
+                        }
+
+                        let rowIndex = 1;
+                        for (const row of itemsTbody.rows) {
+                            const selectedData = $(row).find('.item-product').select2('data')[0];
+                            if (!selectedData || !selectedData.id) {
+                                rowIndex++;
+                                continue;
+                            }
+
+                            const product = fullProductList.find(p => p.id == selectedData.id);
+                            if (!product || !product.product_category) {
+                                rowIndex++;
+                                continue;
+                            }
+
+                            const category = product.product_category.toUpperCase();
+                            const productName = product.product_name;
+
+                            const validateField = (fieldClass, fieldName) => {
+                                const element = row.querySelector(`.${fieldClass}`);
+                                if (!element || !element.value.trim()) {
+                                    throw new Error(`ข้อมูลไม่ครบถ้วน แถวที่ ${rowIndex} (${productName}): กรุณากรอก '${fieldName}'`);
+                                }
+                            };
+                            
+                            if (category.includes('STAMP')) {
+                                validateField('item-ink_color', 'สีหมึก');
+                                validateField('item-cartoon_pattern', 'ลายการ์ตูน');
+                                validateField('item-font', 'ฟอนต์');
+                                validateField('item-line_1', 'บรรทัด 1');
+                                validateField('item-quantity', 'จำนวน');
+                            } else if (category.includes('UV') || category.includes('LASER') || category.includes('TUBE')) {
+                                validateField('item-cartoon_pattern', 'ลายการ์ตูน');
+                                validateField('item-line_1', 'บรรทัด 1');
+                                validateField('item-quantity', 'จำนวน');
+                            } else if (category.includes('STK')) {
+                                validateField('item-font', 'ฟอนต์');
+                                validateField('item-line_1', 'บรรทัด 1');
+                                validateField('item-quantity', 'จำนวน');
+                            }
+                            
+                            rowIndex++;
+                        }
+                    }
+
                     if (!isUpdate && !channelCode) {
                         throw new Error("กรุณาเลือกช่องทางก่อนบันทึก");
                     }
@@ -1840,20 +1839,14 @@
                     let billNo;
                     let currentStatus = status;
 
-                    // 2. จัดการเลขบิลและสถานะ
                     if (!isUpdate) {
-                        // ออร์เดอร์ใหม่: สร้างเลขบิลใหม่
                         billNo = await generateNextBillNo(channelCode);
-                        currentStatus = status; // เช่น 'รอลงข้อมูล' หรือ 'ลงข้อมูลเสร็จสิ้น'
+                        currentStatus = status;
                     } else {
-                        // ออร์เดอร์เก่า: ใช้เลขบิลเดิม
-                        const oldOrder = allOrdersData.find(o => o.id === currentEditingOrderId);
                         billNo = oldOrder.bill_no;
-                        channelCode = oldOrder.channel_code; // ใช้ช่องทางเดิมป้องกันค่าหาย
                         currentStatus = status || oldOrder.status;
                     }
 
-                    // 3. เตรียมข้อมูลหลัก (Order Data)
                     const orderData = {
                         channel_code: channelCode,
                         bill_no: billNo,
@@ -1861,22 +1854,20 @@
                         price: parseFloat(container.querySelector('#price').value) || 0,
                         shipping_cost: parseFloat(container.querySelector('#shipping_cost').value) || 0,
                         discount: parseFloat(container.querySelector('#discount').value) || 0,
-                        total_amount: parseFloat(container.querySelector('#total_amount').value) || 0,
-                        payment_method: container.querySelector('#payment_method').value,
+                        total_amount: totalAmount,
+                        payment_method: paymentMethod,
                         promotion: ($('#promotion').val() || '').trim(),
-                        payment_date: container.querySelector('#payment_date').value || null,
-                        payment_time: container.querySelector('#payment_time').value || null,
-                        customer_name: container.querySelector('#customer_name').value.trim(),
-                        customer_address: container.querySelector('#customer_address').value.trim()
+                        payment_date: paymentDate || null,
+                        payment_time: paymentTime || null,
+                        customer_name: customerName,
+                        customer_address: customerAddress
                     };
 
-                    // ข้อมูลสำหรับออร์เดอร์เคลม
                     if (channelCode === 'CLAIM') {
                         orderData.claim_type = document.getElementById('claim_type').value.trim();
                         orderData.claim_details = document.getElementById('claim_details').value.trim();
                     }
 
-                    // ข้อมูลใบกำกับภาษี/บิลเงินสด
                     const taxInvoiceData = {
                         request_tax_invoice: requestTaxInvoiceCb.checked,
                         request_cash_bill: requestCashBillCb.checked,
@@ -1896,7 +1887,6 @@
                     }
                     orderData.billing_details = taxInvoiceData;
 
-                    // 4. บันทึกลงฐานข้อมูล (Table: orders)
                     let targetOrderId = currentEditingOrderId;
                     if (isUpdate) {
                         const { error } = await supabaseClient.from('orders').update(orderData).eq('id', currentEditingOrderId);
@@ -1909,8 +1899,6 @@
                         targetOrderId = insertedOrder.id;
                     }
 
-                    // 5. จัดการรายการสินค้า (Table: order_items)
-                    // ถ้าออร์เดอร์จัดส่งแล้ว จะไม่แก้รายการสินค้าเพื่อป้องกันข้อมูลเพี้ยน
                     if (currentStatus !== 'จัดส่งแล้ว') {
                         await supabaseClient.from('order_items').delete().eq('order_id', targetOrderId);
                         
@@ -2004,7 +1992,6 @@
             }
 
             function exportForProduction(workOrderName) {
-                // เพิ่ม .sort() เพื่อเรียงตามเลขบิล (น้อยไปมาก)
                 const ordersInWorkOrder = allOrdersData
                     .filter(order => order.work_order_name === workOrderName)
                     .sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || ''));
@@ -2039,10 +2026,7 @@
                 XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`);
             }
 
-            // --- FUNCTION TO EXPORT FOR QC ---
             function exportForQC(workOrderName) {
-                // 1. กรองเฉพาะบิลในใบงานนั้น
-                // 2. เรียงลำดับ (Sort) ตามเลขบิล จากน้อยไปมาก (A->Z, 0->9) เพื่อให้ผลิตตามลำดับ
                 const ordersInWorkOrder = allOrdersData
                     .filter(order => order.work_order_name === workOrderName)
                     .sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || ''));
@@ -2127,14 +2111,12 @@
                 XLSX.writeFile(workbook, `ShippedData_${new Date().toISOString().slice(0,10)}.xlsx`);
             }
             
-// ฟังก์ชันใหม่ 1: เปิด Modal
             function openCarrierSelection() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
                 if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการ Export');
                 document.getElementById('carrier-selection-modal').style.display = 'flex';
             }
 
-            // ฟังก์ชันใหม่ 2: สร้างไฟล์ CSV
             function processTrackingExport() {
                 const carrierName = $('#carrier-select').val();
                 if (!carrierName) return alert('กรุณาเลือกชื่อขนส่ง');
@@ -2171,17 +2153,12 @@
 
                 const statusesToExport = ['ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)', 'จัดส่งแล้ว'];
                 
-                // --- แก้ไขตรรกะการกรองข้อมูล (Filter) ---
                 const ordersToExport = allOrdersData.filter(order => {
                     const statusMatch = statusesToExport.includes(order.status);
                     
-                    // 1. วันที่สร้างบิล (YYYY-MM-DD)
                     const createdDate = order.created_at ? order.created_at.substring(0, 10) : null;
-                    
-                    // 2. วันที่สแกนส่งจาก packing_meta (YYYY-MM-DD)
                     const scanDate = (order.packing_meta && order.packing_meta.scanTime) ? order.packing_meta.scanTime.substring(0, 10) : null;
 
-                    // เงื่อนไข: บิลใหม่ที่สร้างในช่วงวันที่เลือก OR บิลเก่าที่เพิ่งมาแสกนส่งในช่วงวันที่เลือก
                     const isNewOrder = (createdDate >= startDate && createdDate <= endDate);
                     const isScannedInRange = (scanDate >= startDate && scanDate <= endDate);
 
@@ -2204,10 +2181,8 @@
                         const createdDate = order.created_at ? order.created_at.substring(0, 10) : null;
                         const scanDate = (order.packing_meta && order.packing_meta.scanTime) ? order.packing_meta.scanTime.substring(0, 10) : null;
                         
-                        // --- ตรรกะแยกสถานะ "ค้างจากวันก่อน" ---
                         let displayStatus = order.status;
                         if (order.status === 'จัดส่งแล้ว' && scanDate) {
-                            // ถ้าสแกนส่งในช่วงที่เลือก แต่บิลนั้นสร้างก่อนช่วงวันที่เริ่ม (งานค้าง)
                             if ((scanDate >= startDate && scanDate <= endDate) && (createdDate < startDate)) {
                                 displayStatus = 'จัดส่งแล้ว (ค้างจากวันก่อน)';
                             }
@@ -2227,7 +2202,7 @@
                                     item.product_name,
                                     category,
                                     details,
-                                    displayStatus, // ใช้สถานะที่แยกงานค้างแล้ว
+                                    displayStatus,
                                     scanDate ? new Date(order.packing_meta.scanTime).toLocaleString('th-TH') : '-',
                                     order.claim_type || '',
                                     order.claim_details || ''
@@ -2258,12 +2233,12 @@
                 const idMap = { 
                     'save-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 
                     'save-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 
-                    'update-waiting-btn': () => saveOrUpdateOrder('รอลงข้อมูล'), 
+                    'update-waiting-btn': () => saveOrUpdateOrder(null), 
                     'move-to-complete-btn': () => saveOrUpdateOrder('ลงข้อมูลเสร็จสิ้น'), 
                     'update-complete-btn': () => saveOrUpdateOrder(null), 
                     'cancel-bill-btn': () => moveOrder(order.id, 'ยกเลิก'), 
                     'update-work-order-bill-btn': () => saveOrUpdateOrder(null),
-                    'update-payment-only-btn': () => saveOrUpdateOrder(null) // เชื่อมปุ่มอัปเดตการเงิน
+                    'update-payment-only-btn': () => saveOrUpdateOrder(null)
                 }; 
                 for(const id in idMap) { const btn = document.getElementById(id); if (btn) btn.addEventListener('click', idMap[id]); } 
             }
@@ -2371,7 +2346,6 @@
 
                         if (productId && productName && quantity > 0) {
                             if (!aggregatedItems[productId]) {
-                                // ดึงข้อมูลหมวดหมู่สินค้ามาเก็บไว้ด้วย
                                 const product = fullProductList.find(p => p.id == productId);
                                 const category = product ? (product.product_category || '').trim().toUpperCase() : '';
                                 aggregatedItems[productId] = { name: productName, qty: 0, category: category };
@@ -2384,12 +2358,10 @@
                         const row = taxItemsTbody.insertRow();
                         const savedPrice = existingPrices[item.name] || '0.00';
                         
-                        // --- ส่วนที่แก้ไข: ตรรกะการหาร 5 สำหรับ Condo Stamp ---
                         let displayQty = item.qty;
                         if (item.category === 'CONDO STAMP') {
                             displayQty = Math.ceil(item.qty / 5);
                         }
-                        // ----------------------------------------------
 
                         row.innerHTML = `
                             <td>${item.name}</td>
@@ -2433,7 +2405,6 @@
 
             if (itemsInWorkOrder.length === 0) { alert('ไม่พบสินค้า'); return; }
 
-            // --- 1. เตรียมข้อมูลสินค้าหลัก (สำหรับ PNG / Excel / CSV) ---
             const mainItemsMap = {};
             const excludedCategories = ['UV', 'STK', 'TUBE']; 
             
@@ -2455,7 +2426,6 @@
                 mainItemsMap[key].qty += 1;
             });
 
-            // ตรรกะ Condo Stamp หาร 5
             const finalMainList = Object.values(mainItemsMap).map(item => {
                 let displayQty = item.qty;
                 if (item.category.includes('CONDO STAMP')) {
@@ -2464,7 +2434,6 @@
                 return { ...item, finalQty: displayQty };
             }).sort((a, b) => a.location.localeCompare(b.location));
 
-            // --- 2. เตรียมข้อมูลสรุปอะไหล่ (สำหรับตาราง PNG และ Excel แท็บ 2) ---
             const sparePartsMap = {};
             itemsInWorkOrder.forEach(item => {
                 if (item.rubber_code) {
@@ -2477,7 +2446,6 @@
             });
             const finalSpareList = Object.values(sparePartsMap);
 
-            // --- 3. วาด Preview และตารางสำหรับ PNG (แยก 2 ตารางฟอร์แมตเดิม) ---
             const today = new Date().toLocaleDateString('th-TH');
             const renderHtmlTables = (isForPNG = false) => {
                 const style = isForPNG ? '' : 'border: 1px solid #ddd; padding: 6px; font-size: 12px;';
@@ -2526,7 +2494,6 @@
             previewContainer.innerHTML = renderHtmlTables(false);
             pngContainer.innerHTML = renderHtmlTables(true);
 
-            // ผูกปุ่มส่งออก
             document.getElementById('export-all-picking-btn').onclick = () => {
                 exportAllPickingFinal(finalMainList, finalSpareList, workOrderName);
             };
@@ -2536,27 +2503,22 @@
 
         function hidePickingSlipModal() { document.getElementById('picking-slip-modal').style.display = 'none'; }
 
-        // --- ฟังก์ชันส่งออก 3 ไฟล์ (PNG, XLSX 2 Sheets, CSV 5 Cols) ---
         async function exportAllPickingFinal(mainData, spareData, workOrderName) {
             loadingOverlay.style.display = 'flex';
             try {
-                // 1. Export PNG (ฟอร์แมตดั้งเดิม 2 ตาราง)
                 const canvas = await html2canvas(document.getElementById("picking-slip-png-container"), { scale: 3 });
                 const pngLink = document.createElement('a');
                 pngLink.download = `ใบเบิก_${workOrderName}.png`;
                 pngLink.href = canvas.toDataURL("image/png");
                 pngLink.click();
 
-                // 2. Export XLSX (2 แท็บ)
                 const wb = XLSX.utils.book_new();
                 
-                // แท็บที่ 1: รายการหยิบสินค้า (5 คอลัมน์)
                 const ws1Headers = [['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'จำนวนเบิก']];
                 const ws1Rows = mainData.map(item => [item.woName, item.code, item.name, item.location, item.finalQty]);
                 const ws1 = XLSX.utils.aoa_to_sheet(ws1Headers.concat(ws1Rows));
                 XLSX.utils.book_append_sheet(wb, ws1, "รายการหยิบสินค้า");
 
-                // แท็บที่ 2: สรุปอะไหล่
                 const ws2Headers = [['รายการอะไหล่', 'จำนวนรวม']];
                 const ws2Rows = spareData.map(item => [item.name, item.qty]);
                 const ws2 = XLSX.utils.aoa_to_sheet(ws2Headers.concat(ws2Rows));
@@ -2564,7 +2526,6 @@
 
                 XLSX.writeFile(wb, `ใบเบิก_${workOrderName}.xlsx`);
 
-                // 3. Export CSV (5 คอลัมน์ เหมือนฟอร์แมตเดิม)
                 const csvHeaders = ['รหัสทำรายการ', 'รหัสสินค้า', 'รายการสินค้า', 'จุดเก็บ', 'จำนวนเบิก'];
                 const csvRows = [csvHeaders.join(',')];
                 mainData.forEach(item => {
@@ -2751,9 +2712,9 @@
 
             function initializeEventListeners() {
                 if (eventListenersInitialized) return;
-                const today = new Date().toISOString().split('T')[0]; // ดึงวันที่ปัจจุบัน YYYY-MM-DD
-	document.getElementById('master-status-start-date').value = today; // ตั้งเป็นวันนี้
-	document.getElementById('master-status-end-date').value = today; // ตั้งเป็นวันนี้
+                const today = new Date().toISOString().split('T')[0];
+	            document.getElementById('master-status-start-date').value = today;
+	            document.getElementById('master-status-end-date').value = today;
 
                 document.getElementById('export-master-status-btn').addEventListener('click', exportMasterStatusReport);
                 container.querySelector('#channel-summary-container').addEventListener('click', (e) => { if (e.target.matches('.channel-summary-item')) { const channel = e.target.dataset.channel; container.querySelector('#filter-complete').value = channel; renderAllTabs(); } });
@@ -2831,7 +2792,6 @@
                     const trackingSpan = target.closest('.order-tracking'); if (trackingSpan) { if (target.closest('.btn-edit-tracking')) { event.stopPropagation(); event.preventDefault(); enterTrackingEditMode(trackingSpan); } if (target.closest('.btn-save-tracking-confirm')) { event.stopPropagation(); event.preventDefault(); saveTrackingNumber(trackingSpan); } if (target.closest('.btn-cancel-tracking-edit')) { event.stopPropagation(); event.preventDefault(); exitTrackingEditMode(trackingSpan); } }
                     const headerForAction = target.closest('.work-order-header');
                     if (headerForAction) { 
-                        // --- ACTION MAP FOR BUTTONS (Including Export QC) ---
                         const classToAction = { 
                             'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 
                             'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 
@@ -2934,15 +2894,13 @@
 
                 tabLinks.forEach(link => { link.addEventListener('click', (e) => openTab(e, e.target.dataset.tab)); });
                 ['filter-waiting', 'filter-complete', 'filter-cancelled', 'filter-shipped', 'filter-work-orders'].forEach(id => { const el = container.querySelector(`#${id}`); if (el) el.addEventListener('change', renderAllTabs); });
-                // ปรับปรุงระบบค้นหาอัตโนมัติขณะพิมพ์ (บรรทัดประมาณ 1200 กว่าๆ)
-                // --- แก้ไขจุดที่ 2: ระบบเชื่อมโยงช่องค้นหา (Synced Search) ---
+
                 const searchInputIds = ['search-waiting', 'search-complete', 'search-shipped', 'search-cancelled', 'search-work-orders'];
                 searchInputIds.forEach(id => {
                     const el = container.querySelector(`#${id}`);
                     if (el) {
                         el.addEventListener('input', (e) => {
                             const query = e.target.value; 
-                            // ทำให้ทุกช่องค้นหาในหน้าอื่นมีข้อความเหมือนกันทันที
                             searchInputIds.forEach(otherId => {
                                 const otherEl = container.querySelector(`#${otherId}`);
                                 if (otherEl && otherEl !== e.target) {
@@ -2950,7 +2908,7 @@
                                 }
                             });
 
-                            renderAllTabs(); // กรองสิ่งที่แสดงอยู่หน้าจอ
+                            renderAllTabs();
 
                             clearTimeout(searchDebounceTimer);
                             searchDebounceTimer = setTimeout(async () => {
@@ -2969,25 +2927,72 @@
                 importOrdersBtn.addEventListener('click', () => importOrdersFileInput.click()); 
                 importOrdersFileInput.addEventListener('change', (e) => handleSmartImport(e.target.files[0]));
 
-                document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล')); document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', () => moveSelectedOrders('waiting', 'ลงข้อมูลเสร็จสิ้น')); 
+                document.getElementById('move-to-waiting-btn').addEventListener('click', () => moveSelectedOrders('complete', 'รอลงข้อมูล')); 
+                
+                document.getElementById('move-to-complete-from-waiting-btn').addEventListener('click', async () => {
+                    const selectedIds = getSelectedOrderIds(container.querySelector('#tab-waiting .order-list'));
+                    if (selectedIds.length === 0) return alert('กรุณาเลือกออร์เดอร์ที่ต้องการย้าย');
+                    
+                    if (!confirm(`คุณกำลังจะย้าย ${selectedIds.length} ออร์เดอร์ ไปที่ "ลงข้อมูลเสร็จสิ้น"\nระบบจะทำการตรวจสอบความครบถ้วนของข้อมูลทุกรายการ\n\nดำเนินการต่อหรือไม่?`)) return;
+
+                    loadingOverlay.style.display = 'flex';
+                    const successIds = [];
+                    const failedOrders = [];
+
+                    for (const id of selectedIds) {
+                        const order = allOrdersData.find(o => String(o.id) === id);
+                        if (!order) continue;
+
+                        const validationResult = validateOrderForCompletion(order);
+                        if (validationResult.isValid) {
+                            successIds.push(id);
+                        } else {
+                            failedOrders.push({ bill_no: order.bill_no || `ID ${id}`, reason: validationResult.reason });
+                        }
+                    }
+
+                    if (successIds.length > 0) {
+                        const { error } = await supabaseClient.from('orders').update({ status: 'ลงข้อมูลเสร็จสิ้น' }).in('id', successIds);
+                        if (error) {
+                            alert('เกิดข้อผิดพลาดในการอัปเดตฐานข้อมูล: ' + error.message);
+                            loadingOverlay.style.display = 'none';
+                            return;
+                        }
+                    }
+                    
+                    loadingOverlay.style.display = 'none';
+
+                    let alertMessage = "";
+                    if (successIds.length > 0) {
+                        alertMessage += `✅ ย้ายออร์เดอร์สำเร็จ ${successIds.length} รายการ\n\n`;
+                    }
+                    if (failedOrders.length > 0) {
+                        alertMessage += `❌ ย้ายไม่สำเร็จ ${failedOrders.length} รายการ เนื่องจาก:\n`;
+                        alertMessage += failedOrders.map(f => `- ${f.bill_no}: ${f.reason}`).join('\n');
+                    }
+                    alert(alertMessage || "ไม่มีออร์เดอร์ที่ถูกย้าย");
+                });
+                
                 document.getElementById('select-all-waiting-btn').addEventListener('click', () => selectAll('waiting'));
                 document.getElementById('cancel-selected-waiting-btn').addEventListener('click', () => cancelSelectedOrders('waiting')); 
                 document.getElementById('cancel-selected-complete-btn').addEventListener('click', () => cancelSelectedOrders('complete'));
-                document.getElementById('select-all-shipped-btn').addEventListener('click', () => selectAll('shipped')); document.getElementById('claim-selected-shipped-btn').addEventListener('click', () => handleClaimSelectedOrders()); document.getElementById('export-shipped-btn').addEventListener('click', exportShippedData);
-// --- วางโค้ดใหม่เริ่มตรงนี้ ---
-document.getElementById('export-tracking-csv-btn').addEventListener('click', openCarrierSelection);
-document.getElementById('confirm-export-tracking-btn').addEventListener('click', processTrackingExport);
-document.getElementById('cancel-carrier-modal').addEventListener('click', () => { 
-    document.getElementById('carrier-selection-modal').style.display = 'none'; 
-});
-$('#carrier-select').select2({
-    data: ['Flash', 'Kerry', 'J&T', 'Post'].map(c => ({id: c, text: c})),
-    tags: true, 
-    placeholder: 'เลือกหรือพิมพ์ชื่อขนส่ง',
-    dropdownParent: $('#carrier-selection-modal .modal-content')
-});
-// --- จบโค้ดใหม่ ---
-                document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled')); document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล')); document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
+                document.getElementById('select-all-shipped-btn').addEventListener('click', () => selectAll('shipped')); 
+                document.getElementById('claim-selected-shipped-btn').addEventListener('click', () => handleClaimSelectedOrders()); 
+                document.getElementById('export-shipped-btn').addEventListener('click', exportShippedData);
+                document.getElementById('export-tracking-csv-btn').addEventListener('click', openCarrierSelection);
+                document.getElementById('confirm-export-tracking-btn').addEventListener('click', processTrackingExport);
+                document.getElementById('cancel-carrier-modal').addEventListener('click', () => { 
+                    document.getElementById('carrier-selection-modal').style.display = 'none'; 
+                });
+                $('#carrier-select').select2({
+                    data: ['Flash', 'Kerry', 'J&T', 'Post'].map(c => ({id: c, text: c})),
+                    tags: true, 
+                    placeholder: 'เลือกหรือพิมพ์ชื่อขนส่ง',
+                    dropdownParent: $('#carrier-selection-modal .modal-content')
+                });
+                document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled')); 
+                document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล')); 
+                document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
 	            eventListenersInitialized = true;
             }
 
