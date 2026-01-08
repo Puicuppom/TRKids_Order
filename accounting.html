@@ -503,8 +503,19 @@
                     alert('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
                 }
             }
-
-            // NEW: Function to handle CSV file upload
+// ฟังก์ชันช่วยแยกคอลัมน์ CSV ที่รองรับเครื่องหมายคำพูด (เหมือนในไฟล์เก่า)
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (const char of line.trim()) {
+        if (char === '"') { inQuotes = !inQuotes; continue; }
+        if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } 
+        else { current += char; }
+    }
+    result.push(current.trim());
+    return result;
+}
             async function handleCsvUpload(event) {
                 const file = event.target.files[0];
                 if (!file) {
@@ -519,52 +530,83 @@
                 reader.onload = async (e) => {
                     try {
                         const text = e.target.result;
-                        const rows = text.split('\n').filter(row => row.trim() !== '');
+                        const lines = text.split('\n').filter(line => line.trim() !== '');
                         
+                        const headerRowIndex = lines.findIndex(line => line.includes('วันที่') && line.includes('รายการ'));
+                        if (headerRowIndex === -1) {
+                            alert("ไม่พบหัวตารางในไฟล์ CSV กรุณาตรวจสอบรูปแบบไฟล์");
+                            loadingOverlay.style.display = 'none';
+                            return;
+                        }
+
                         const statementsToInsert = [];
                         const currentCentury = "20";
 
-                        for (const row of rows) {
-                             // Use a regex to split by comma, but ignore commas inside quotes
-                            const columns = row.match(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g).map(col => col ? col.replace(/"/g, '').trim() : '');
+                        for (let i = headerRowIndex + 1; i < lines.length; i++) {
+                            const columns = parseCSVLine(lines[i]);
 
-                            if (columns.length < 13 || columns[3] !== 'รับโอนเงิน') {
-                                continue; 
-                            }
+                            if (columns.length < 7) continue;
 
-                            const [day, month, yearShort] = columns[1].split('-');
-                            const statement_date = `${currentCentury}${yearShort}-${month}-${day}`;
-                            const statement_time = columns[2] + ':00';
-                            const description = columns[3];
-                            const deposit_amount_str = columns[6];
-                            const balance_str = columns[8];
-                            const channel = columns[10];
-                            const details = columns[12];
-                            
+                            const deposit_amount_str = columns[6] || "0";
                             const deposit_amount = parseFloat(deposit_amount_str.replace(/,/g, '')) || 0;
-                            const balance = parseFloat(balance_str.replace(/,/g, '')) || 0;
                             
                             if (deposit_amount > 0) {
+                                const datePart = columns[1].replace(/[\/\.]/g, '-');
+                                const dateMatch = datePart.split('-');
+                                let statement_date = "";
+                                
+                                if (dateMatch.length === 3) {
+                                    const day = dateMatch[0].padStart(2, '0');
+                                    const month = dateMatch[1].padStart(2, '0');
+                                    let year = dateMatch[2];
+                                    if (year.length === 2) year = currentCentury + year;
+                                    statement_date = `${year}-${month}-${day}`;
+                                }
+
+                                const statement_time = (columns[2] || "00:00") + ':00';
+                                const description = columns[3] || "";
+                                const balance_str = columns[8] || "0";
+                                const balance = parseFloat(balance_str.replace(/,/g, '')) || 0;
+                                const channel = columns[10] || "";
+                                const details = columns[12] || "";
+
+                                // --- ส่วนที่เพิ่มเข้ามาเพื่อแก้ Error ---
+                                // สร้าง Unique Hash เพื่อป้องกันข้อมูลซ้ำ (ใช้ วันที่+เวลา+ยอดเงิน+ยอดคงเหลือ)
+                                const rawHash = `${statement_date}${statement_time}${deposit_amount}${balance}${description}`;
+                                const unique_hash = btoa(unescape(encodeURIComponent(rawHash))); 
+                                // ---------------------------------------
+
                                 statementsToInsert.push({
-                                    statement_date, statement_time, description,
-                                    deposit_amount, balance, channel, details,
-                                    withdrawal_amount: 0, is_matched: false
+                                    statement_date, 
+                                    statement_time, 
+                                    description,
+                                    deposit_amount, 
+                                    balance, 
+                                    channel, 
+                                    details,
+                                    withdrawal_amount: 0, 
+                                    is_matched: false,
+                                    unique_hash: unique_hash // ส่งค่า Hash ไปยัง Database
                                 });
                             }
                         }
 
                         if (statementsToInsert.length > 0) {
-                            const { error } = await supabaseClient.from('bank_statements').insert(statementsToInsert);
+                            // ใช้ .upsert เพื่อถ้าเจอ unique_hash ซ้ำ มันจะไม่อัปโหลดเพิ่ม (ป้องกันข้อมูลเบิ้ล)
+                            const { error } = await supabaseClient
+                                .from('bank_statements')
+                                .upsert(statementsToInsert, { onConflict: 'unique_hash' });
+
                             if (error) throw error;
                             
                             alert(`นำเข้าสำเร็จ ${statementsToInsert.length} รายการ`);
                             await displayUnmatchedStatements();
                         } else {
-                            alert('ไม่พบรายการ "รับโอนเงิน" ที่สามารถนำเข้าได้ในไฟล์');
+                            alert('ไม่พบรายการฝากเงินที่สามารถนำเข้าได้ในไฟล์');
                         }
                     } catch (error) {
                         console.error('Error processing CSV file:', error);
-                        alert(`เกิดข้อผิดพลาดในการประมวลผลไฟล์ CSV: ${error.message}`);
+                        alert(`เกิดข้อผิดพลาด: ${error.message}`);
                     } finally {
                         loadingOverlay.style.display = 'none';
                         loadingOverlay.textContent = 'กำลังโหลด...';
