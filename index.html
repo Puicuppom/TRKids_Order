@@ -1727,11 +1727,11 @@
 
                     let errorReason = null;
                     if (category.includes('STAMP')) {
-                        errorReason = check(item.ink_color, 'สีหมึก') || check(item.cartoon_pattern, 'ลายการ์ตูน') || check(item.font, 'ฟอนต์') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
+                        errorReason = check(item.ink_color, 'สีหมึก') || check(item.cartoon_pattern, 'ลายการ์ตูน') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
                     } else if (category.includes('UV') || category.includes('LASER') || category.includes('TUBE')) {
                         errorReason = check(item.cartoon_pattern, 'ลายการ์ตูน') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
                     } else if (category.includes('STK')) {
-                        errorReason = check(item.font, 'ฟอนต์') || check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
+                        errorReason = check(item.line_1, 'บรรทัด 1') || check(item.quantity, 'จำนวน');
                     }
                     if (errorReason) return { isValid: false, reason: errorReason };
                 }
@@ -1816,7 +1816,6 @@
                             if (category.includes('STAMP')) {
                                 validateField('item-ink_color', 'สีหมึก');
                                 validateField('item-cartoon_pattern', 'ลายการ์ตูน');
-                                validateField('item-font', 'ฟอนต์');
                                 validateField('item-line_1', 'บรรทัด 1');
                                 validateField('item-quantity', 'จำนวน');
                             } else if (category.includes('UV') || category.includes('LASER') || category.includes('TUBE')) {
@@ -1824,7 +1823,6 @@
                                 validateField('item-line_1', 'บรรทัด 1');
                                 validateField('item-quantity', 'จำนวน');
                             } else if (category.includes('STK')) {
-                                validateField('item-font', 'ฟอนต์');
                                 validateField('item-line_1', 'บรรทัด 1');
                                 validateField('item-quantity', 'จำนวน');
                             }
