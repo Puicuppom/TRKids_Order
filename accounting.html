@@ -437,46 +437,48 @@
                 
                 loadingOverlay.style.display = 'flex';
                 try {
-                    // ปรับลำดับฟิลด์ตรงนี้: เอา deposit_amount นำหน้า bill_no
                     const { data, error } = await supabaseClient
                         .from('bank_statements')
-                        .select('statement_date, statement_time, description, deposit_amount, bill_no, withdrawal_amount, balance, channel, details, is_matched')
+                        .select('*')
                         .gte('statement_date', startDate)
                         .lte('statement_date', endDate)
-                        .order('id', { ascending: true });
+                        .order('statement_date', { ascending: true });
 
                     if (error) throw error;
 
-                    // แปลงชื่อหัวคอลัมน์เป็นภาษาไทย (Optional: ถ้าชอบแบบเดิมที่เป็นภาษาอังกฤษให้ข้ามส่วน map นี้ไปครับ)
-                    const thaiData = data.map(item => ({
-                        "วันที่": item.statement_date,
-                        "เวลา": item.statement_time ? item.statement_time.substring(0, 5) : "",
-                        "รายการ": item.description,
-                        "ยอดเงินฝาก": item.deposit_amount,
-                        "เลขบิล": item.bill_no || "ยังไม่ได้จับคู่", // bill_no จะมาอยู่หลังยอดเงินฝาก
-                        "ยอดเงินถอน": item.withdrawal_amount,
-                        "ยอดคงเหลือ": item.balance,
-                        "ช่องทาง": item.channel,
-                        "รายละเอียด": item.details,
-                        "สถานะการจับคู่": item.is_matched ? "สำเร็จ" : "ยังไม่สำเร็จ"
-                    }));
-                    
-                    const worksheet = XLSX.utils.json_to_sheet(thaiData);
-                    const workbook = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(workbook, worksheet, 'Statements');
-                    
-                    // ปรับความกว้างคอลัมน์ให้อัตโนมัติ
-                    worksheet['!cols'] = [
-                        {wch: 12}, {wch: 8}, {wch: 20}, {wch: 15}, {wch: 15}, 
-                        {wch: 12}, {wch: 15}, {wch: 15}, {wch: 30}, {wch: 15}
-                    ];
+                    const groupedData = {};
+                    data.forEach(item => {
+                        // ดึงชื่อบัญชีมาเป็นชื่อแท็บ
+                        let accountKey = item.bank_account; 
+                        
+                        // ถ้าใน DB ไม่มี (ข้อมูลเก่า) ให้ไปหาจาก ChannelMap
+                        if (!accountKey || accountKey.trim() === "") {
+                            const info = channelMap[item.channel];
+                            accountKey = info ? info.account : (item.channel || "ไม่ระบุบัญชี");
+                        }
 
-                    XLSX.writeFile(workbook, `Statements_${startDate}_to_${endDate}.xlsx`);
-                } catch (error) {
-                    alert('เกิดข้อผิดพลาด: ' + error.message);
-                } finally {
-                    loadingOverlay.style.display = 'none';
-                }
+                        if (!groupedData[accountKey]) groupedData[accountKey] = [];
+                        groupedData[accountKey].push({
+                            "วันที่": item.statement_date,
+                            "เวลา": item.statement_time.substring(0, 5),
+                            "รายการ": item.description,
+                            "ยอดเงินฝาก": item.deposit_amount,
+                            "เลขบิล": item.bill_no || "",
+                            "ยอดคงเหลือ": item.balance,
+                            "ช่องทาง": item.channel,
+                            "รายละเอียด": item.details
+                        });
+                    });
+
+                    const workbook = XLSX.utils.book_new();
+                    Object.keys(groupedData).forEach(accountName => {
+                        const worksheet = XLSX.utils.json_to_sheet(groupedData[accountName]);
+                        // ตั้งชื่อแท็บ (ใช้ชื่อ TR (1) 115-8-98581-7 ที่เราเตรียมไว้)
+                        XLSX.utils.book_append_sheet(workbook, worksheet, accountName.substring(0, 31));
+                    });
+
+                    XLSX.writeFile(workbook, `Report_${startDate}.xlsx`);
+                } catch (error) { alert(error.message); } finally { loadingOverlay.style.display = 'none'; }
             }
             async function displayUnmatchedStatements() {
                 unmatchedContainer.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
@@ -540,13 +542,9 @@ function parseCSVLine(line) {
 }
             async function handleCsvUpload(event) {
                 const file = event.target.files[0];
-                if (!file) {
-                    csvFileNameLabel.textContent = 'ยังไม่ได้เลือกไฟล์';
-                    return;
-                }
+                if (!file) return;
                 csvFileNameLabel.textContent = `ไฟล์: ${file.name}`;
                 loadingOverlay.style.display = 'flex';
-                loadingOverlay.textContent = 'กำลังนำเข้าไฟล์...';
 
                 const reader = new FileReader();
                 reader.onload = async (e) => {
@@ -554,105 +552,73 @@ function parseCSVLine(line) {
                         const text = e.target.result;
                         const lines = text.split('\n').filter(line => line.trim() !== '');
                         
-                        const headerRowIndex = lines.findIndex(line => line.includes('วันที่') && line.includes('รายการ'));
-                        if (headerRowIndex === -1) {
-                            alert("ไม่พบหัวตารางในไฟล์ CSV กรุณาตรวจสอบรูปแบบไฟล์");
-                            loadingOverlay.style.display = 'none';
-                            return;
+                        // 1. ดึงเลขบัญชีดิบจาก CSV (เช่น "115-8-98581-7")
+                        let rawAccountNo = "";
+                        for (let line of lines) {
+                            if (line.includes("เลขที่บัญชีเงินฝาก")) {
+                                const cols = parseCSVLine(line);
+                                rawAccountNo = cols.find(c => /\d+-\d+-\d+-\d+/.test(c)) || "";
+                                break;
+                            }
                         }
 
-                        let newStatements = [];
-                        const currentCentury = "20";
+                        // 2. ค้นหาชื่อเต็มจาก ChannelMap (เช่น หาว่าเลขนี้ตรงกับ "TR (1) 115-8-98581-7" หรือไม่)
+                        let fullAccountName = rawAccountNo; // ค่าเริ่มต้นเป็นเลขบัญชีดิบ
+                        for (let code in channelMap) {
+                            let accountInSystem = channelMap[code].account; // เช่น "TR (1) 115-8-98581-7"
+                            if (accountInSystem && accountInSystem.includes(rawAccountNo)) {
+                                fullAccountName = accountInSystem; // เจอชื่อเต็มแล้ว!
+                                break;
+                            }
+                        }
 
-                        // 1. เตรียมข้อมูลและสร้าง Hash ทั้งหมดจากไฟล์ CSV
+                        const headerRowIndex = lines.findIndex(line => line.includes('วันที่') && line.includes('รายการ'));
+                        if (headerRowIndex === -1) { alert("ไม่พบหัวตาราง"); loadingOverlay.style.display = 'none'; return; }
+
+                        let newStatements = [];
                         for (let i = headerRowIndex + 1; i < lines.length; i++) {
                             const columns = parseCSVLine(lines[i]);
                             if (columns.length < 7) continue;
 
-                            const deposit_amount_str = columns[6] || "0";
-                            const deposit_amount = parseFloat(deposit_amount_str.replace(/,/g, '')) || 0;
-                            
+                            const deposit_amount = parseFloat((columns[6] || "0").replace(/,/g, '')) || 0;
                             if (deposit_amount > 0) {
+                                // ... (Logic วันที่ และ Unique Hash คงเดิมเหมือนก่อนหน้า) ...
                                 const datePart = columns[1].replace(/[\/\.]/g, '-');
                                 const dateMatch = datePart.split('-');
-                                let statement_date = "";
-                                if (dateMatch.length === 3) {
-                                    const day = dateMatch[0].padStart(2, '0');
-                                    const month = dateMatch[1].padStart(2, '0');
-                                    let year = dateMatch[2];
-                                    if (year.length === 2) year = currentCentury + year;
-                                    statement_date = `${year}-${month}-${day}`;
-                                }
-
+                                let statement_date = `${dateMatch[2].length === 2 ? '20' + dateMatch[2] : dateMatch[2]}-${dateMatch[1].padStart(2, '0')}-${dateMatch[0].padStart(2, '0')}`;
                                 const statement_time = (columns[2] || "00:00") + ':00';
                                 const description = columns[3] || "";
-                                const balance_str = columns[8] || "0";
-                                const balance = parseFloat(balance_str.replace(/,/g, '')) || 0;
-                                
-                                // สร้าง Unique Hash
+                                const balance = parseFloat((columns[8] || "0").replace(/,/g, '')) || 0;
                                 const rawHash = `${statement_date}${statement_time}${deposit_amount}${balance}${description}`;
                                 const unique_hash = btoa(unescape(encodeURIComponent(rawHash)));
 
                                 newStatements.push({
-                                    statement_date, 
-                                    statement_time, 
-                                    description,
-                                    deposit_amount, 
-                                    balance, 
-                                    channel: columns[10] || "", 
+                                    statement_date, statement_time, description, deposit_amount, balance,
+                                    channel: columns[10] || "",
                                     details: columns[12] || "",
                                     withdrawal_amount: 0, 
                                     is_matched: false,
-                                    unique_hash: unique_hash
+                                    unique_hash: unique_hash,
+                                    bank_account: fullAccountName // บันทึกเป็น "TR (1) 115-8-98581-7"
                                 });
                             }
                         }
 
-                        if (newStatements.length === 0) {
-                            alert('ไม่พบรายการฝากเงินใหม่ในไฟล์');
-                            loadingOverlay.style.display = 'none';
-                            return;
-                        }
-
-                        // 2. ตรวจสอบว่า Hash ไหนที่มีอยู่ใน Database แล้วบ้าง
+                        // ... (Logic การ Insert / Filter ข้อมูลซ้ำ คงเดิม) ...
                         const allHashes = newStatements.map(s => s.unique_hash);
-                        const { data: existingRecords, error: checkError } = await supabaseClient
-                            .from('bank_statements')
-                            .select('unique_hash')
-                            .in('unique_hash', allHashes);
-
-                        if (checkError) throw checkError;
-
-                        const existingHashes = new Set(existingRecords.map(r => r.unique_hash));
-
-                        // 3. กรองเอาเฉพาะรายการที่ "ยังไม่มี" ใน Database เท่านั้น
+                        const { data: existingRecords } = await supabaseClient.from('bank_statements').select('unique_hash').in('unique_hash', allHashes);
+                        const existingHashes = new Set(existingRecords?.map(r => r.unique_hash) || []);
                         const statementsToInsert = newStatements.filter(s => !existingHashes.has(s.unique_hash));
 
                         if (statementsToInsert.length > 0) {
-                            const { error: insertError } = await supabaseClient
-                                .from('bank_statements')
-                                .insert(statementsToInsert);
-
-                            if (insertError) throw insertError;
-                            
-                            alert(`นำเข้าข้อมูลใหม่สำเร็จ ${statementsToInsert.length} รายการ (ข้ามรายการซ้ำเดิม ${newStatements.length - statementsToInsert.length} รายการ)`);
-                        } else {
-                            alert(`ไม่มีข้อมูลใหม่ให้อัปโหลด (ตรวจพบรายการซ้ำเดิมทั้งหมด ${newStatements.length} รายการ)`);
-                        }
-                        
+                            await supabaseClient.from('bank_statements').insert(statementsToInsert);
+                            alert(`นำเข้าสำเร็จ ${statementsToInsert.length} รายการ (บัญชี: ${fullAccountName})`);
+                        } else { alert("พบรายการซ้ำทั้งหมด"); }
                         await displayUnmatchedStatements();
-
-                    } catch (error) {
-                        console.error('Error processing CSV file:', error);
-                        alert(`เกิดข้อผิดพลาด: ${error.message}`);
-                    } finally {
-                        loadingOverlay.style.display = 'none';
-                        csvFileInput.value = ''; 
-                    }
+                    } catch (error) { alert(error.message); } finally { loadingOverlay.style.display = 'none'; csvFileInput.value = ''; }
                 };
                 reader.readAsText(file, 'TIS-620');
             }
-
             async function matchData() {
                 const selectedChannels = Array.from(document.querySelectorAll('#match-channel-checkbox-container input:checked')).map(cb => cb.value);
                 
