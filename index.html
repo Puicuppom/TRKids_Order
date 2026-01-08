@@ -1140,6 +1140,7 @@
                     if (channelsRes.error) throw new Error('Could not load channels');
                     channelList = channelsRes.data; 
                     if (!channelList.some(ch => ch.channel_code === 'CLAIM')) { channelList.push({ channel_code: 'CLAIM', channel_name: 'CLAIM' }); }
+	 if (!channelList.some(ch => ch.channel_code === 'INFU')) { channelList.push({ channel_code: 'INFU', channel_name: 'INFU' }); }
                     channelList.sort((a, b) => a.channel_code.localeCompare(b.channel_code));
                     
                     if (inkTypesRes.error) throw new Error('Could not load ink types');
@@ -1528,7 +1529,7 @@
                         }
                     });
                     
-                    if (order.channel_code === 'CLAIM') {
+                    if (order.channel_code === 'CLAIM' || order.channel_code === 'INFU') {
                         claimSection.style.display = 'block';
                         document.getElementById('payment-info-section').style.display = 'none';
                     }
@@ -1694,7 +1695,7 @@
                     return { isValid: false, reason: "ไม่มีที่อยู่/เลขพัสดุ" };
                 }
 
-                if (order.channel_code !== 'CLAIM') {
+                if (order.channel_code !== 'CLAIM' && order.channel_code !== 'INFU') {
                     if (order.total_amount <= 0) {
                         return { isValid: false, reason: "ยอดสุทธิเป็น 0 หรือไม่ถูกต้อง" };
                     }
@@ -2772,9 +2773,9 @@
                         addressLabel.textContent = 'ที่อยู่ลูกค้า'; 
                     } 
                     
-                    if (selectedChannel === 'CLAIM') { 
+                    if (selectedChannel === 'CLAIM' || selectedChannel === 'INFU') { 
                         paymentSection.style.display = 'none'; 
-                        claimSection.style.display = 'block';
+                        claimSection.style.display = (selectedChannel === 'CLAIM') ? 'block' : 'none';
                         container.querySelector('#price').value = 0; 
                         container.querySelector('#shipping_cost').value = 0; 
                         container.querySelector('#discount').value = 0; 
