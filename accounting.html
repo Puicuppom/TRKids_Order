@@ -617,12 +617,91 @@ function parseCSVLine(line) {
             }
 
             async function matchData() {
+                const selectedChannels = Array.from(document.querySelectorAll('#match-channel-checkbox-container input:checked')).map(cb => cb.value);
+                
+                if (selectedChannels.length === 0) {
+                    alert('กรุณาเลือกช่องทางใบงานอย่างน้อย 1 ช่องทาง');
+                    return;
+                }
+
                 loader.style.display = 'block';
-                statusText.textContent = 'กำลังเริ่มจับคู่...';
-                // ... (Logic การแมตซ์ข้อมูลตามโค้ดเดิมของคุณ)
-                statusText.textContent = 'เสร็จสมบูรณ์';
-                loader.style.display = 'none';
-                await displayUnmatchedStatements(); // Refresh the unmatched list
+                statusText.textContent = 'กำลังดึงรายการที่ยังไม่ได้จับคู่...';
+                statusText.style.color = 'inherit';
+
+                try {
+                    // 1. ดึงรายการ Statement ที่ยังไม่ได้จับคู่จาก Database
+                    const { data: unmatchedStmts, error: stmtError } = await supabaseClient
+                        .from('bank_statements')
+                        .select('*')
+                        .eq('is_matched', false);
+
+                    if (stmtError) throw stmtError;
+                    if (!unmatchedStmts || unmatchedStmts.length === 0) {
+                        alert('ไม่มีรายการ Statement ที่ค้างการจับคู่ในระบบ');
+                        loader.style.display = 'none';
+                        return;
+                    }
+
+                    // หาช่วงวันที่เพื่อไปดึงใบงาน (Orders)
+                    const dates = unmatchedStmts.map(s => s.statement_date);
+                    const minDate = new Date(Math.min(...dates.map(d => new Date(d)))).toISOString().split('T')[0];
+                    const maxDate = new Date(Math.max(...dates.map(d => new Date(d)))).toISOString().split('T')[0];
+
+                    statusText.textContent = `กำลังดึงข้อมูลใบงานช่วงวันที่ ${minDate} ถึง ${maxDate}...`;
+
+                    // 2. ดึงข้อมูล Orders จาก Database (ตามช่องทางที่เลือก)
+                    const { data: orders, error: orderError } = await supabaseClient
+                        .from('orders')
+                        .select('bill_no, payment_date, payment_time, total_amount, channel_code')
+                        .gte('payment_date', minDate)
+                        .lte('payment_date', maxDate)
+                        .in('channel_code', selectedChannels)
+                        .not('status', 'eq', 'ยกเลิก');
+
+                    if (orderError) throw orderError;
+
+                    // 3. เริ่มขั้นตอนการจับคู่
+                    statusText.textContent = 'กำลังเปรียบเทียบข้อมูลและบันทึกลงฐานข้อมูล...';
+                    let matchCount = 0;
+
+                    for (const stmt of unmatchedStmts) {
+                        // สร้าง Key สำหรับ Statement นี้: วันที่_เวลา(HH:mm)_ยอดเงิน
+                        const stmtTime = stmt.statement_time.substring(0, 5);
+                        const stmtAmount = parseFloat(stmt.deposit_amount).toFixed(2);
+                        
+                        // ค้นหาใน Orders
+                        const matchedOrder = orders.find(order => {
+                            const orderTime = order.payment_time ? order.payment_time.substring(0, 5) : "";
+                            const orderAmount = parseFloat(order.total_amount).toFixed(2);
+                            return order.payment_date === stmt.statement_date && 
+                                   orderTime === stmtTime && 
+                                   orderAmount === stmtAmount;
+                        });
+
+                        if (matchedOrder) {
+                            // 4. ถ้าเจอคู่ -> สั่ง UPDATE กลับไปที่ Supabase
+                            const { error: updateError } = await supabaseClient
+                                .from('bank_statements')
+                                .update({ 
+                                    bill_no: matchedOrder.bill_no, 
+                                    is_matched: true 
+                                })
+                                .eq('id', stmt.id);
+
+                            if (!updateError) matchCount++;
+                        }
+                    }
+
+                    alert(`จับคู่สำเร็จ ${matchCount} รายการ!`);
+                    await displayUnmatchedStatements(); // รีเฟรชตารางหน้าจอ
+
+                } catch (error) {
+                    console.error('Match Error:', error);
+                    alert('เกิดข้อผิดพลาดในการจับคู่: ' + error.message);
+                } finally {
+                    loader.style.display = 'none';
+                    statusText.textContent = 'พร้อมดำเนินการ';
+                }
             }
 
             function formatCurrency(num) {
