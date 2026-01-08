@@ -442,16 +442,15 @@
                         .select('*')
                         .gte('statement_date', startDate)
                         .lte('statement_date', endDate)
-                        .order('statement_date', { ascending: true });
+                        .order('statement_date', { ascending: true })
+                        .order('id', { ascending: true });
 
                     if (error) throw error;
+                    if (data.length === 0) { alert("ไม่พบข้อมูลในช่วงวันที่เลือก"); return; }
 
                     const groupedData = {};
                     data.forEach(item => {
-                        // ดึงชื่อบัญชีมาเป็นชื่อแท็บ
                         let accountKey = item.bank_account; 
-                        
-                        // ถ้าใน DB ไม่มี (ข้อมูลเก่า) ให้ไปหาจาก ChannelMap
                         if (!accountKey || accountKey.trim() === "") {
                             const info = channelMap[item.channel];
                             accountKey = info ? info.account : (item.channel || "ไม่ระบุบัญชี");
@@ -473,12 +472,30 @@
                     const workbook = XLSX.utils.book_new();
                     Object.keys(groupedData).forEach(accountName => {
                         const worksheet = XLSX.utils.json_to_sheet(groupedData[accountName]);
-                        // ตั้งชื่อแท็บ (ใช้ชื่อ TR (1) 115-8-98581-7 ที่เราเตรียมไว้)
-                        XLSX.utils.book_append_sheet(workbook, worksheet, accountName.substring(0, 31));
+                        
+                        // --- ส่วนที่แก้ไข: ตั้งค่าความกว้างคอลัมน์ให้พอดีกับข้อมูล ---
+                        worksheet['!cols'] = [
+                            { wch: 15 }, // วันที่
+                            { wch: 10 }, // เวลา
+                            { wch: 15 }, // รายการ
+                            { wch: 10 }, // ยอดเงินฝาก
+                            { wch: 20 }, // เลขบิล
+                            { wch: 15 }, // ยอดคงเหลือ
+                            { wch: 25 }, // ช่องทาง (Internet/Mobile...)
+                            { wch: 70 }  // รายละเอียด (ข้อความยาวๆ)
+                        ];
+
+                        // ป้องกัน Error ชื่อแท็บที่มีอักขระพิเศษ
+                        const safeSheetName = accountName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, "");
+                        XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
                     });
 
-                    XLSX.writeFile(workbook, `Report_${startDate}.xlsx`);
-                } catch (error) { alert(error.message); } finally { loadingOverlay.style.display = 'none'; }
+                    XLSX.writeFile(workbook, `Report_Statement_${startDate}.xlsx`);
+                } catch (error) { 
+                    alert('เกิดข้อผิดพลาด: ' + error.message); 
+                } finally { 
+                    loadingOverlay.style.display = 'none'; 
+                }
             }
             async function displayUnmatchedStatements() {
                 unmatchedContainer.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
