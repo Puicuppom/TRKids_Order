@@ -561,12 +561,12 @@ function parseCSVLine(line) {
                             return;
                         }
 
-                        const statementsToInsert = [];
+                        let newStatements = [];
                         const currentCentury = "20";
 
+                        // 1. เตรียมข้อมูลและสร้าง Hash ทั้งหมดจากไฟล์ CSV
                         for (let i = headerRowIndex + 1; i < lines.length; i++) {
                             const columns = parseCSVLine(lines[i]);
-
                             if (columns.length < 7) continue;
 
                             const deposit_amount_str = columns[6] || "0";
@@ -576,7 +576,6 @@ function parseCSVLine(line) {
                                 const datePart = columns[1].replace(/[\/\.]/g, '-');
                                 const dateMatch = datePart.split('-');
                                 let statement_date = "";
-                                
                                 if (dateMatch.length === 3) {
                                     const day = dateMatch[0].padStart(2, '0');
                                     const month = dateMatch[1].padStart(2, '0');
@@ -589,49 +588,65 @@ function parseCSVLine(line) {
                                 const description = columns[3] || "";
                                 const balance_str = columns[8] || "0";
                                 const balance = parseFloat(balance_str.replace(/,/g, '')) || 0;
-                                const channel = columns[10] || "";
-                                const details = columns[12] || "";
-
-                                // --- ส่วนที่เพิ่มเข้ามาเพื่อแก้ Error ---
-                                // สร้าง Unique Hash เพื่อป้องกันข้อมูลซ้ำ (ใช้ วันที่+เวลา+ยอดเงิน+ยอดคงเหลือ)
+                                
+                                // สร้าง Unique Hash
                                 const rawHash = `${statement_date}${statement_time}${deposit_amount}${balance}${description}`;
-                                const unique_hash = btoa(unescape(encodeURIComponent(rawHash))); 
-                                // ---------------------------------------
+                                const unique_hash = btoa(unescape(encodeURIComponent(rawHash)));
 
-                                statementsToInsert.push({
+                                newStatements.push({
                                     statement_date, 
                                     statement_time, 
                                     description,
                                     deposit_amount, 
                                     balance, 
-                                    channel, 
-                                    details,
+                                    channel: columns[10] || "", 
+                                    details: columns[12] || "",
                                     withdrawal_amount: 0, 
                                     is_matched: false,
-                                    unique_hash: unique_hash // ส่งค่า Hash ไปยัง Database
+                                    unique_hash: unique_hash
                                 });
                             }
                         }
 
-                        if (statementsToInsert.length > 0) {
-                            // ใช้ .upsert เพื่อถ้าเจอ unique_hash ซ้ำ มันจะไม่อัปโหลดเพิ่ม (ป้องกันข้อมูลเบิ้ล)
-                            const { error } = await supabaseClient
-                                .from('bank_statements')
-                                .upsert(statementsToInsert, { onConflict: 'unique_hash' });
-
-                            if (error) throw error;
-                            
-                            alert(`นำเข้าสำเร็จ ${statementsToInsert.length} รายการ`);
-                            await displayUnmatchedStatements();
-                        } else {
-                            alert('ไม่พบรายการฝากเงินที่สามารถนำเข้าได้ในไฟล์');
+                        if (newStatements.length === 0) {
+                            alert('ไม่พบรายการฝากเงินใหม่ในไฟล์');
+                            loadingOverlay.style.display = 'none';
+                            return;
                         }
+
+                        // 2. ตรวจสอบว่า Hash ไหนที่มีอยู่ใน Database แล้วบ้าง
+                        const allHashes = newStatements.map(s => s.unique_hash);
+                        const { data: existingRecords, error: checkError } = await supabaseClient
+                            .from('bank_statements')
+                            .select('unique_hash')
+                            .in('unique_hash', allHashes);
+
+                        if (checkError) throw checkError;
+
+                        const existingHashes = new Set(existingRecords.map(r => r.unique_hash));
+
+                        // 3. กรองเอาเฉพาะรายการที่ "ยังไม่มี" ใน Database เท่านั้น
+                        const statementsToInsert = newStatements.filter(s => !existingHashes.has(s.unique_hash));
+
+                        if (statementsToInsert.length > 0) {
+                            const { error: insertError } = await supabaseClient
+                                .from('bank_statements')
+                                .insert(statementsToInsert);
+
+                            if (insertError) throw insertError;
+                            
+                            alert(`นำเข้าข้อมูลใหม่สำเร็จ ${statementsToInsert.length} รายการ (ข้ามรายการซ้ำเดิม ${newStatements.length - statementsToInsert.length} รายการ)`);
+                        } else {
+                            alert(`ไม่มีข้อมูลใหม่ให้อัปโหลด (ตรวจพบรายการซ้ำเดิมทั้งหมด ${newStatements.length} รายการ)`);
+                        }
+                        
+                        await displayUnmatchedStatements();
+
                     } catch (error) {
                         console.error('Error processing CSV file:', error);
                         alert(`เกิดข้อผิดพลาด: ${error.message}`);
                     } finally {
                         loadingOverlay.style.display = 'none';
-                        loadingOverlay.textContent = 'กำลังโหลด...';
                         csvFileInput.value = ''; 
                     }
                 };
