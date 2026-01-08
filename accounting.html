@@ -434,28 +434,50 @@
                 const startDate = stmtStartDateInput.value;
                 const endDate = stmtEndDateInput.value;
                 if (!startDate || !endDate) { alert('กรุณาเลือกช่วงวันที่'); return; }
+                
                 loadingOverlay.style.display = 'flex';
                 try {
+                    // ปรับลำดับฟิลด์ตรงนี้: เอา deposit_amount นำหน้า bill_no
                     const { data, error } = await supabaseClient
                         .from('bank_statements')
-                        .select('bill_no,statement_date,statement_time,description,deposit_amount,withdrawal_amount,balance,channel,details,is_matched')
+                        .select('statement_date, statement_time, description, deposit_amount, bill_no, withdrawal_amount, balance, channel, details, is_matched')
                         .gte('statement_date', startDate)
                         .lte('statement_date', endDate)
-                        .order('id', { ascending: true }); // UPDATED: Order by id
+                        .order('id', { ascending: true });
 
                     if (error) throw error;
+
+                    // แปลงชื่อหัวคอลัมน์เป็นภาษาไทย (Optional: ถ้าชอบแบบเดิมที่เป็นภาษาอังกฤษให้ข้ามส่วน map นี้ไปครับ)
+                    const thaiData = data.map(item => ({
+                        "วันที่": item.statement_date,
+                        "เวลา": item.statement_time ? item.statement_time.substring(0, 5) : "",
+                        "รายการ": item.description,
+                        "ยอดเงินฝาก": item.deposit_amount,
+                        "เลขบิล": item.bill_no || "ยังไม่ได้จับคู่", // bill_no จะมาอยู่หลังยอดเงินฝาก
+                        "ยอดเงินถอน": item.withdrawal_amount,
+                        "ยอดคงเหลือ": item.balance,
+                        "ช่องทาง": item.channel,
+                        "รายละเอียด": item.details,
+                        "สถานะการจับคู่": item.is_matched ? "สำเร็จ" : "ยังไม่สำเร็จ"
+                    }));
                     
-                    const worksheet = XLSX.utils.json_to_sheet(data);
+                    const worksheet = XLSX.utils.json_to_sheet(thaiData);
                     const workbook = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(workbook, worksheet, 'Statements');
+                    
+                    // ปรับความกว้างคอลัมน์ให้อัตโนมัติ
+                    worksheet['!cols'] = [
+                        {wch: 12}, {wch: 8}, {wch: 20}, {wch: 15}, {wch: 15}, 
+                        {wch: 12}, {wch: 15}, {wch: 15}, {wch: 30}, {wch: 15}
+                    ];
+
                     XLSX.writeFile(workbook, `Statements_${startDate}_to_${endDate}.xlsx`);
                 } catch (error) {
-                    alert(error.message);
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
                 } finally {
                     loadingOverlay.style.display = 'none';
                 }
             }
-            
             async function displayUnmatchedStatements() {
                 unmatchedContainer.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
                 
