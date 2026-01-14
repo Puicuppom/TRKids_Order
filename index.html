@@ -1262,19 +1262,48 @@
                 allWorkOrdersData.forEach(wo => {
                     const billsInWorkOrder = allOrdersData.filter(order => order.work_order_name === wo.work_order_name);
                     if (workOrdersFilter !== 'all' && wo.channel_code !== workOrdersFilter) return;
-                    if (workOrdersSearch) { const woNameMatches = wo.work_order_name.toLowerCase().includes(workOrdersSearch); const anyBillMatches = billsInWorkOrder.some(bill => (bill.bill_no && bill.bill_no.toLowerCase().includes(workOrdersSearch)) || (bill.customer_name && bill.customer_name.toLowerCase().includes(workOrdersSearch)) || (bill.tracking_number && bill.tracking_number.toLowerCase().includes(workOrdersSearch))); if (!woNameMatches && !anyBillMatches) return; }
+                    if (workOrdersSearch) { 
+                        const woNameMatches = wo.work_order_name.toLowerCase().includes(workOrdersSearch); 
+                        const anyBillMatches = billsInWorkOrder.some(bill => (bill.bill_no && bill.bill_no.toLowerCase().includes(workOrdersSearch)) || (bill.customer_name && bill.customer_name.toLowerCase().includes(workOrdersSearch)) || (bill.tracking_number && bill.tracking_number.toLowerCase().includes(workOrdersSearch))); 
+                        if (!woNameMatches && !anyBillMatches) return; 
+                    }
                     
                     const allHaveTracking = billsInWorkOrder.length > 0 && billsInWorkOrder.every(bill => bill.tracking_number && bill.tracking_number.trim() !== '');
                     const trackingStatusIcon = allHaveTracking ? '<span style="color: green; font-weight: bold; margin-left: 8px;">✓</span>' : '';
-                    const groupEl = document.createElement('div'); groupEl.className = 'work-order-group'; let billsHTML = '<ul class="order-list">';
-                    billsInWorkOrder.sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || '')).forEach(bill => { const trackingHTML = bill.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; billsHTML += `<li class="order-list-item" data-order-id="${bill.id}"><input type="checkbox" class="order-checkbox"><div class="order-info"><div><strong data-order-id="${bill.id}">${bill.bill_no}</strong><span class="customer-info">${bill.customer_name || 'N/A'}</span></div></div>${trackingHTML}</li>`; });
+                    const groupEl = document.createElement('div'); 
+                    groupEl.className = 'work-order-group'; 
+                    
+                    let billsHTML = '<ul class="order-list">';
+                    billsInWorkOrder.sort((a, b) => (a.bill_no || '').localeCompare(b.bill_no || '')).forEach(bill => { 
+                        // ส่วนเช็คสถานะบิลเงินสด/ใบกำกับภาษี
+                        let billingIndicator = '';
+                        if (bill.billing_details) {
+                            if (bill.billing_details.request_tax_invoice) {
+                                billingIndicator = ` <span style="font-size: 0.8em; color: #c82333; background-color: #fdd; border: 1px solid #c82333; padding: 2px 6px; border-radius: 4px; font-weight: bold;">📄 ใบกำกับภาษี</span>`;
+                            } else if (bill.billing_details.request_cash_bill) {
+                                billingIndicator = ` <span style="font-size: 0.8em; color: #007bff; background-color: #e7f3ff; border: 1px solid #007bff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">💵 บิลเงินสด</span>`;
+                            }
+                        }
+
+                        const trackingHTML = bill.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
+                        
+                        billsHTML += `<li class="order-list-item" data-order-id="${bill.id}"><input type="checkbox" class="order-checkbox"><div class="order-info"><div><strong data-order-id="${bill.id}">${bill.bill_no}</strong><span class="customer-info">${bill.customer_name || 'N/A'}${billingIndicator}</span></div></div>${trackingHTML}</li>`; 
+                    });
                     billsHTML += '</ul>';
-                    const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR', 'SHOP']; const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
+
+                    const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR', 'SHOP']; 
+                    const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
                     
                     let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button>`;
-                    if (isWaybillSortChannel) { actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
-                    } else { actionButtonsHTML += `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button><button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`; }
-                    if (currentUserRole === 'superadmin' || currentUserRole === 'manager') { actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกใบงาน</button>`; }
+                    if (isWaybillSortChannel) { 
+                        actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
+                    } else { 
+                        actionButtonsHTML += `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button><button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`; 
+                    }
+                    
+                    if (currentUserRole === 'superadmin' || currentUserRole === 'manager') { 
+                        actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกใบงาน</button>`; 
+                    }
                     
                     const batchActionsHTML = `
                         <div class="batch-actions" ${(currentUserRole !== 'superadmin' && currentUserRole !== 'manager') ? 'style="display: none;"' : ''}>
