@@ -799,9 +799,9 @@
                     const targetId = link.getAttribute('data-target');
                     systemContents.forEach(content => content.classList.toggle('active', content.id === targetId));
                     if (targetId === 'packing-system-container') { window.packingSystem.loadWorkOrdersForPacking(); }
-                    else if (targetId === 'product-system-container' && loggedInUserRole === 'superadmin') { window.productSystem.initializeApp(); }
-                    else if (targetId === 'planner-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production')) { window.plannerSystem.initializeApp(loggedInUserRole); }
-                    else if (targetId === 'sales-report-system-container' && loggedInUserRole === 'superadmin') { window.salesReportSystem.initializeApp(); }
+                    else if (targetId === 'product-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) { window.productSystem.initializeApp(); }
+else if (targetId === 'planner-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production' || loggedInUserRole === 'manager')) { window.plannerSystem.initializeApp(loggedInUserRole); }
+else if (targetId === 'sales-report-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) { window.salesReportSystem.initializeApp(); }
                     if (window.innerWidth <= 768) { document.body.classList.add('sidebar-collapsed'); }
                 });
             }
@@ -833,11 +833,13 @@
                 if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้');
                 loggedInUsername = userData.username; loggedInUserRole = userData.role;
                 welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
-                const isSuperAdmin = loggedInUserRole === 'superadmin'; const isProduction = loggedInUserRole === 'production';
-                document.getElementById('nav-product').style.display = isSuperAdmin ? '' : 'none';
-                document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none';
-                document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction) ? '' : 'none';
-                document.getElementById('nav-sales-report').style.display = isSuperAdmin ? '' : 'none';
+	const isSuperAdmin = loggedInUserRole === 'superadmin'; 
+	const isProduction = loggedInUserRole === 'production';
+	const isManager = loggedInUserRole === 'manager'; // เพิ่มบรรทัดนี้
+	document.getElementById('nav-product').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+	document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none'; 
+	document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction || isManager) ? '' : 'none';
+	document.getElementById('nav-sales-report').style.display = (isSuperAdmin || isManager) ? '' : 'none';
                 loginOverlay.style.display = 'none'; mainAppContainer.style.display = 'flex';
                 await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
                 if (isSuperAdmin) { 
@@ -1253,10 +1255,10 @@
                     let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button>`;
                     if (isWaybillSortChannel) { actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
                     } else { actionButtonsHTML += `<button class="btn btn-warning btn-sm prepare-waybill-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ใบปะหน้า)</button><button class="btn btn-info btn-sm import-wo-csv-btn" data-work-order-name="${wo.work_order_name}">นำเข้าเลขพัสดุ</button>`; }
-                    if (currentUserRole === 'superadmin') { actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกใบงาน</button>`; }
+                    if (currentUserRole === 'superadmin' || currentUserRole === 'manager') { actionButtonsHTML += `<button class="btn btn-danger btn-sm cancel-wo-btn" data-work-order-name="${wo.work_order_name}">ยกเลิกใบงาน</button>`; }
                     
                     const batchActionsHTML = `
-                        <div class="batch-actions" ${currentUserRole !== 'superadmin' ? 'style="display: none;"' : ''}>
+                        <div class="batch-actions" ${(currentUserRole !== 'superadmin' && currentUserRole !== 'manager') ? 'style="display: none;"' : ''}>
                             <button class="btn btn-secondary select-all-in-wo-btn">เลือกทั้งหมด</button>
                             <button class="btn btn-warning revert-to-waiting-btn" data-work-order-name="${wo.work_order_name}">คืนไป "รอลงข้อมูล"</button>
                             <button class="btn btn-info revert-to-complete-btn" data-work-order-name="${wo.work_order_name}">คืนไป "ลงข้อมูลเสร็จสิ้น"</button>
@@ -1726,7 +1728,7 @@
                         document.getElementById('upload-slip-btn').style.display = 'none';
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-payment-only-btn">อัปเดตข้อมูลการชำระเงิน</button>`;
                     } else {
-                        if (order.status === 'ใบงาน (กำลังผลิต)' && currentUserRole !== 'superadmin') {
+                        if (order.status === 'ใบงาน (กำลังผลิต)' && (currentUserRole !== 'superadmin' && currentUserRole !== 'manager')) {
                             allControls.forEach(el => el.disabled = true);
                             $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', true).trigger('change');
                             addItemBtn.style.display = 'none';
