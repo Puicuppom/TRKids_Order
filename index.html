@@ -2538,15 +2538,7 @@
 
                 if (savedTaxItems && savedTaxItems.length > 0) {
                     savedTaxItems.forEach(item => {
-                        const row = taxItemsTbody.insertRow();
-                        const unitPrice = parseFloat(item.unit_price || 0).toFixed(2);
-                        const total = (parseInt(item.quantity || 0) * unitPrice).toFixed(2);
-                        row.innerHTML = `
-                            <td>${item.product_name}</td>
-                            <td><input type="number" class="tax-item-qty" value="${item.quantity}" readonly></td>
-                            <td><input type="number" class="tax-item-unit-price" value="${unitPrice}" step="0.01"></td>
-                            <td class="tax-item-total">${total}</td>
-                        `;
+                        addTaxRow(item.product_name, item.quantity, item.unit_price);
                     });
                 } else {
                     const aggregatedItems = {};
@@ -2565,24 +2557,43 @@
                         }
                     });
 
+                    // 1. ใส่รายการสินค้าหลัก
                     Object.values(aggregatedItems).forEach(item => {
-                        const row = taxItemsTbody.insertRow();
-                        const savedPrice = existingPrices[item.name] || '0.00';
-                        
                         let displayQty = item.qty;
                         if (item.category === 'CONDO STAMP') {
                             displayQty = Math.ceil(item.qty / 5);
                         }
-
-                        row.innerHTML = `
-                            <td>${item.name}</td>
-                            <td><input type="number" class="tax-item-qty" value="${displayQty}" readonly></td>
-                            <td><input type="number" class="tax-item-unit-price" value="${savedPrice}" step="0.01"></td>
-                            <td class="tax-item-total">0.00</td>
-                        `;
+                        const savedPrice = existingPrices[item.name] || '0.00';
+                        addTaxRow(item.name, displayQty, savedPrice);
                     });
+
+                    // 2. เพิ่มแถว "ค่าจัดส่ง" (ถ้ามีค่าส่ง > 0)
+                    const shippingCost = parseFloat(container.querySelector('#shipping_cost').value) || 0;
+                    if (shippingCost > 0) {
+                        addTaxRow("ค่าจัดส่ง", 1, shippingCost.toFixed(2));
+                    }
+
+                    // 3. เพิ่มแถว "ส่วนลด" (ถ้ามีส่วนลด > 0) เป็นค่าติดลบตัวแดง
+                    const discount = parseFloat(container.querySelector('#discount').value) || 0;
+                    if (discount > 0) {
+                        addTaxRow("ส่วนลด", 1, (-discount).toFixed(2));
+                    }
                 }
                 calculateTaxItemTotals();
+            }
+
+            // ฟังก์ชันช่วยสร้างแถวตาราง
+            function addTaxRow(name, qty, unitPrice) {
+                const row = taxItemsTbody.insertRow();
+                const priceNum = parseFloat(unitPrice);
+                const isDiscount = priceNum < 0;
+                
+                row.innerHTML = `
+                    <td style="${isDiscount ? 'color: red; font-weight: bold;' : ''}">${name}</td>
+                    <td><input type="number" class="tax-item-qty" value="${qty}" readonly></td>
+                    <td><input type="number" class="tax-item-unit-price" value="${unitPrice}" step="0.01" style="${isDiscount ? 'color: red;' : ''}"></td>
+                    <td class="tax-item-total" style="text-align: right; ${isDiscount ? 'color: red;' : ''}">0.00</td>
+                `;
             }
 
             function calculateTaxItemTotals() {
