@@ -1205,7 +1205,10 @@
                     orders.forEach(order => {
                         const matchesSearch = !searchTerm || (order.bill_no && order.bill_no.toLowerCase().includes(searchTerm)) || (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm)) || (order.tracking_number && order.tracking_number.toLowerCase().includes(searchTerm));
                         if ((filterValue === 'all' || filterValue === order.channel_code) && matchesSearch) {
-                            const trackingHTML = order.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${order.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>';
+                            const trackingHTML = `<span class="order-tracking">
+    <span class="tracking-text" style="${order.tracking_number ? '' : 'color: #ccc;'}">${order.tracking_number || 'ยังไม่มีเลขพัสดุ'}</span> 
+    <button class="btn btn-sm btn-edit-tracking" title="${order.tracking_number ? 'แก้ไขเลขพัสดุ' : 'เพิ่มเลขพัสดุ'}">✏️</button>
+</span>`;
                             
                             let billingIndicator = '';
                             if (order.billing_details) {
@@ -1285,7 +1288,10 @@
                             }
                         }
 
-                        const trackingHTML = bill.tracking_number ? `<span class="order-tracking"><span class="tracking-text">${bill.tracking_number}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button></span>` : '<span class="order-tracking" style="color: #ccc;">ยังไม่มีเลขพัสดุ</span>'; 
+                        const trackingHTML = `<span class="order-tracking">
+    <span class="tracking-text" style="${bill.tracking_number ? '' : 'color: #ccc;'}">${bill.tracking_number || 'ยังไม่มีเลขพัสดุ'}</span> 
+    <button class="btn btn-sm btn-edit-tracking" title="${bill.tracking_number ? 'แก้ไขเลขพัสดุ' : 'เพิ่มเลขพัสดุ'}">✏️</button>
+</span>`;
                         
                         billsHTML += `<li class="order-list-item" data-order-id="${bill.id}"><input type="checkbox" class="order-checkbox"><div class="order-info"><div><strong data-order-id="${bill.id}">${bill.bill_no}</strong><span class="customer-info">${bill.customer_name || 'N/A'}${billingIndicator}</span></div></div>${trackingHTML}</li>`; 
                     });
@@ -2168,14 +2174,39 @@
             function enterTrackingEditMode(trackingSpan) { 
                 const orderItem = trackingSpan.closest('.order-list-item');
                 const orderId = orderItem.dataset.orderId;
-                const orderData = allOrdersData.find(o => o.id == orderId);
+                
                 const trackingTextEl = trackingSpan.querySelector('.tracking-text'); 
-                const currentTracking = trackingTextEl ? trackingTextEl.textContent : ''; 
+                const currentText = trackingTextEl ? trackingTextEl.textContent : ''; 
+                
+                // ถ้าข้อความคือ "ยังไม่มีเลขพัสดุ" ให้ช่อง Input ว่างเปล่าเพื่อให้กรอกใหม่ได้เลย
+                const inputValue = (currentText === 'ยังไม่มีเลขพัสดุ') ? '' : currentText;
+                
                 trackingSpan.dataset.originalHtml = trackingSpan.innerHTML; 
-                trackingSpan.innerHTML = `<div class="tracking-edit-container"><input type="text" class="tracking-input" value="${currentTracking}"><button class="btn btn-sm btn-success btn-save-tracking-confirm">✓</button><button class="btn btn-sm btn-secondary btn-cancel-tracking-edit">X</button></div>`; 
+                trackingSpan.innerHTML = `
+                    <div class="tracking-edit-container">
+                        <input type="text" class="tracking-input" value="${inputValue}" placeholder="กรอกเลขพัสดุ...">
+                        <button class="btn btn-sm btn-success btn-save-tracking-confirm">✓</button>
+                        <button class="btn btn-sm btn-secondary btn-cancel-tracking-edit">X</button>
+                    </div>`; 
                 trackingSpan.querySelector('.tracking-input').focus(); 
             }
-            function exitTrackingEditMode(trackingSpan, newTrackingNumber = null) { const orderItem = trackingSpan.closest('.order-list-item'); const originalTrackingNumber = allOrdersData.find(o => o.id == orderItem.dataset.orderId).tracking_number; let finalTrackingNumber = newTrackingNumber !== null ? newTrackingNumber : originalTrackingNumber; trackingSpan.innerHTML = `<span class="tracking-text">${finalTrackingNumber}</span> <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>`; }
+
+            function exitTrackingEditMode(trackingSpan, newTrackingNumber = null) { 
+                const orderItem = trackingSpan.closest('.order-list-item'); 
+                const orderId = orderItem.dataset.orderId;
+                const orderData = allOrdersData.find(o => String(o.id) === String(orderId));
+                
+                // ใช้เลขพัสดุใหม่ที่บันทึกสำเร็จ หรือถ้าไม่มี (กดยกเลิก) ให้ใช้ค่าเดิมจาก Database
+                let finalTracking = newTrackingNumber !== null ? newTrackingNumber : (orderData ? orderData.tracking_number : null); 
+                
+                const displayText = finalTracking || 'ยังไม่มีเลขพัสดุ';
+                const displayStyle = finalTracking ? '' : 'color: #ccc;';
+
+                trackingSpan.innerHTML = `
+                    <span class="tracking-text" style="${displayStyle}">${displayText}</span> 
+                    <button class="btn btn-sm btn-edit-tracking" title="แก้ไขเลขพัสดุ">✏️</button>
+                `; 
+            }
             async function saveTrackingNumber(trackingSpan) { const orderItem = trackingSpan.closest('.order-list-item'); const orderId = orderItem.dataset.orderId; const newTrackingNumber = trackingSpan.querySelector('.tracking-input').value.trim(); if (!newTrackingNumber) { alert('เลขพัสดุห้ามว่าง'); return; } loadingOverlay.style.display = 'flex'; try { const { error } = await supabaseClient.from('orders').update({ tracking_number: newTrackingNumber }).eq('id', orderId); if (error) throw error; alert('อัปเดตสำเร็จ!'); } catch (error) { console.error('Error updating tracking:', error); alert('เกิดพลาด: ' + error.message); exitTrackingEditMode(trackingSpan); } finally { loadingOverlay.style.display = 'none'; } }
             async function generateNextBillNo(channelCode) { const today = new Date(); const year = String(today.getFullYear() + 543).slice(-2); const month = String(today.getMonth() + 1).padStart(2, '0'); const prefix = `${channelCode}${year}${month}`; const { data, error } = await supabaseClient.from('orders').select('bill_no').like('bill_no', `${prefix}%`).order('bill_no', { ascending: false }).limit(1); if (error) throw new Error(`ค้นหาบิลล่าสุดไม่ได้: ${error.message}`); let nextSequence = 1; if (data.length > 0) { const lastBillNo = data[0].bill_no; const lastSequence = parseInt(lastBillNo.slice(prefix.length), 10); if (!isNaN(lastSequence)) { nextSequence = lastSequence + 1; } } return `${prefix}${String(nextSequence).padStart(5, '0')}`; }
             
