@@ -790,22 +790,28 @@
         // --- CORE APP LOGIC ---
         mobileMenuToggle.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
 
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === '#' || link.hasAttribute('data-target')) {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                    e.currentTarget.classList.add('active');
-                    const targetId = link.getAttribute('data-target');
-                    systemContents.forEach(content => content.classList.toggle('active', content.id === targetId));
-                    if (targetId === 'packing-system-container') { window.packingSystem.loadWorkOrdersForPacking(); }
-                    else if (targetId === 'product-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) { window.productSystem.initializeApp(); }
-else if (targetId === 'planner-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'production' || loggedInUserRole === 'manager')) { window.plannerSystem.initializeApp(loggedInUserRole); }
-else if (targetId === 'sales-report-system-container' && (loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) { window.salesReportSystem.initializeApp(); }
-                    if (window.innerWidth <= 768) { document.body.classList.add('sidebar-collapsed'); }
-                });
-            }
+    navLinks.forEach(link => {
+    if (link.getAttribute('href') === '#' || link.hasAttribute('data-target')) {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('data-target');
+            
+            // เช็คสิทธิ์การเข้าถึงเมนูต่างๆ
+            if (targetId === 'product-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) return;
+            if (targetId === 'planner-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'production' || loggedInUserRole === 'manager')) return;
+            if (targetId === 'sales-report-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) return;
+
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            
+            systemContents.forEach(content => content.classList.toggle('active', content.id === targetId));
+
+            if (targetId === 'packing-system-container') { window.packingSystem.loadWorkOrdersForPacking(); }
+            
+            if (window.innerWidth <= 768) { document.body.classList.add('sidebar-collapsed'); }
         });
+    }
+});
         
         function handleInitialTab() {
             const target = localStorage.getItem('navigateTo');
@@ -827,37 +833,50 @@ else if (targetId === 'sales-report-system-container' && (loggedInUserRole === '
         }
 
         async function mainAppInitializer(user) {
-            loadingOverlay.style.display = 'flex';
-            try {
-                const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
-                if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้');
-                loggedInUsername = userData.username; loggedInUserRole = userData.role;
-                welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
-	const isSuperAdmin = loggedInUserRole === 'superadmin'; 
-	const isProduction = loggedInUserRole === 'production';
-	const isManager = loggedInUserRole === 'manager'; // เพิ่มบรรทัดนี้
-	document.getElementById('nav-product').style.display = (isSuperAdmin || isManager) ? '' : 'none';
-	document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none'; 
-	document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction || isManager) ? '' : 'none';
-	document.getElementById('nav-sales-report').style.display = (isSuperAdmin || isManager) ? '' : 'none';
-                loginOverlay.style.display = 'none'; mainAppContainer.style.display = 'flex';
-                await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
-                if (isSuperAdmin) { 
-                    window.productSystem.initializeApp(); 
-                    window.plannerSystem.initializeApp(loggedInUserRole);
-                    window.salesReportSystem.initializeApp();
-                }
-                else if (isProduction) {
-                    document.querySelector('.nav-link.active')?.classList.remove('active');
-                    document.querySelector('.system-content.active')?.classList.remove('active');
-                    document.querySelector('.nav-link[data-target="planner-system-container"]').classList.add('active');
-                    document.getElementById('planner-system-container').classList.add('active');
-                    window.plannerSystem.initializeApp(loggedInUserRole);
-                }
-                handleInitialTab();
-            } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); await logout(); }
-            finally { loadingOverlay.style.display = 'none'; }
+    loadingOverlay.style.display = 'flex';
+    try {
+        const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
+        if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้');
+        loggedInUsername = userData.username; 
+        loggedInUserRole = userData.role;
+        
+        welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
+
+        const isSuperAdmin = loggedInUserRole === 'superadmin'; 
+        const isProduction = loggedInUserRole === 'production';
+        const isManager = loggedInUserRole === 'manager'; // ตรวจสอบ Role Manager
+
+        // ควบคุมการมองเห็นเมนู (Manager เห็น 5 เมนู ยกเว้น Accounting)
+        document.getElementById('nav-product').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+        document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction || isManager) ? '' : 'none';
+        document.getElementById('nav-sales-report').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+        document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none'; // บัญชีเห็นแค่ SuperAdmin
+
+        loginOverlay.style.display = 'none'; 
+        mainAppContainer.style.display = 'flex';
+
+        await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
+
+        // ให้ Manager สามารถเรียกใช้ระบบ Product, Planner และ Sales Report ได้
+        if (isSuperAdmin || isManager) { 
+            window.productSystem.initializeApp(); 
+            window.plannerSystem.initializeApp(loggedInUserRole);
+            window.salesReportSystem.initializeApp();
         }
+        else if (isProduction) {
+            document.querySelector('.nav-link.active')?.classList.remove('active');
+            document.querySelector('.system-content.active')?.classList.remove('active');
+            document.querySelector('.nav-link[data-target="planner-system-container"]').classList.add('active');
+            document.getElementById('planner-system-container').classList.add('active');
+            window.plannerSystem.initializeApp(loggedInUserRole);
+        }
+        handleInitialTab();
+    } catch (err) { 
+        alert("เกิดข้อผิดพลาด: " + err.message); 
+        await logout(); 
+    }
+    finally { loadingOverlay.style.display = 'none'; }
+}
         
         // --- AUTHENTICATION ---
         loginForm.addEventListener('submit', async (e) => {
@@ -3620,8 +3639,18 @@ window.packingSystem = (() => {
             
             async function internal_load() { try { const { data: jobsData, error: jobsError } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false }); if (jobsError) throw new Error('โหลดใบงานไม่ได้: ' + jobsError.message); state.jobs = jobsData || []; } catch (e) { console.error("Planner load error:", e); alert('โหลดข้อมูลไม่ได้! ' + e.message); state.jobs = []; } renderAll(); }
             
-            function updateAccessControls() { const unlocked = currentUserRole === 'superadmin' || currentUserRole === 'production'; container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => { if(elem.id !== 'j_selectAll' && !elem.classList.contains('job-checkbox')) elem.disabled = !unlocked; }); renderAll(); }
-            
+            function updateAccessControls() { 
+    // เพิ่มสิทธิ์ให้ manager สามารถปลดล็อคปุ่มจัดการต่างๆ ได้
+    const unlocked = currentUserRole === 'superadmin' || currentUserRole === 'production' || currentUserRole === 'manager'; 
+    
+    container.querySelectorAll('#viewJobs input, #viewJobs select, #viewJobs button').forEach(elem => { 
+        if(elem.id !== 'j_selectAll' && !elem.classList.contains('job-checkbox')) {
+            elem.disabled = !unlocked; 
+        }
+    }); 
+    renderAll(); 
+}
+
             function renderAll() { if (!container) return; populateJobDateFilter(); renderJobs(); }
             
             function populateJobDateFilter() { const dateSelect = el('#j_date'); if (!dateSelect) return; const today = new Date().toISOString().slice(0, 10); const jobDates = state.jobs.map(j => j.date); const allDates = [...new Set([today, ...jobDates])].sort().reverse(); dateSelect.innerHTML = '<option value="">ทุกวัน</option>'; allDates.forEach(d => dateSelect.add(new Option(d, d))); dateSelect.value = today; }
