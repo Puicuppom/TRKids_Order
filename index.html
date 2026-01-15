@@ -1132,12 +1132,12 @@
                     ]);
 
                     const activeOrdersPromise = supabaseClient.from('orders')
-                        .select('*, order_items(*)')
+                        .select('*, order_items!order_id(*)')
                         .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
                         .order('created_at', { ascending: false });
 
                     const finishedOrdersPromise = supabaseClient.from('orders')
-                        .select('*, order_items(*)')
+                        .select('*, order_items!order_id(*)')
                         .in('status', ['จัดส่งแล้ว', 'ยกเลิก'])
                         .order('created_at', { ascending: false })
                         .limit(1000);
@@ -4224,4 +4224,5 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
+
 
