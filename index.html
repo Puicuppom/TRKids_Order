@@ -1148,8 +1148,9 @@
                     ]);
 
                     if (activeError || finishedError) {
-                        console.error("Order Fetch Error:", activeError || finishedError);
-                        throw new Error('Could not load orders');
+                        const err = activeError || finishedError;
+						alert("พบข้อผิดพลาด: " + err.message + "\nHint: " + err.hint);
+						console.error("Detail Error:", err);
                     }
 
                     allOrdersData = [...(activeOrders || []), ...(finishedOrders || [])];
@@ -4223,3 +4224,4 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
+
