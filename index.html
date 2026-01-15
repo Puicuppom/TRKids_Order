@@ -163,6 +163,25 @@
 
         /* --- PACKING SYSTEM SPECIFIC STYLES --- */
         #packing-system-container{padding:0}#packing-system-container .header{text-align:center;padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:0}#packing-system-container .header h1{margin:0;font-size:24px;color:var(--primary-color)}#packing-system-container .header .action-buttons{display:flex;gap:10px}#packing-system-container .btn-back{background-color:#6c757d;color:#fff}#work-order-selection-view{padding:40px;text-align:center}#work-order-selection-view h2{margin-top:0}#work-order-list{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;list-style:none;padding:0}.work-order-item button{display:flex; align-items:center; gap: 10px; padding:20px 30px;font-size:1.1em;cursor:pointer;border:1px solid #0071e3;background-color:#f0f8ff;border-radius:8px;transition:all .2s}.work-order-item button:hover{background-color:#e0effc;box-shadow:0 2px 5px rgba(0,0,0,.1)}.work-order-item button.no-tracking { border-color: #ffc107; background-color: #fff8e1; } .work-order-item button .status-icon { font-size: 1.2em; } #packing-main-view{display:none}#packing-main-view .main-container{display:flex;height:calc(100vh - var(--top-bar-height) - 100px)}#packing-main-view #order-nav-panel{width:300px;background:#fff;border-right:1px solid #d2d2d7;display:flex;flex-direction:column;flex-shrink:0}#packing-main-view #nav-header{padding:15px;border-bottom:1px solid #d2d2d7;text-align:center}#packing-main-view #order-counter{font-size:16px;font-weight:600}#packing-main-view #search-input{width:calc(100% - 24px);padding:8px 12px;margin-top:10px;border:1px solid #d2d2d7;border-radius:6px}#packing-main-view #order-list{list-style:none;padding:0;margin:0;overflow-y:auto;flex-grow:1}#packing-main-view .order-item{padding:12px 15px;border-bottom:1px solid #e5e5e5;cursor:pointer;-webkit-user-select:none;user-select:none}#packing-main-view .order-item.active{background-color:#e0effc}#packing-main-view .order-item.completed{color:#28a745}#packing-main-view .order-item .tracking-id{font-weight:700;display:block}#packing-main-view .order-item .customer-name{font-size:.9em;color:#6e6e73}#packing-main-view #content-panel{flex-grow:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}#packing-main-view #action-panel{padding:20px;flex-shrink:0;background-color:#f8f8fa;border-bottom:1px solid #d2d2d7}
+.ink-tag {
+    display: inline-flex;  /* เปลี่ยนเป็น flex เพื่อให้จัดวางไอคอนกับตัวหนังสือสวยขึ้น */
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 12px;      /* ขนาดตัวหนังสือ */
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.ink-icon {
+    font-size: 28px;      /* ปรับขนาดไอคอนให้ใหญ่ขึ้นตรงนี้ */
+    margin-right: 8px;
+    line-height: 1;
+}
+.ink-fabric { background-color: #e3f2fd; border: 1px solid #bbdefb; } /* ผ้า - ฟ้า */
+.ink-plastic { background-color: #fff3e0; border: 1px solid #ffe0b2; } /* พลาสติก - ส้ม */
+.ink-paper { background-color: #f5f5f5; border: 1px solid #e0e0e0; } /* กระดาษ - เทา */
         #packing-main-view .action-panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
         #packing-main-view .action-step{margin-bottom:0}
         #packing-main-view .action-step:last-child{margin-bottom:0}#packing-main-view .action-step h3{margin:0 0 10px;font-size:18px;text-align:center}
@@ -3514,7 +3533,34 @@ window.packingSystem = (() => {
                 <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
                 <td>${item.product_name || ''}</td>
                 <td>${item.shelf_location || ''}</td>
-                <td>${item.ink_color || ''}</td>
+                <td>
+    ${(() => {
+        const ink = item.ink_color || '';
+        let icon = '';
+        let bgColor = '#f8f9fa'; 
+        let textColor = '#333';   
+
+        // 1. เลือกไอคอนตามประเภทวัสดุ
+        if (ink.includes('ผ้า')) icon = '👕';
+        else if (ink.includes('พลาสติก')) icon = '🥤';
+        else if (ink.includes('กระดาษ')) icon = '📄';
+
+        // 2. กำหนดสีพื้นหลังตามชื่อสี
+        if (ink.includes('น้ำเงิน')) { bgColor = '#0040ff'; textColor = '#fff'; }
+        else if (ink.includes('แดง')) { bgColor = '#e60000'; textColor = '#fff'; }
+        else if (ink.includes('ดำ')) { bgColor = '#222'; textColor = '#fff'; }
+        else if (ink.includes('เขียว')) { bgColor = '#008000'; textColor = '#fff'; }
+        else if (ink.includes('ชมพู')) { bgColor = '#ff66b2'; textColor = '#fff'; }
+
+        if (!ink) return ''; 
+
+        // ส่งกลับ HTML ที่แยก icon ออกมาเพื่อขยายขนาด
+        return `<span class="ink-tag" style="background-color: ${bgColor}; color: ${textColor};">
+                    <span class="ink-icon">${icon}</span>
+                    <span>${ink}</span>
+                </span>`;
+    })()}
+</td>
                 <td>${combinedPattern}</td>
                 <td>${item.font || ''}</td> 
                 <td>${item.details || ''}</td>
