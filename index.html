@@ -3330,10 +3330,34 @@ window.packingSystem = (() => {
             }, INACTIVITY_LIMIT);
         }
     }
+    
+    // NEW FUNCTION: ตรวจสอบและรีเซ็ตออร์เดอร์ที่กำลังค้างอยู่
+    async function checkAndResetCurrentIncompleteOrder() {
+        // ตรวจสอบว่ามีการโหลดข้อมูลอยู่ และมีออร์เดอร์ที่ถูกเลือกในปัจจุบัน
+        if (currentIndex !== -1 && currentWorkOrderName && aggregatedData.length > 0) {
+            // ตรวจสอบว่าออร์เดอร์ปัจจุบันยังไม่เสร็จสิ้น และมีข้อมูลใน aggregatedData
+            if (!completedIndices.has(currentIndex) && aggregatedData[currentIndex]) {
+                const group = aggregatedData[currentIndex];
+                const hasStarted = group.some(item => item.scanned || item.parcelScanned);
+                
+                if (hasStarted) {
+                    // ถ้ามีการเริ่มแสกนแล้ว ให้ทำการรีเซ็ต
+                    console.log(`Auto-resetting incomplete order (${group[0].tracking_number}) from WO ${currentWorkOrderName} before switching.`);
+                    // NOTE: ต้องเรียก performResetAction() โดยตรงเพื่อใช้ currentIndex
+                    await performResetAction();
+                }
+            }
+        }
+    }
+
 
     // ฟังก์ชันรีเซ็ตค่าใน Database (ใช้ร่วมกันทั้งปุ่มกดและระบบออโต้)
     async function performResetAction() {
         if (currentIndex < 0) return;
+        
+        // 1. Clear inactivity timer ก่อนทำการรีเซ็ต
+        clearTimeout(inactivityTimer);
+        
         const group = aggregatedData[currentIndex];
         
         // อัปเดตรายการสินค้าใน Database ให้เป็น 'ยังไม่ได้แสกน'
@@ -3353,7 +3377,7 @@ window.packingSystem = (() => {
 
         if (!itemError && !orderError) {
             // โหลดข้อมูลใหม่เพื่อล้างค่าในหน้าจอ
-            await loadPackingData(currentWorkOrderName);
+            await loadPackingData(currentWorkOrderName, true); // Pass true to skip inner reset check
         } else {
             console.error("Reset Error:", itemError || orderError);
         }
@@ -3375,6 +3399,9 @@ window.packingSystem = (() => {
     }
 
     async function loadWorkOrdersForPacking() {
+        // --- ADDED: Check and reset when going back to WO selection ---
+        await checkAndResetCurrentIncompleteOrder();
+        
         showPackingView("selection");
         workOrderList.innerHTML = "<li>กำลังโหลด...</li>";
         const { data: workOrders, error: woError } = await supabaseClient.from("work_orders").select("*").eq('status', 'กำลังผลิต').order("created_at", { ascending: false });
@@ -3404,9 +3431,18 @@ window.packingSystem = (() => {
         });
     }
 
-    async function loadPackingData(workOrderName) {
+    // MODIFIED: Added skipReset parameter
+    async function loadPackingData(workOrderName, skipReset = false) {
+        // --- ADDED: Check and reset when loading a NEW WO ---
+        if (workOrderName !== currentWorkOrderName && !skipReset) {
+            await checkAndResetCurrentIncompleteOrder();
+        }
+
         loadingOverlay.style.display = "flex";
         currentWorkOrderName = workOrderName;
+        // 1. Clear inactivity timer
+        clearTimeout(inactivityTimer);
+
         const { data, error } = await supabaseClient.from("orders").select("*, order_items(*)").eq("work_order_name", workOrderName).order('bill_no', { ascending: true });
         loadingOverlay.style.display = "none";
         if (error) { alert("ดึงข้อมูลไม่ได้: " + error.message); return; }
@@ -3482,16 +3518,9 @@ window.packingSystem = (() => {
             
             // เมื่อคลิกเลือกออร์เดอร์ใหม่
             li.addEventListener("click", async () => {
-                // ตรวจสอบว่าถ้าคลิกเปลี่ยนขณะที่อันเก่าแสกนค้างอยู่ ให้รีเซ็ตอันเก่าก่อน
+                // --- MODIFIED: Check and reset when switching orders WITHIN the WO ---
                 if (currentIndex !== -1 && currentIndex !== index) {
-                    if (!completedIndices.has(currentIndex)) {
-                        const oldGroup = aggregatedData[currentIndex];
-                        const hasStarted = oldGroup.some(item => item.scanned || item.parcelScanned);
-                        if (hasStarted) {
-                            console.log("Auto-reset: User switched order while incomplete.");
-                            await performResetAction();
-                        }
-                    }
+                    await checkAndResetCurrentIncompleteOrder();
                 }
                 displayOrder(index);
             });
@@ -3754,7 +3783,13 @@ window.packingSystem = (() => {
         if (currentIndex < 0 || !confirm('ยืนยัน "แพ็คใหม่"? (ข้อมูลที่แสกนไปแล้วในบิลนี้จะถูกล้างทั้งหมด)')) return;
         await performResetAction();
     });
-    backBtn.addEventListener('click', loadWorkOrdersForPacking);
+    
+    // --- MODIFIED: Back button now checks and resets ---
+    backBtn.addEventListener('click', async () => {
+        await checkAndResetCurrentIncompleteOrder();
+        loadWorkOrdersForPacking();
+    });
+    
     shipAllScannedBtn.addEventListener("click", shipAllScannedOrders);
     finalizeWoBtn.addEventListener('click', async () => {
         if (!confirm('ปิดใบงานนี้?')) return;
