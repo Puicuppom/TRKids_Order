@@ -3281,7 +3281,7 @@
 
             return { initializeApp, loadInitialData };
         })();
-// --- PACKING SYSTEM MODULE (FULL VERSION WITH AUTO-RESET) ---
+// --- PACKING SYSTEM MODULE (FULL VERSION WITH AUTO-RESET & SPEED OPTIMIZATION) ---
 window.packingSystem = (() => {
     const container = document.getElementById("packing-system-container");
     const selectionView = container.querySelector("#work-order-selection-view");
@@ -3529,8 +3529,13 @@ window.packingSystem = (() => {
                 ? `<a href="${item.file_attachment.startsWith('http') ? item.file_attachment : 'https://' + item.file_attachment}" target="_blank" style="color: #0071e3; text-decoration: underline; font-weight: bold;">เปิดลิงก์</a>`
                 : (item.file_attachment || '');
 
-            tableHTML += `<tr class="${item.scanned ? 'item-scanned' : ''}" data-item-uid="${item.item_uid}">
-                <td><div id="qr-${item.item_uid}" class="qr-code-container"></div><small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small></td>
+            const rowClass = item.scanned ? 'item-scanned' : '';
+
+            tableHTML += `<tr class="${rowClass}" data-item-uid="${item.item_uid}">
+                <td>
+                    <div id="qr-${item.item_uid}" class="qr-code-container"></div>
+                    <small style="display: block; text-align: center; margin-top: 4px;">${item.item_uid || ''}</small>
+                </td>
                 <td>${item.product_name || ''}</td>
                 <td>${item.shelf_location || ''}</td>
                 <td>
@@ -3589,17 +3594,29 @@ window.packingSystem = (() => {
         startInactivityTimer();
     }
 
+    // ************ FIX 1: OPTIMIZE PARCEL SCAN ************
     async function handleParcelScan() {
         const scanValue = parcelScanInput.value.trim().toUpperCase();
         if (!scanValue || currentIndex < 0) return;
         const group = aggregatedData[currentIndex];
+        
         if (scanValue === String(group[0].tracking_number).trim().toUpperCase()) {
-            await supabaseClient.from("orders").update({ packing_meta: { parcelScanned: true, scannedBy: loggedInUsername, scanTime: new Date().toISOString() } }).eq('id', group[0].order_id);
+            
+            // 1. FAST ACTIONS: Update local state, clear input, play sound
             group.forEach(item => item.parcelScanned = true);
-            successSound.play();
             parcelScanInput.value = "";
-            updateInputStates();
-            // รีเซ็ตตัวจับเวลาเมื่อมีการแสกนสำเร็จ
+            successSound.play();
+            updateInputStates(); // <-- โค้ดนี้จะย้าย Focus ไปที่ itemScanInput ทันที
+            
+            // 2. ASYNCHRONOUS DB WRITE (Non-blocking)
+            supabaseClient.from("orders")
+                .update({ packing_meta: { parcelScanned: true, scannedBy: loggedInUsername, scanTime: new Date().toISOString() } })
+                .eq('id', group[0].order_id)
+                .then(({ error }) => {
+                    if (error) console.error("Async Parcel DB update failed:", error);
+                });
+            
+            // 3. Reset inactivity timer
             startInactivityTimer();
         } else {
             errorSound.play();
@@ -3607,21 +3624,43 @@ window.packingSystem = (() => {
         }
     }
 
+    // ************ FIX 2: OPTIMIZE ITEM SCAN ************
     async function scanItem() {
         const scanValue = itemScanInput.value.trim().toUpperCase();
         if (!scanValue || currentIndex < 0) return;
         const group = aggregatedData[currentIndex];
         const itemToScan = group.find(item => !item.scanned && item.item_uid === scanValue);
+        
         if (itemToScan) {
+            
+            // 1. FAST ACTIONS: Update local state, clear input, play sound
             itemScanInput.value = "";
-            await supabaseClient.from('order_items').update({ item_scan_time: new Date().toISOString(), packing_status: 'สแกนแล้ว' }).eq('item_uid', itemToScan.item_uid);
             successSound.play();
             itemToScan.scanned = true;
             
-            // รีเซ็ตตัวจับเวลาเมื่อมีการแสกนสินค้าสำเร็จ
-            startInactivityTimer();
+            // 2. MINIMAL DOM UPDATE (Bypass slow displayOrder)
+            const row = resultContainer.querySelector(`tr[data-item-uid="${itemToScan.item_uid}"]`);
+            if (row) {
+                row.classList.add('item-scanned');
+            }
+            const scannedItems = group.filter(i => i.scanned).length;
+            const itemCounterEl = document.getElementById("packing-item-counter");
+            if (itemCounterEl) {
+                itemCounterEl.textContent = `${scannedItems}/${group.length}`;
+            }
+            updateStatus("✅ สแกนสำเร็จ", "success");
+            itemScanInput.focus(); // <-- Re-focus ทันที
 
-            if (group.every(i => i.scanned)) {
+            // 3. ASYNCHRONOUS DB WRITE (Non-blocking)
+            supabaseClient.from('order_items')
+                .update({ item_scan_time: new Date().toISOString(), packing_status: 'สแกนแล้ว' })
+                .eq('item_uid', itemToScan.item_uid)
+                .then(({ error }) => {
+                    if (error) console.error("Async Item DB update failed:", error);
+                });
+            
+            // 4. CHECK COMPLETION (SLOW, only run once when complete)
+            if (scannedItems === group.length) {
                 completedIndices.add(currentIndex);
                 clearTimeout(inactivityTimer); // แสกนครบแล้ว ไม่ต้องจับเวลารีเซ็ต
                 updateStatus("✅ สแกนครบแล้ว!", "success");
@@ -3631,10 +3670,11 @@ window.packingSystem = (() => {
                     const nextIndex = aggregatedData.findIndex((_, i) => !completedIndices.has(i) && !aggregatedData[i][0].isOrderComplete);
                     if (nextIndex !== -1) displayOrder(nextIndex);
                 }, 700);
-            } else {
-                updateInputStates();
-                displayOrder(currentIndex);
             }
+
+            // 5. Reset inactivity timer
+            startInactivityTimer();
+            
         } else {
             errorSound.play();
             updateStatus("❌ สินค้าไม่ถูกต้องหรือถูกสแกนแล้ว", "error");
@@ -3705,8 +3745,11 @@ window.packingSystem = (() => {
         const f = searchInput.value.toLowerCase();
         orderList.querySelectorAll(".order-item").forEach(it => it.style.display = it.dataset.trackingId.toLowerCase().includes(f) ? "" : "none");
     });
+    
+    // NOTE: ใช้ "change" event เหมือนเดิม เพราะ Scanner จะส่ง Enter มาให้
     parcelScanInput.addEventListener("change", handleParcelScan);
     itemScanInput.addEventListener("change", scanItem);
+    
     resetBtn.addEventListener("click", async () => {
         if (currentIndex < 0 || !confirm('ยืนยัน "แพ็คใหม่"? (ข้อมูลที่แสกนไปแล้วในบิลนี้จะถูกล้างทั้งหมด)')) return;
         await performResetAction();
