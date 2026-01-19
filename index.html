@@ -1344,7 +1344,7 @@
                     const waybillSortChannels = ['FSPTR', 'SPTR', 'TTTR', 'LZTR', 'SHOP']; 
                     const isWaybillSortChannel = waybillSortChannels.includes(wo.channel_code);
                     
-                    let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button>`;
+                    let actionButtonsHTML = `<button class="btn btn-success btn-sm picking-slip-btn" data-work-order-name="${wo.work_order_name}">📋 ทำใบเบิก</button><button class="btn btn-primary btn-sm export-production-btn" data-work-order-name="${wo.work_order_name}">📤 Export (ไฟล์ผลิต)</button><button class="btn btn-sm export-qc-btn" style="background-color: #6f42c1; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🔍 Export for QC</button><button class="btn btn-sm export-barcode-btn" style="background-color: #3f51b5; color: white; border: none;" data-work-order-name="${wo.work_order_name}">🏷️ ทำ Barcode</button>`;
                     if (isWaybillSortChannel) { 
                         actionButtonsHTML += `<button class="btn btn-warning btn-sm export-waybill-sort-btn" data-work-order-name="${wo.work_order_name}">📤 เรียงใบปะหน้า</button>`;
                     } else { 
@@ -2367,6 +2367,47 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, "QC_Data");
                 XLSX.writeFile(workbook, `QC_${workOrderName}.xlsx`);
             }
+	function exportForBarcode(workOrderName) {
+                const ordersInWorkOrder = allOrdersData
+                    .filter(order => order.work_order_name === workOrderName);
+
+                if (ordersInWorkOrder.length === 0) {
+                    alert("ไม่พบข้อมูล");
+                    return;
+                }
+
+                const headers = ['Item UID', 'ชื่อสินค้า', 'สีหมึก', 'บรรทัด 1', 'หมวด'];
+                const dataToExport = [];
+
+                ordersInWorkOrder.forEach(order => {
+                    if (order.order_items && order.order_items.length > 0) {
+                        order.order_items.forEach(item => {
+                            const productDetails = fullProductList.find(p => p.id === item.product_id);
+                            const category = productDetails ? (productDetails.product_category || 'N/A') : 'N/A';
+
+                            dataToExport.push([
+                                item.item_uid,
+                                item.product_name,
+                                item.ink_color,
+                                item.line_1,
+                                category
+                            ]);
+                        });
+                    }
+                });
+
+                if (dataToExport.length === 0) {
+                    alert("ไม่พบรายการสินค้า");
+                    return;
+                }
+
+                const csvContent = "\uFEFF" + [headers, ...dataToExport].map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `Barcode_${workOrderName}.csv`;
+                link.click();
+            }
             
             function exportShippedData() {
                 const selectedIds = getSelectedOrderIds(container.querySelector('#tab-shipped .order-list'));
@@ -3085,14 +3126,35 @@
                 itemsTbody.addEventListener('paste', (e) => { e.preventDefault(); const pasteData = (e.clipboardData || window.clipboardData).getData('text'); const rowsData = pasteData.split(/[\r\n]+/).filter(row => row.trim() !== ''); let targetCell = e.target.closest('td'); if (!targetCell) return; let startRowIndex = Array.from(itemsTbody.children).indexOf(targetCell.parentElement); let startCellIndex = targetCell.cellIndex; const modifiedRows = []; rowsData.forEach((rowData, rowIndex) => { const cellsData = rowData.split('\t'); let currentRow; const currentRowIndex = startRowIndex + rowIndex; if (currentRowIndex >= itemsTbody.rows.length) { if (itemsTbody.rows.length === 1 && $(itemsTbody.rows[0]).find('.item-product').val() === null) { currentRow = itemsTbody.rows[0]; } else { currentRow = addItemRow(); } } else { currentRow = itemsTbody.rows[currentRowIndex]; } if (!currentRow) return; cellsData.forEach((cellData, cellIndex) => { const targetCellIndex = startCellIndex + cellIndex; if (targetCellIndex < currentRow.cells.length - 1) { const input = currentRow.cells[targetCellIndex].querySelector('input, select'); if (input) { if (input.classList.contains('item-product')) { const pastedValue = cellData.trim().toLowerCase(); const product = fullProductList.find(p => p.product_code.toLowerCase() === pastedValue || p.product_name.toLowerCase() === pastedValue); if (product) { $(input).val(product.id).trigger('change.select2'); } else { $(input).val(null).trigger('change.select2'); } } else if (input.tagName === 'SELECT') { const trimmedCellData = cellData.trim().toLowerCase(); const matchedOption = [...input.options].find(opt => opt.text.toLowerCase() === trimmedCellData || opt.value.toLowerCase() === trimmedCellData); if (matchedOption) { input.value = matchedOption.value; } } else { input.value = cellData.trim(); } } } }); modifiedRows.push(currentRow); }); modifiedRows.forEach(row => { if (row) { checkAndApplyStampInkLogic(row); } }); });
                 container.addEventListener('click', (event) => {
                     const target = event.target;
-                    if (target.tagName === 'STRONG' && target.closest('.order-list-item')) { const orderId = target.closest('.order-list-item').dataset.orderId; if (orderId) { loadOrderForEditing(orderId); } }
-                    const trackingSpan = target.closest('.order-tracking'); if (trackingSpan) { if (target.closest('.btn-edit-tracking')) { event.stopPropagation(); event.preventDefault(); enterTrackingEditMode(trackingSpan); } if (target.closest('.btn-save-tracking-confirm')) { event.stopPropagation(); event.preventDefault(); saveTrackingNumber(trackingSpan); } if (target.closest('.btn-cancel-tracking-edit')) { event.stopPropagation(); event.preventDefault(); exitTrackingEditMode(trackingSpan); } }
+                    
+                    // จัดการการคลิกที่เลขบิล (Strong tag)
+                    if (target.tagName === 'STRONG' && target.closest('.order-list-item')) { 
+                        const orderId = target.closest('.order-list-item').dataset.orderId; 
+                        if (orderId) { loadOrderForEditing(orderId); } 
+                    }
+
+                    // จัดการการคลิกแก้ไขเลขพัสดุ
+                    const trackingSpan = target.closest('.order-tracking'); 
+                    if (trackingSpan) { 
+                        if (target.closest('.btn-edit-tracking')) { 
+                            event.stopPropagation(); event.preventDefault(); enterTrackingEditMode(trackingSpan); 
+                        } 
+                        if (target.closest('.btn-save-tracking-confirm')) { 
+                            event.stopPropagation(); event.preventDefault(); saveTrackingNumber(trackingSpan); 
+                        } 
+                        if (target.closest('.btn-cancel-tracking-edit')) { 
+                            event.stopPropagation(); event.preventDefault(); exitTrackingEditMode(trackingSpan); 
+                        } 
+                    }
+
+                    // จัดการปุ่มต่างๆ ในหัวข้อใบงาน (Work Order Header)
                     const headerForAction = target.closest('.work-order-header');
                     if (headerForAction) { 
                         const classToAction = { 
                             'picking-slip-btn': (btn) => showPickingSlipModal(btn.dataset.workOrderName), 
                             'export-production-btn': (btn) => exportForProduction(btn.dataset.workOrderName), 
                             'export-qc-btn': (btn) => exportForQC(btn.dataset.workOrderName), 
+                            'export-barcode-btn': (btn) => exportForBarcode(btn.dataset.workOrderName), // ปุ่มใหม่
                             'prepare-waybill-btn': (btn) => prepareForWaybill(btn.dataset.workOrderName), 
                             'export-waybill-sort-btn': (btn) => window.waybillSorter.start(btn.dataset.workOrderName, allOrdersData), 
                             'import-wo-csv-btn': () => trackingFileInput.click(), 
@@ -3110,7 +3172,21 @@
                         } 
                         if (!actionTaken && !target.closest('.wo-header-actions')) { toggleWorkOrder(headerForAction); } 
                     }
-                    const billsContainer = target.closest('.work-order-bills'); if(billsContainer) { const classToAction = { 'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn), 'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'), 'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'), 'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn) }; for (const className in classToAction) { const btn = target.closest(`.${className}`); if (btn) { classToAction[className](btn); break; } } }
+
+                    // จัดการปุ่มเลือกทั้งหมด/คืนสถานะ ในใบงาน
+                    const billsContainer = target.closest('.work-order-bills'); 
+                    if(billsContainer) { 
+                        const classToAction = { 
+                            'select-all-in-wo-btn': (btn) => selectAllInWorkOrder(btn), 
+                            'revert-to-waiting-btn': (btn) => revertSelectedBills(btn, 'รอลงข้อมูล'), 
+                            'revert-to-complete-btn': (btn) => revertSelectedBills(btn, 'ลงข้อมูลเสร็จสิ้น'), 
+                            'cancel-bills-from-wo-btn': (btn) => cancelSelectedBillsFromWorkOrder(btn) 
+                        }; 
+                        for (const className in classToAction) { 
+                            const btn = target.closest(`.${className}`); 
+                            if (btn) { classToAction[className](btn); break; } 
+                        } 
+                    }
                 });
                 
                 addItemBtn.addEventListener('click', () => {
