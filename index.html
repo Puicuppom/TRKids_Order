@@ -413,7 +413,21 @@
         #sales-report-system-container #report-table tr:nth-child(even) { background-color: #f8f9fa; }
         #sales-report-system-container #report-table td:last-child { font-weight: bold; text-align: center; }
         #sales-report-system-container #report-placeholder { text-align: center; color: #6c757d; padding: 40px; font-style: italic; }
-
+/* สไตล์สำหรับการขยายรูปเมื่อเอาเมาส์ไปจ่อ */
+        .packing-product-img {
+            transition: transform 0.2s ease-in-out;
+            cursor: zoom-in;
+            position: relative;
+            z-index: 1;
+        }
+        .packing-product-img:hover {
+            transform: scale(4); /* ขยาย 4 เท่า */
+            z-index: 999;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+        }
+        /* บังคับตารางจัดกึ่งกลางและตัดคำ */
+        #packing-main-view td { word-wrap: break-word; white-space: normal !important; }
     </style>
 </head>
 <body class="sidebar-collapsed">
@@ -3469,6 +3483,7 @@ window.packingSystem = (() => {
                     const allProducts = orderSystem.getFullProductList();
                     const productInfo = allProducts.find(p => p.id === item.product_id);
                     const imageUrl = productInfo ? productInfo.image_url : null;
+                    item.image_url = imageUrl;
 
                     flatData.push({
                         'tracking_number': order.tracking_number,
@@ -3555,7 +3570,7 @@ window.packingSystem = (() => {
 
         let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${orderGroup.length}</span></div></div>`;
         
-        // --- กำหนดโครงสร้างตารางและฟิกซ์ขนาดหัวตาราง ---
+        // กำหนดขนาดคอลัมน์และบังคับตัดคำ
         let tableHTML = `<table style="table-layout: fixed; width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
@@ -3580,24 +3595,23 @@ window.packingSystem = (() => {
                 : (item.file_attachment || '');
 
             const rowClass = item.scanned ? 'item-scanned' : '';
+            
+            // สร้างรูปสินค้าแบบมีคลาสขยาย (Zoom)
             const productImageHtml = item.image_url 
-                ? `<img src="${item.image_url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; display: block; margin: 0 auto 5px auto; border: 1px solid #eee;">`
+                ? `<img src="${item.image_url}" class="packing-product-img" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; display: block; margin: 0 auto 5px auto; border: 1px solid #eee;">`
                 : `<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc; margin: 0 auto 5px auto; border: 1px solid #eee;">No Pic</div>`;
 
-            // ใช้สไตล์ word-wrap: break-word และ white-space: normal เพื่อบังคับตัดบรรทัด
-            const tdStyle = `padding: 10px 5px; word-wrap: break-word; white-space: normal; vertical-align: middle;`;
-
             tableHTML += `<tr class="${rowClass}" data-item-uid="${item.item_uid}">
-                <td style="${tdStyle} text-align: center;">
+                <td style="text-align: center; vertical-align: middle; padding: 10px 5px;">
                     <div id="qr-${item.item_uid}" class="qr-code-container"></div>
-                    <small style="display: block; text-align: center; margin-top: 4px; font-size: 10px; color: #666;">${item.item_uid || ''}</small>
+                    <small style="display: block; text-align: center; margin-top: 4px; font-size: 10px;">${item.item_uid || ''}</small>
                 </td>
-                <td style="${tdStyle} text-align: center; vertical-align: top;">
+                <td style="text-align: center; vertical-align: top; padding: 10px 5px;">
                     ${productImageHtml}
                     <div style="font-weight: bold; line-height: 1.2; font-size: 12px;">${item.product_name || ''}</div>
                 </td>
-                <td style="${tdStyle} text-align: center;">${item.shelf_location || ''}</td>
-                <td style="${tdStyle} text-align: center;">
+                <td style="text-align: center; vertical-align: middle;">${item.shelf_location || ''}</td>
+                <td style="text-align: center; vertical-align: middle;">
     ${(() => {
         const ink = item.ink_color || '';
         let icon = ''; let bgColor = '#f8f9fa'; let textColor = '#333';   
@@ -3614,11 +3628,11 @@ window.packingSystem = (() => {
                 </span>`;
     })()}
                 </td>
-                <td style="${tdStyle} text-align: center;">${combinedPattern}</td>
-                <td style="${tdStyle} text-align: center;">${item.font || ''}</td> 
-                <td style="${tdStyle}">${item.details || ''}</td>
-                <td style="${tdStyle}">${displayNotes}</td>
-                <td style="${tdStyle} text-align: center;">${fileLink}</td>
+                <td style="text-align: center; vertical-align: middle;">${combinedPattern}</td>
+                <td style="text-align: center; vertical-align: middle;">${item.font || ''}</td> 
+                <td style="vertical-align: middle;">${item.details || ''}</td>
+                <td style="vertical-align: middle;">${displayNotes}</td>
+                <td style="text-align: center; vertical-align: middle;">${fileLink}</td>
             </tr>`;
         });
         tableHTML += "</tbody></table>";
