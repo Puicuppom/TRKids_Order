@@ -3555,19 +3555,19 @@ window.packingSystem = (() => {
 
         let headerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;"><h2>เลขพัสดุ: ${orderGroup[0].tracking_number} <span style="font-weight: normal; color: #555;">(ลูกค้า: ${orderGroup[0].customer_name})</span></h2><div style="text-align: right;"><h3 style="margin:0 0 5px;">จำนวน</h3><span style="font-size: 2em; font-weight: bold;" id="packing-item-counter">${scannedItems}/${orderGroup.length}</span></div></div>`;
         
-        // --- ส่วนที่แก้ไข: ฟิกซ์ขนาดคอลัมน์ตรง th style ---
-        let tableHTML = `<table style="table-layout: fixed; width: 100%;">
+        // --- กำหนดโครงสร้างตารางและฟิกซ์ขนาดหัวตาราง ---
+        let tableHTML = `<table style="table-layout: fixed; width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th style="width: 110px;">QR ItemUID</th>
-                    <th style="width: 160px;">สินค้า</th>
+                    <th style="width: 125px;">QR ItemUID</th>
+                    <th style="width: 180px;">สินค้า</th>
                     <th style="width: 80px;">ชั้น</th>
                     <th style="width: 140px;">สีหมึก</th>
-                    <th style="width: 110px;">ลาย//เส้น</th>
-                    <th style="width: 110px;">ฟอนต์</th>
-                    <th>รายละเอียด</th>
-                    <th>หมายเหตุ</th>
-                    <th>ไฟล์</th>
+                    <th style="width: 120px;">ลาย//เส้น</th>
+                    <th style="width: 80px;">ฟอนต์</th>
+                    <th style="width: 210px;">รายละเอียด</th>
+                    <th style="width: 210px;">หมายเหตุ</th>
+                    <th style="width: 210px;">ไฟล์</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -3580,48 +3580,45 @@ window.packingSystem = (() => {
                 : (item.file_attachment || '');
 
             const rowClass = item.scanned ? 'item-scanned' : '';
-
             const productImageHtml = item.image_url 
-                ? `<img src="${item.image_url}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; display: block; margin: 0 auto 5px auto; border: 1px solid #eee;">`
-                : `<div style="width: 70px; height: 70px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc; margin: 0 auto 5px auto; border: 1px solid #eee;">No Pic</div>`;
+                ? `<img src="${item.image_url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; display: block; margin: 0 auto 5px auto; border: 1px solid #eee;">`
+                : `<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc; margin: 0 auto 5px auto; border: 1px solid #eee;">No Pic</div>`;
 
-            // เพิ่มสไตล์ word-wrap: break-word เพื่อให้ข้อความยาวๆ ไม่ดันตาราง
+            // ใช้สไตล์ word-wrap: break-word และ white-space: normal เพื่อบังคับตัดบรรทัด
+            const tdStyle = `padding: 10px 5px; word-wrap: break-word; white-space: normal; vertical-align: middle;`;
+
             tableHTML += `<tr class="${rowClass}" data-item-uid="${item.item_uid}">
-                <td style="text-align: center;">
+                <td style="${tdStyle} text-align: center;">
                     <div id="qr-${item.item_uid}" class="qr-code-container"></div>
-                    <small style="display: block; text-align: center; margin-top: 4px; word-wrap: break-word; font-size: 10px;">${item.item_uid || ''}</small>
+                    <small style="display: block; text-align: center; margin-top: 4px; font-size: 10px; color: #666;">${item.item_uid || ''}</small>
                 </td>
-                <td style="text-align: center; vertical-align: top;">
+                <td style="${tdStyle} text-align: center; vertical-align: top;">
                     ${productImageHtml}
-                    <div style="font-weight: bold; line-height: 1.2; font-size: 12px; word-wrap: break-word; white-space: normal;">${item.product_name || ''}</div>
+                    <div style="font-weight: bold; line-height: 1.2; font-size: 12px;">${item.product_name || ''}</div>
                 </td>
-                <td style="text-align: center;">${item.shelf_location || ''}</td>
-                <td style="text-align: center;">
+                <td style="${tdStyle} text-align: center;">${item.shelf_location || ''}</td>
+                <td style="${tdStyle} text-align: center;">
     ${(() => {
         const ink = item.ink_color || '';
-        let icon = '';
-        let bgColor = '#f8f9fa'; 
-        let textColor = '#333';   
-        if (ink.includes('ผ้า')) icon = '👕';
-        else if (ink.includes('พลาสติก')) icon = '🥤';
-        else if (ink.includes('กระดาษ')) icon = '📄';
+        let icon = ''; let bgColor = '#f8f9fa'; let textColor = '#333';   
+        if (ink.includes('ผ้า')) icon = '👕'; else if (ink.includes('พลาสติก')) icon = '🥤'; else if (ink.includes('กระดาษ')) icon = '📄';
         if (ink.includes('น้ำเงิน')) { bgColor = '#0040ff'; textColor = '#fff'; }
         else if (ink.includes('แดง')) { bgColor = '#e60000'; textColor = '#fff'; }
         else if (ink.includes('ดำ')) { bgColor = '#222'; textColor = '#fff'; }
         else if (ink.includes('เขียว')) { bgColor = '#008000'; textColor = '#fff'; }
         else if (ink.includes('ชมพู')) { bgColor = '#ff66b2'; textColor = '#fff'; }
         if (!ink) return ''; 
-        return `<span class="ink-tag" style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 4px; font-size: 11px;">
-                    <span class="ink-icon" style="font-size: 30px;">${icon}</span>
-                    <span>${ink}</span>
+        return `<span class="ink-tag" style="background-color: ${bgColor}; color: ${textColor}; display: inline-flex; align-items: center; justify-content: center; padding: 2px 10px; border-radius: 8px; font-weight: bold; font-size: 12px; min-height: 38px; line-height: 1;">
+                    <span class="ink-icon" style="font-size: 30px; margin-right: 6px; display: flex; align-items: center;">${icon}</span>
+                    <span style="display: flex; align-items: center;">${ink}</span>
                 </span>`;
     })()}
                 </td>
-                <td style="text-align: center; word-wrap: break-word; white-space: normal;">${combinedPattern}</td>
-                <td style="text-align: center;">${item.font || ''}</td> 
-                <td style="word-wrap: break-word; white-space: normal;">${item.details || ''}</td>
-                <td style="word-wrap: break-word; white-space: normal;">${displayNotes}</td>
-                <td style="word-wrap: break-word; white-space: normal;">${fileLink}</td>
+                <td style="${tdStyle} text-align: center;">${combinedPattern}</td>
+                <td style="${tdStyle} text-align: center;">${item.font || ''}</td> 
+                <td style="${tdStyle}">${item.details || ''}</td>
+                <td style="${tdStyle}">${displayNotes}</td>
+                <td style="${tdStyle} text-align: center;">${fileLink}</td>
             </tr>`;
         });
         tableHTML += "</tbody></table>";
@@ -4578,6 +4575,3 @@ window.packingSystem = (() => {
     </div>
 </body>
 </html>
-
-
-
