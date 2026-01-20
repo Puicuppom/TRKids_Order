@@ -2288,25 +2288,61 @@
                 }
                 const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'ชื่อสินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
                 const dataToExport = [];
+                
+                // ฟังก์ชันสำหรับป้องกัน Spreadsheet เปลี่ยนเป็นสูตร (ใช้ตัวอักษรล่องหน)
+                const forceText = (val) => {
+                    const str = String(val || '').trim();
+                    if (str === '') return '';
+                    // ถ้าขึ้นต้นด้วย + หรือ 0 ให้เติม Zero Width Space (\u200B) นำหน้า
+                    // ตัวอักษรนี้จะมองไม่เห็นด้วยตาเปล่า แต่จะทำให้ Excel ไม่มองว่าเป็นสูตร
+                    if (str.startsWith('+') || str.startsWith('0')) {
+                        return "\u200B" + str; 
+                    }
+                    return str;
+                };
+
                 ordersInWorkOrder.forEach(order => {
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
                             const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
                             dataToExport.push([
-                                workOrderName, item.bill_no, item.item_uid, item.product_name,
-                                item.ink_color, item.product_type, item.cartoon_pattern, item.line_pattern,
-                                item.font, item.line_1, item.line_2, item.line_3, 1,
+                                workOrderName, 
+                                item.bill_no, 
+                                item.item_uid, 
+                                item.product_name,
+                                item.ink_color, 
+                                item.product_type, 
+                                item.cartoon_pattern, 
+                                item.line_pattern,
+                                item.font, 
+                                forceText(item.line_1),
+                                forceText(item.line_2),
+                                forceText(item.line_3),
+                                1,
                                 cleanNotes,
                                 item.file_attachment
                             ]);
                         });
                     }
                 });
+
                 if (dataToExport.length === 0) {
                     alert("ไม่พบรายการสินค้า");
                     return;
                 }
+
                 const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+
+                // บังคับประเภทเซลล์เป็น String
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = 9; C <= 11; ++C) {
+                        const cell_address = XLSX.utils.encode_cell({r: R, c: C});
+                        if (!worksheet[cell_address]) continue;
+                        worksheet[cell_address].t = 's';
+                    }
+                }
+
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "ProductionData");
                 XLSX.writeFile(workbook, `Production_${workOrderName}.xlsx`);
@@ -2322,14 +2358,23 @@
                     return;
                 }
                 
+                // ฟังก์ชันป้องกันสูตร (ตัวอักษรล่องหน)
+                const forceText = (val) => {
+                    const str = String(val || '').trim();
+                    if (str === '') return '';
+                    if (str.startsWith('+') || str.startsWith('0')) {
+                        return "\u200B" + str;
+                    }
+                    return str;
+                };
+
                 const headers = ['ชื่อใบงาน', 'เลขบิล', 'Item UID', 'รหัสสินค้า', 'ชื่อสินค้า', 'หมวดหมู่สินค้า', 'สีหมึก', 'ชั้นที่', 'ลายการ์ตูน', 'ลายเส้น', 'ฟอนต์', 'บรรทัด 1', 'บรรทัด 2', 'บรรทัด 3', 'จำนวน', 'หมายเหตุ', 'ไฟล์แนบ'];
-                
                 const dataToExport = [];
+
                 ordersInWorkOrder.forEach(order => {
                     if (order.order_items && order.order_items.length > 0) {
                         order.order_items.forEach(item => {
                             const cleanNotes = (item.notes || '').replace(/\[SET-.*?\]/g, '').trim();
-                            
                             const productDetails = fullProductList.find(p => p.id === item.product_id);
                             const productCode = productDetails ? productDetails.product_code : 'N/A';
                             const productCategory = productDetails ? productDetails.product_category : 'N/A';
@@ -2346,9 +2391,9 @@
                                 item.cartoon_pattern, 
                                 item.line_pattern,
                                 item.font, 
-                                item.line_1, 
-                                item.line_2, 
-                                item.line_3, 
+                                forceText(item.line_1), // บรรทัด 1
+                                forceText(item.line_2), // บรรทัด 2
+                                forceText(item.line_3), // บรรทัด 3
                                 1,
                                 cleanNotes,
                                 item.file_attachment
@@ -2357,16 +2402,23 @@
                     }
                 });
 
-                if (dataToExport.length === 0) {
-                    alert("ไม่พบรายการสินค้า");
-                    return;
+                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
+
+                // บังคับประเภทเซลล์คอลัมน์ บรรทัด 1, 2, 3 เป็น String (คอลัมน์ L, M, N หรือ index 11, 12, 13)
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = 11; C <= 13; ++C) {
+                        const cell_address = XLSX.utils.encode_cell({r: R, c: C});
+                        if (!worksheet[cell_address]) continue;
+                        worksheet[cell_address].t = 's';
+                    }
                 }
 
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "QC_Data");
                 XLSX.writeFile(workbook, `QC_${workOrderName}.xlsx`);
             }
+
 	function exportForBarcode(workOrderName) {
                 const ordersInWorkOrder = allOrdersData
                     .filter(order => order.work_order_name === workOrderName);
@@ -2375,6 +2427,16 @@
                     alert("ไม่พบข้อมูล");
                     return;
                 }
+
+                // ฟังก์ชันป้องกันสูตร (ตัวอักษรล่องหน)
+                const forceText = (val) => {
+                    const str = String(val || '').trim();
+                    if (str === '') return '';
+                    if (str.startsWith('+') || str.startsWith('0')) {
+                        return "\u200B" + str;
+                    }
+                    return str;
+                };
 
                 const headers = ['Item UID', 'ชื่อสินค้า', 'สีหมึก', 'บรรทัด 1', 'หมวด'];
                 const dataToExport = [];
@@ -2389,7 +2451,7 @@
                                 item.item_uid,
                                 item.product_name,
                                 item.ink_color,
-                                item.line_1,
+                                forceText(item.line_1), // บรรทัด 1
                                 category
                             ]);
                         });
