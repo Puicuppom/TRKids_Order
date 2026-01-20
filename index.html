@@ -413,18 +413,28 @@
         #sales-report-system-container #report-table tr:nth-child(even) { background-color: #f8f9fa; }
         #sales-report-system-container #report-table td:last-child { font-weight: bold; text-align: center; }
         #sales-report-system-container #report-placeholder { text-align: center; color: #6c757d; padding: 40px; font-style: italic; }
-/* สไตล์สำหรับการขยายรูปเมื่อเอาเมาส์ไปจ่อ */
-        .packing-product-img {
+.packing-product-img {
             transition: transform 0.2s ease-in-out;
             cursor: zoom-in;
             position: relative;
             z-index: 1;
         }
         .packing-product-img:hover {
-            transform: scale(4); /* ขยาย 4 เท่า */
-            z-index: 999;
+            transform: scale(4); 
+            transform-origin: left center; 
+            z-index: 9999;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             border: 2px solid #fff;
+        }
+        /* ป้องกันตารางตัดรูปที่ซูม */
+        .table-container, 
+        #product-system-container .table-container, 
+        #pattern-system-container .container,
+        #packing-main-view td {
+            overflow: visible !important;
+        }
+        #products-table td, #patterns-table td, #packing-main-view td {
+            position: relative;
         }
         /* บังคับตารางจัดกึ่งกลางและตัดคำ */
         #packing-main-view td { word-wrap: break-word; white-space: normal !important; }
@@ -456,6 +466,7 @@
                     <li id="nav-planner"><a href="#" class="nav-link" data-target="planner-system-container"><span class="icon">🗓️</span><span class="nav-text">ใบงาน (Export)</span></a></li>
                     <li><a href="#" class="nav-link" data-target="packing-system-container"><span class="icon">📦</span><span class="nav-text">ระบบจัดของ</span></a></li>
                     <li id="nav-product"><a href="#" class="nav-link" data-target="product-system-container"><span class="icon">🏷️</span><span class="nav-text">ระบบจัดการสินค้า</span></a></li>
+	<li id="nav-pattern"><a href="#" class="nav-link" data-target="pattern-system-container"><span class="icon">🖼️</span><span class="nav-text">จัดการลายการ์ตูน</span></a></li>
                     <li id="nav-sales-report"><a href="#" class="nav-link" data-target="sales-report-system-container"><span class="icon">📈</span><span class="nav-text">รายงานยอดขาย</span></a></li>
                     <li id="nav-accounting"><a href="accounting.html" class="nav-link"><span class="icon">📊</span><span class="nav-text">ระบบบัญชี</span></a></li>
                 </ul>
@@ -718,6 +729,44 @@
                         </div>
                     </div>
                 </div>
+<div id="pattern-system-container" class="system-content">
+    <div class="container">
+       <h1>จัดการลายการ์ตูน</h1>
+        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px;">
+                <button id="add-pattern-btn" class="btn btn-success">+ เพิ่มลายใหม่</button>
+                <button id="bulk-upload-patterns-btn" class="btn" style="background-color: #6610f2; color: white;">🖼️ Import ลาย (หลายไฟล์)</button>
+                <input type="file" id="bulk-pattern-input" style="display: none;" accept="image/*" multiple>
+            </div>
+            <input type="text" id="search-pattern-input" placeholder="ค้นหาชื่อลาย..." style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; width: 300px;">
+        </div>
+        <table id="patterns-table" style="width:100%; border-collapse: collapse; margin-top:20px;">
+            <thead>
+                <tr style="background:#f8f9fa;">
+                    <th style="padding:12px; border:1px solid #ddd; width:100px; text-align:center;">รูป</th>
+                    <th style="padding:12px; border:1px solid #ddd; text-align:left;">ชื่อลาย</th>
+                    <th style="padding:12px; border:1px solid #ddd; width:160px; text-align:center;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="patterns-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal สำหรับเพิ่มลาย -->
+<div id="pattern-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <h2 id="pattern-modal-title-text">เพิ่มลายการ์ตูน</h2> <!-- เพิ่ม id ตรงนี้ -->
+        <form id="pattern-form">
+            <div class="modal-form-group"><label>ชื่อลาย</label><input type="text" id="pattern-name-input" required style="width:100%;"></div>
+            <div class="modal-form-group"><label>ไฟล์รูป</label><input type="file" id="pattern-image-input" accept="image/*"></div>
+            <div class="modal-actions">
+                <button type="button" id="cancel-pattern-modal-btn" class="btn btn-secondary">ยกเลิก</button>
+                <button type="submit" class="btn btn-primary">บันทึก</button>
+            </div>
+        </form>
+    </div>
+</div>
 
                 <!-- ==================== PLANNER SYSTEM ==================== -->
                 <div id="planner-system-container" class="system-content">
@@ -841,6 +890,7 @@
             
             // เช็คสิทธิ์การเข้าถึงเมนูต่างๆ
             if (targetId === 'product-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) return;
+            if (targetId === 'pattern-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) return;
             if (targetId === 'planner-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'production' || loggedInUserRole === 'manager')) return;
             if (targetId === 'sales-report-system-container' && !(loggedInUserRole === 'superadmin' || loggedInUserRole === 'manager')) return;
 
@@ -876,50 +926,51 @@
         }
 
         async function mainAppInitializer(user) {
-    loadingOverlay.style.display = 'flex';
-    try {
-        const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
-        if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้');
-        loggedInUsername = userData.username; 
-        loggedInUserRole = userData.role;
-        
-        welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
+            loadingOverlay.style.display = 'flex';
+            try {
+                const { data: userData, error } = await supabaseClient.from('users').select('username, role').eq('id', user.id).single();
+                if (error || !userData) throw new Error('ไม่พบข้อมูลผู้ใช้');
+                loggedInUsername = userData.username; 
+                loggedInUserRole = userData.role;
+                
+                welcomeMessage.textContent = `ยินดีต้อนรับ, ${loggedInUsername} (${loggedInUserRole})`;
 
-        const isSuperAdmin = loggedInUserRole === 'superadmin'; 
-        const isProduction = loggedInUserRole === 'production';
-        const isManager = loggedInUserRole === 'manager'; // ตรวจสอบ Role Manager
+                const isSuperAdmin = loggedInUserRole === 'superadmin'; 
+                const isProduction = loggedInUserRole === 'production';
+                const isManager = loggedInUserRole === 'manager';
 
-        // ควบคุมการมองเห็นเมนู (Manager เห็น 5 เมนู ยกเว้น Accounting)
-        document.getElementById('nav-product').style.display = (isSuperAdmin || isManager) ? '' : 'none';
-        document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction || isManager) ? '' : 'none';
-        document.getElementById('nav-sales-report').style.display = (isSuperAdmin || isManager) ? '' : 'none';
-        document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none'; // บัญชีเห็นแค่ SuperAdmin
+                // ควบคุมการมองเห็นเมนู
+                document.getElementById('nav-product').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+                document.getElementById('nav-pattern').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+                document.getElementById('nav-planner').style.display = (isSuperAdmin || isProduction || isManager) ? '' : 'none';
+                document.getElementById('nav-sales-report').style.display = (isSuperAdmin || isManager) ? '' : 'none';
+                document.getElementById('nav-accounting').style.display = isSuperAdmin ? '' : 'none';
 
-        loginOverlay.style.display = 'none'; 
-        mainAppContainer.style.display = 'flex';
+                loginOverlay.style.display = 'none'; 
+                mainAppContainer.style.display = 'flex';
 
-        await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
+                await window.orderSystem.initializeApp(loggedInUsername, loggedInUserRole);
 
-        // ให้ Manager สามารถเรียกใช้ระบบ Product, Planner และ Sales Report ได้
-        if (isSuperAdmin || isManager) { 
-            window.productSystem.initializeApp(); 
-            window.plannerSystem.initializeApp(loggedInUserRole);
-            window.salesReportSystem.initializeApp();
+                if (isSuperAdmin || isManager) { 
+                    window.productSystem.initializeApp();
+                    window.patternSystem.initializeApp(); 
+                    window.plannerSystem.initializeApp(loggedInUserRole);
+                    window.salesReportSystem.initializeApp();
+                } else if (isProduction) {
+                    document.querySelector('.nav-link.active')?.classList.remove('active');
+                    document.querySelector('.system-content.active')?.classList.remove('active');
+                    document.querySelector('.nav-link[data-target="planner-system-container"]').classList.add('active');
+                    document.getElementById('planner-system-container').classList.add('active');
+                    window.plannerSystem.initializeApp(loggedInUserRole);
+                }
+                handleInitialTab();
+            } catch (err) { 
+                alert("เกิดข้อผิดพลาด: " + err.message); 
+                await logout(); 
+            } finally { 
+                loadingOverlay.style.display = 'none'; 
+            }
         }
-        else if (isProduction) {
-            document.querySelector('.nav-link.active')?.classList.remove('active');
-            document.querySelector('.system-content.active')?.classList.remove('active');
-            document.querySelector('.nav-link[data-target="planner-system-container"]').classList.add('active');
-            document.getElementById('planner-system-container').classList.add('active');
-            window.plannerSystem.initializeApp(loggedInUserRole);
-        }
-        handleInitialTab();
-    } catch (err) { 
-        alert("เกิดข้อผิดพลาด: " + err.message); 
-        await logout(); 
-    }
-    finally { loadingOverlay.style.display = 'none'; }
-}
         
         // --- AUTHENTICATION ---
         loginForm.addEventListener('submit', async (e) => {
@@ -1069,7 +1120,7 @@
             const vatAmountInput = document.getElementById('vat_amount');
             let searchDebounceTimer; 
             let eventListenersInitialized = false; 
-            let productList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
+            let productList = [], cartoonPatternList = [], fullProductList = [], channelList = [], allOrdersData = [], allWorkOrdersData = [], inkTypeList = [], promotionList = [], currentEditingOrderId = null;
             let currentUserRole = null;
 
             const standardFonts = ['F01','F03','F04','F12','F14','TH01','TH02','TH03'];
@@ -1166,14 +1217,17 @@
                 if (!isSilent) { loadingOverlay.style.display = 'flex'; }
                 
                 try {
-                    const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes] = await Promise.all([
-                        supabaseClient.from('products').select('*'),
-                        supabaseClient.from('channels').select('channel_code, channel_name'),
-                        supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
-                        supabaseClient.from('ink_types').select('ink_name').order('id'),
-                        supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null)
-                    ]);
+                   const [productsRes, channelsRes, workOrdersRes, inkTypesRes, promotionsRes, patternsRes] = await Promise.all([
+    supabaseClient.from('products').select('*'),
+    supabaseClient.from('channels').select('channel_code, channel_name'),
+    supabaseClient.from('work_orders').select('*').eq('status', 'กำลังผลิต').order('created_at', { ascending: false }),
+    supabaseClient.from('ink_types').select('ink_name').order('id'),
+    supabaseClient.from('orders').select('promotion').neq('promotion', '').not('promotion', 'is', null),
+    supabaseClient.from('cartoon_patterns').select('*') // เพิ่มบรรทัดนี้เข้าไปใน array
+]);
 
+if (patternsRes.error) throw patternsRes.error;
+cartoonPatternList = patternsRes.data || [];
                     const activeOrdersPromise = supabaseClient.from('orders')
                         .select('*, order_items(*)')
                         .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
@@ -3612,23 +3666,43 @@ window.packingSystem = (() => {
     function prepareDataForPacking(orders) {
         let flatData = [];
         completedIndices.clear();
+
+        // ดึงรายการสินค้าทั้งหมดจากระบบ Product มาไว้เทียบข้อมูล
+        const allProducts = orderSystem.getFullProductList();
+
         orders.forEach(order => {
             const isOrderShipped = order.status === 'จัดส่งแล้ว';
             const isParcelScanned = order.packing_meta?.parcelScanned || false;
+            
             if (order.order_items) {
                 order.order_items.forEach(item => {
-                    // ดึงข้อมูลรูปภาพโดยเรียกผ่าน orderSystem
-                    const allProducts = orderSystem.getFullProductList();
+                    // 1. ค้นหาข้อมูลสินค้าเพื่อเอารูปสินค้าหลัก (กรณีไม่มีลายการ์ตูน)
                     const productInfo = allProducts.find(p => p.id === item.product_id);
-                    const imageUrl = productInfo ? productInfo.image_url : null;
-                    item.image_url = imageUrl;
+                    let finalImageUrl = productInfo ? productInfo.image_url : null;
 
+                    // 2. ตรรกะการดึงรูปลายการ์ตูน:
+                    // ถ้าในรายการสินค้านี้มีการระบุ "ลายการ์ตูน" ไว้
+                    if (item.cartoon_pattern && window.cartoonPatternList) {
+                        const searchName = String(item.cartoon_pattern).trim().toLowerCase();
+                        
+                        // ค้นหาในรายการลายการ์ตูนที่โหลดมาจาก Database
+                        const foundPattern = window.cartoonPatternList.find(p => 
+                            String(p.pattern_name).trim().toLowerCase() === searchName
+                        );
+
+                        // ถ้าเจอลายที่ชื่อตรงกัน ให้เปลี่ยนไปใช้รูปของลายนั้นแทน
+                        if (foundPattern && foundPattern.image_url) {
+                            finalImageUrl = foundPattern.image_url;
+                        }
+                    }
+
+                    // 3. รวมข้อมูลเข้าสู่ Flat Array สำหรับแสดงผลในตารางจัดของ
                     flatData.push({
                         'tracking_number': order.tracking_number,
                         'customer_name': order.customer_name,
                         'order_id': order.id,
                         'product_name': item.product_name,
-                        'image_url': imageUrl, // เพิ่มข้อมูลรูปภาพเข้าไป
+                        'image_url': finalImageUrl, // ใช้รูปที่ตัดสินใจแล้วจากด้านบน
                         'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "),
                         'ink_color': item.ink_color,
                         'notes': item.notes,
@@ -3649,15 +3723,28 @@ window.packingSystem = (() => {
                 });
             }
         });
-        const grouped = {}; const tOrder = [];
+
+        // จัดกลุ่มข้อมูลตามเลขพัสดุ (Grouping by Tracking Number)
+        const grouped = {}; 
+        const tOrder = [];
         flatData.forEach(item => {
-            if (!grouped[item.tracking_number]) { grouped[item.tracking_number] = []; tOrder.push(item.tracking_number); }
+            if (!grouped[item.tracking_number]) { 
+                grouped[item.tracking_number] = []; 
+                tOrder.push(item.tracking_number); 
+            }
             grouped[item.tracking_number].push(item);
         });
+
+        // แปลงเป็น Array ของกลุ่มออร์เดอร์
         aggregatedData = tOrder.map(t => grouped[t]);
+
+        // ตรวจสอบสถานะว่าสแกนครบหรือยัง เพื่อทำเครื่องหมายในรายการด้านซ้าย
         aggregatedData.forEach((group, index) => {
-            if (group.every(i => i.scanned)) completedIndices.add(index);
+            if (group.every(i => i.scanned)) {
+                completedIndices.add(index);
+            }
         });
+
         currentIndex = -1;
         updateFinalizeButtonVisibility();
     }
@@ -4041,10 +4128,20 @@ window.packingSystem = (() => {
                 tableBody.innerHTML = ''; 
                 const lowercasedFilter = searchTerm.toLowerCase(); 
                 const filteredData = allProductsData.filter(p => (p.product_code || '').toLowerCase().includes(lowercasedFilter) || (p.product_name || '').toLowerCase().includes(lowercasedFilter)); 
-                if (filteredData.length === 0) { tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">ไม่พบข้อมูล</td></tr>'; return; } 
+                
+                if (filteredData.length === 0) { 
+                    tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">ไม่พบข้อมูล</td></tr>'; 
+                    return; 
+                } 
+
                 filteredData.forEach(product => { 
                     const inactiveStyle = product.is_active === false ? 'style="color: #999; text-decoration: line-through;"' : ''; 
-                    const imgHTML = product.image_url ? `<img src="${product.image_url}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; cursor: pointer;" onclick="window.open('${product.image_url}', '_blank')">` : `<div style="width: 45px; height: 45px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">No Pic</div>`;
+                    
+                    // --- แก้ไขจุดนี้: เพิ่ม class="packing-product-img" และปรับ cursor ---
+                    const imgHTML = product.image_url 
+                        ? `<img src="${product.image_url}" class="packing-product-img" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; cursor: zoom-in;" onclick="window.open('${product.image_url}', '_blank')">` 
+                        : `<div style="width: 45px; height: 45px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">No Pic</div>`;
+                    
                     const row = `<tr ${inactiveStyle}>
                         <td>${imgHTML}</td>
                         <td>${product.product_code || ''}</td>
@@ -4179,6 +4276,131 @@ window.packingSystem = (() => {
 
             return { initializeApp };
         })();
+
+window.patternSystem = (() => {
+    let isInitialized = false;
+    let currentEditingId = null;
+
+    async function initializeApp() {
+        if(isInitialized) return;
+        const addBtn = document.getElementById('add-pattern-btn');
+        if (addBtn) {
+            addBtn.onclick = () => {
+                currentEditingId = null;
+                document.getElementById('pattern-modal-title-text').textContent = 'เพิ่มลายการ์ตูน';
+                document.getElementById('pattern-form').reset();
+                document.getElementById('pattern-modal').style.display = 'flex';
+            };
+        }
+        document.getElementById('cancel-pattern-modal-btn').onclick = () => document.getElementById('pattern-modal').style.display = 'none';
+        document.getElementById('bulk-upload-patterns-btn').onclick = () => document.getElementById('bulk-pattern-input').click();
+        document.getElementById('bulk-pattern-input').onchange = (e) => handleBulk(e.target.files);
+        document.getElementById('pattern-form').onsubmit = save;
+        document.getElementById('search-pattern-input').oninput = (e) => render(e.target.value);
+        await load();
+        isInitialized = true;
+    }
+
+    async function load() {
+        const { data, error } = await supabaseClient.from('cartoon_patterns').select('*').order('pattern_name');
+        if (error) return;
+        window.cartoonPatternList = data || [];
+        render();
+    }
+
+    function render(search = '') {
+        const tbody = document.getElementById('patterns-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const list = window.cartoonPatternList || [];
+        list.filter(p => p.pattern_name.toLowerCase().includes(search.toLowerCase())).forEach(p => {
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding:10px; border:1px solid #ddd; text-align:center; vertical-align: middle;">
+                        <img src="${p.image_url}" class="packing-product-img" style="width:50px; height:50px; object-fit:cover; border-radius:4px; cursor:zoom-in;">
+                    </td>
+                    <td style="padding:10px 15px; border:1px solid #ddd; text-align:left; vertical-align: middle; font-weight: 600;">
+                        ${p.pattern_name}
+                    </td>
+                    <td style="padding:10px; border:1px solid #ddd; text-align:center; vertical-align: middle;">
+                        <div class="action-cell-buttons">
+                            <button class="btn btn-warning btn-sm" onclick="window.patternSystem.edit('${p.id}')">แก้ไข</button>
+                            <button class="btn btn-danger btn-sm" onclick="window.patternSystem.remove('${p.id}')">ลบ</button>
+                        </div>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+
+    function edit(id) {
+        const pattern = window.cartoonPatternList.find(p => p.id === id);
+        if (!pattern) return;
+        currentEditingId = id;
+        document.getElementById('pattern-modal-title-text').textContent = 'แก้ไขลายการ์ตูน';
+        document.getElementById('pattern-name-input').value = pattern.pattern_name;
+        document.getElementById('pattern-modal').style.display = 'flex';
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const name = document.getElementById('pattern-name-input').value.trim();
+        const file = document.getElementById('pattern-image-input').files[0];
+        loadingOverlay.style.display = 'flex';
+        try {
+            let imageUrl = null;
+            if (file) {
+                const fileName = `patterns/${Date.now()}_${file.name}`;
+                const { error: upErr } = await supabaseClient.storage.from('product-images').upload(fileName, file);
+                if (upErr) throw upErr;
+                const { data: urlData } = supabaseClient.storage.from('product-images').getPublicUrl(fileName);
+                imageUrl = urlData.publicUrl;
+            }
+            const patternData = { pattern_name: name };
+            if (imageUrl) patternData.image_url = imageUrl;
+            if (currentEditingId) {
+                const { error } = await supabaseClient.from('cartoon_patterns').update(patternData).eq('id', currentEditingId);
+                if (error) throw error;
+            } else {
+                if (!imageUrl) throw new Error("กรุณาเลือกรูปภาพ");
+                const { error } = await supabaseClient.from('cartoon_patterns').insert(patternData);
+                if (error) throw error;
+            }
+            alert("บันทึกเรียบร้อย");
+            document.getElementById('pattern-modal').style.display = 'none';
+            await load();
+        } catch (err) {
+            alert("ผิดพลาด: " + err.message);
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    async function remove(id) {
+        if(!confirm('ยืนยันการลบลายนี้?')) return;
+        loadingOverlay.style.display = 'flex';
+        await supabaseClient.from('cartoon_patterns').delete().eq('id', id);
+        loadingOverlay.style.display = 'none';
+        await load();
+    }
+
+    async function handleBulk(files) {
+        loadingOverlay.style.display = 'flex';
+        for(let f of files) {
+            try {
+                const name = f.name.substring(0, f.name.lastIndexOf('.'));
+                const fileName = `patterns/${Date.now()}_${f.name}`;
+                await supabaseClient.storage.from('product-images').upload(fileName, f);
+                const { data } = supabaseClient.storage.from('product-images').getPublicUrl(fileName);
+                await supabaseClient.from('cartoon_patterns').upsert({ pattern_name: name, image_url: data.publicUrl }, { onConflict: 'pattern_name' });
+            } catch(err) {}
+        }
+        loadingOverlay.style.display = 'none';
+        await load();
+    }
+
+    return { initializeApp, remove, edit };
+})();
 
         // --- PLANNER SYSTEM MODULE (FIXED SELECT ALL & EXPORT SELECTED) ---
         window.plannerSystem = (() => {
