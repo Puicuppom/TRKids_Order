@@ -78,6 +78,9 @@
         .summary-item:last-child { border-bottom: none; }
         .summary-label { font-weight: 500; display: flex; align-items: center; gap: 8px;}
         tr.matched-manual { background-color: #cce5ff !important; color: #004085; }
+        .match-badge { padding: 4px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; }
+        .status-matched { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-unmatched { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .loader { display: none; border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .sheet-selector { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); justify-content: start; gap: 10px 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background: #fff; box-sizing: border-box; }
@@ -301,7 +304,7 @@
                 exportXlsxBtn.disabled = true;
                 exportPngBtn.disabled = true;
                 currentReportData = [];
-                salesReportContainer.innerHTML = '<p>กำลังดึงข้อมูลรายงาน...</p>';
+                salesReportContainer.innerHTML = '<p>กำลังดึงข้อมูลรายงานและตรวจสอบสถานะการจับคู่...</p>';
                 summaryContainer.innerHTML = '';
 
                 try {
@@ -330,11 +333,26 @@
                         hasMore = orders.length >= 1000;
                         from += 1000; to += 1000;
                     }
+
+                    // --- จุดที่เพิ่ม: ตรวจสอบสถานะการจับคู่จาก Statement ---
+                    const billNos = allFetchedOrders.map(o => o.bill_no).filter(b => b);
+                    const { data: matchedData } = await supabaseClient
+                        .from('bank_statements')
+                        .select('bill_no')
+                        .in('bill_no', billNos)
+                        .eq('is_matched', true);
+
+                    const matchedBillsSet = new Set(matchedData?.map(m => m.bill_no) || []);
+
+                    // เก็บข้อมูลพร้อมสถานะการจับคู่
+                    currentReportData = allFetchedOrders.map(order => ({
+                        ...order,
+                        is_statement_matched: matchedBillsSet.has(order.bill_no)
+                    }));
                     
-                    currentReportData = allFetchedOrders;
-                    renderReportResults(allFetchedOrders);
+                    renderReportResults(currentReportData);
                     
-                    if (allFetchedOrders.length > 0) {
+                    if (currentReportData.length > 0) {
                         exportXlsxBtn.disabled = false;
                         exportPngBtn.disabled = false;
                     }
@@ -374,9 +392,16 @@
                     <div class="summary-box"> <h3>สรุปตามบัญชี</h3> <table class="summary-table"> ${Object.entries(salesByAccount).map(([account, total]) => `<tr><td>${account}</td><td class="summary-value">${formatCurrency(total)}</td></tr>`).join('')} <tr class="total-row"><td>รวม</td><td class="summary-value">${formatCurrency(totalSales)}</td></tr> </table> </div>
                 </div>`;
 
-                const rawDataTableHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ลูกค้า", "ยอดสุทธิ", "วิธีชำระ", "สถานะ"];
+                // --- แก้หัวตาราง เพิ่ม "การจับคู่" ---
+                const rawDataTableHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ลูกค้า", "ยอดสุทธิ", "การจับคู่", "สถานะ"];
                 let tableHTML = `<table id="salesReportTable"><thead><tr>${rawDataTableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+                
                 orders.forEach(order => {
+                    // สร้าง Badge สถานะ
+                    const matchStatus = order.is_statement_matched 
+                        ? '<span class="match-badge status-matched">✓ จับคู่แล้ว</span>' 
+                        : '<span class="match-badge status-unmatched">✗ ยังไม่พบยอด</span>';
+
                     tableHTML += `<tr>
                         <td>${order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : ''}</td>
                         <td>${order.payment_time ? order.payment_time.substring(0, 5) : ''}</td>
@@ -384,7 +409,7 @@
                         <td>${order.channel_code || ''}</td>
                         <td>${order.customer_name || ''}</td>
                         <td class="currency">${formatCurrency(order.total_amount || 0)}</td>
-                        <td>${order.payment_method || ''}</td>
+                        <td>${matchStatus}</td>
                         <td>${order.status || ''}</td>
                     </tr>`;
                 });
@@ -405,8 +430,21 @@
                     const workbook = XLSX.utils.book_new();
                     let accountData = ordersByAccount[accountName];
                     accountData.sort((a, b) => (a.channel_code || '').localeCompare(b.channel_code || ''));
-                    const rawDataHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ราคา", "ค่าส่ง", "ส่วนลด", "ยอดสุทธิ", "วิธีชำระ", "โปรโมชั่น", "สถานะ"];
-                    const accountRows = accountData.map(order => [ order.payment_date || '', order.payment_time ? order.payment_time.substring(0, 5) : '', order.bill_no || '', order.channel_code || '', order.customer_name || '', order.price || 0, order.shipping_cost || 0, order.discount || 0, order.total_amount || 0, order.payment_method || '', order.promotion || '', order.status || '' ]);
+                    
+                    // เพิ่มหัวข้อ Excel
+                    const rawDataHeaders = ["วันที่ชำระ", "เวลา", "เลขบิล", "ช่องทาง", "ชื่อลูกค้า", "ยอดสุทธิ", "การจับคู่ Statement", "สถานะ"];
+                    
+                    const accountRows = accountData.map(order => [ 
+                        order.payment_date || '', 
+                        order.payment_time ? order.payment_time.substring(0, 5) : '', 
+                        order.bill_no || '', 
+                        order.channel_code || '', 
+                        order.customer_name || '', 
+                        order.total_amount || 0, 
+                        order.is_statement_matched ? "จับคู่แล้ว" : "ยังไม่พบยอด",
+                        order.status || '' 
+                    ]);
+
                     const worksheet = XLSX.utils.aoa_to_sheet([rawDataHeaders, ...accountRows]);
                     const sheetName = accountName.replace(/[\*\:\/\\ \?\[\]]/g, "").substring(0, 31);
                     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
