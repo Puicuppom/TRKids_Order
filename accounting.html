@@ -335,14 +335,40 @@
                     }
 
                     // --- จุดที่เพิ่ม: ตรวจสอบสถานะการจับคู่จาก Statement ---
-                    const billNos = allFetchedOrders.map(o => o.bill_no).filter(b => b);
-                    const { data: matchedData } = await supabaseClient
-                        .from('bank_statements')
-                        .select('bill_no')
-                        .in('bill_no', billNos)
-                        .eq('is_matched', true);
+                    // --- แก้ไข Logic ใน generateReport ---
 
-                    const matchedBillsSet = new Set(matchedData?.map(m => m.bill_no) || []);
+// ดึงรายการที่เคย Match แล้วทั้งหมดมาไว้ใน Set
+const billNos = allFetchedOrders.map(o => o.bill_no).filter(b => b);
+const { data: matchedStatements } = await supabaseClient
+    .from('bank_statements')
+    .select('bill_no, deposit_amount')
+    .in('bill_no', billNos)
+    .eq('is_matched', true);
+
+// สร้าง Map เพื่อเก็บว่าแต่ละบิล มีการ Match ยอดรวมไปเท่าไหร่แล้ว
+const matchedAmountMap = {};
+matchedStatements?.forEach(s => {
+    matchedAmountMap[s.bill_no] = (matchedAmountMap[s.bill_no] || 0) + parseFloat(s.deposit_amount);
+});
+
+// เก็บข้อมูลลง currentReportData พร้อมตรวจสอบสถานะ
+currentReportData = allFetchedOrders.map(order => {
+    const totalPaidInStatements = matchedAmountMap[order.bill_no] || 0;
+    const orderTotalAmount = parseFloat(order.total_amount || 0);
+    
+    let matchStatus = "unmatched"; // ยังไม่เจอเลย
+    if (totalPaidInStatements >= orderTotalAmount && orderTotalAmount > 0) {
+        matchStatus = "fully_matched"; // เจอครบยอดแล้ว
+    } else if (totalPaidInStatements > 0) {
+        matchStatus = "partial"; // เจอแล้วบางยอด
+    }
+
+    return {
+        ...order,
+        match_status_type: matchStatus,
+        total_paid_in_statements: totalPaidInStatements
+    };
+});
 
                     // เก็บข้อมูลพร้อมสถานะการจับคู่
                     currentReportData = allFetchedOrders.map(order => ({
@@ -397,22 +423,31 @@
                 let tableHTML = `<table id="salesReportTable"><thead><tr>${rawDataTableHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
                 
                 orders.forEach(order => {
-                    // สร้าง Badge สถานะ
-                    const matchStatus = order.is_statement_matched 
-                        ? '<span class="match-badge status-matched">✓ จับคู่แล้ว</span>' 
-                        : '<span class="match-badge status-unmatched">✗ ยังไม่พบยอด</span>';
+    // 1. สร้างตัวแปร Badge ตามสถานะที่คำนวณไว้ใน generateReport
+    let matchStatusBadge = '';
+    
+    if (order.match_status_type === "fully_matched") {
+        matchStatusBadge = '<span class="match-badge status-matched">✓ ครบถ้วน</span>';
+    } else if (order.match_status_type === "partial") {
+        // คำนวณยอดค้างจ่าย
+        const balance = (order.total_amount || 0) - (order.total_paid_in_statements || 0);
+        matchStatusBadge = `<span class="match-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba; font-size:11px;">⚠ ขาด ${formatCurrency(balance)}</span>`;
+    } else {
+        matchStatusBadge = '<span class="match-badge status-unmatched">✗ ยังไม่พบยอด</span>';
+    }
 
-                    tableHTML += `<tr>
-                        <td>${order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : ''}</td>
-                        <td>${order.payment_time ? order.payment_time.substring(0, 5) : ''}</td>
-                        <td>${order.bill_no || ''}</td>
-                        <td>${order.channel_code || ''}</td>
-                        <td>${order.customer_name || ''}</td>
-                        <td class="currency">${formatCurrency(order.total_amount || 0)}</td>
-                        <td>${matchStatus}</td>
-                        <td>${order.status || ''}</td>
-                    </tr>`;
-                });
+    // 2. ส่วนการสร้างแถวตาราง (ปรับคอลัมน์ "การจับคู่")
+    tableHTML += `<tr>
+        <td>${order.payment_date ? new Date(order.payment_date).toLocaleDateString('th-TH') : ''}</td>
+        <td>${order.payment_time ? order.payment_time.substring(0, 5) : ''}</td>
+        <td>${order.bill_no || ''}</td>
+        <td>${order.channel_code || ''}</td>
+        <td>${order.customer_name || ''}</td>
+        <td class="currency">${formatCurrency(order.total_amount || 0)}</td>
+        <td>${matchStatusBadge}</td> <!-- ตรงนี้คือคอลัมน์ที่แสดง Badge -->
+        <td>${order.status || ''}</td>
+    </tr>`;
+});
                 tableHTML += `</tbody></table>`;
                 salesReportContainer.innerHTML = tableHTML;
             }
@@ -729,12 +764,30 @@ function parseCSVLine(line) {
                         
                         // ค้นหาใน Orders
                         const matchedOrder = orders.find(order => {
-                            const orderTime = order.payment_time ? order.payment_time.substring(0, 5) : "";
-                            const orderAmount = parseFloat(order.total_amount).toFixed(2);
-                            return order.payment_date === stmt.statement_date && 
-                                   orderTime === stmtTime && 
-                                   orderAmount === stmtAmount;
-                        });
+    const stmtTime = stmt.statement_time.substring(0, 5); // เวลาจาก Statement (HH:mm)
+    const stmtAmount = parseFloat(stmt.deposit_amount).toFixed(2); // ยอดเงินจาก Statement
+    
+    // 1. ตรวจสอบในรายการโอนหลายยอด (payment_details) ที่เป็น JSONB
+    const details = order.payment_details || [];
+    if (Array.isArray(details) && details.length > 0) {
+        return details.some(p => {
+            const pAmount = parseFloat(p.amount).toFixed(2);
+            const pTime = p.time ? p.time.substring(0, 5) : "";
+            // เช็ค วันที่ตรงกัน AND เวลาตรงกัน AND ยอดเงินตรงกัน
+            return p.date === stmt.statement_date && 
+                   pTime === stmtTime && 
+                   pAmount === stmtAmount;
+        });
+    }
+
+    // 2. Fallback: ตรวจสอบจากคอลัมน์เดิม (กรณีออร์เดอร์เก่าที่ยังไม่มี payment_details)
+    const orderTime = order.payment_time ? order.payment_time.substring(0, 5) : "";
+    const orderAmount = parseFloat(order.total_amount).toFixed(2);
+    
+    return order.payment_date === stmt.statement_date && 
+           orderTime === stmtTime && 
+           orderAmount === stmtAmount;
+});
 
                         if (matchedOrder) {
                             // 4. ถ้าเจอคู่ -> สั่ง UPDATE กลับไปที่ Supabase
