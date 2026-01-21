@@ -14,6 +14,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"/>
     
+    <!-- Tesseract.js for Slip OCR & Waybill Sorter -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
     <!-- Libraries for Waybill Sorter -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -435,7 +438,6 @@
         }
         /* บังคับตารางจัดกึ่งกลางและตัดคำ */
         #packing-main-view td { word-wrap: break-word; white-space: normal !important; }
-
     </style>
 </head>
 <body class="sidebar-collapsed">
@@ -546,82 +548,36 @@
                                 <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
                                 
                                 <div id="payment-info-section">
-    <h3 style="margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 18px; color: #333;">ข้อมูลการชำระเงิน</h3>
-    
-    <!-- CSS เฉพาะจุดเพื่อปรับความสูง Select2 ให้เท่ากับ input อื่นๆ (40px) -->
-    <style>
-        #payment-info-section .select2-container--default .select2-selection--single {
-            height: 40px !important;
-            border: 1px solid #ccc !important;
-            display: flex;
-            align-items: center;
-        }
-        #payment-info-section .select2-selection__rendered {
-            line-height: 40px !important;
-            padding-left: 8px !important;
-        }
-        #payment-info-section .select2-selection__arrow {
-            height: 38px !important;
-        }
-    </style>
-
-    <!-- แถวบน: รวมตัวเลข วิธีชำระ โปรโมชั่น และ Checkbox -->
-    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: flex-end;">
-        <div style="width: 150px;"><label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block;">ราคา</label><input type="number" id="price" value="0" step="0.01" style="width: 100%; height: 40px; padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;"></div>
-        <div style="width: 150px;"><label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block;">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01" style="width: 100%; height: 40px; padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;"></div>
-        <div style="width: 150px;"><label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block;">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01" style="width: 100%; height: 40px; padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;"></div>
-        
-        <div style="width: 150px;"><label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block; color: #0071e3;">ยอดสุทธิ</label><input type="number" id="total_amount" readonly style="width: 100%; height: 40px; background:#f0f7ff; font-weight:bold; border: 2px solid #0071e3; color: #0071e3; padding: 8px; font-size: 18px; border-radius: 4px;"></div>
-        
-        <div style="width: 200px;">
-            <label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block;">วิธีชำระ</label>
-            <select id="payment_method" style="width: 100%; height: 40px; padding: 5px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; background: white;"><option value="โอน">โอน</option><option value="COD">COD</option></select>
-        </div>
-
-        <div style="flex: 1; min-width: 200px;">
-            <label style="font-size: 14px; font-weight: 600; margin-bottom: 5px; display:block;">ชื่อโปรโมชั่น</label>
-            <div style="height: 40px;">
-                <select id="promotion" style="width: 100%; height: 40px;"></select>
-            </div>
-        </div>
-
-        <div style="display: flex; gap: 10px; height: 40px; align-items: center; padding: 0 10px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa;">
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-size: 14px; font-weight: 600; color: #c82333; margin-bottom: 0; white-space: nowrap;">
-                <input type="checkbox" id="request-tax-invoice-cb" style="width: 16px; height: 16px; cursor: pointer;"> 
-                <span>📄 ขอใบกำกับ</span>
-            </label>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-size: 14px; font-weight: 600; color: #007bff; margin-bottom: 0; white-space: nowrap;">
-                <input type="checkbox" id="request-cash-bill-cb" style="width: 16px; height: 16px; cursor: pointer;"> 
-                <span>💵 ขอบิลเงินสด</span>
-            </label>
-        </div>
-    </div>
-
-    <!-- ส่วนตารางรายการโอน: ปรับความกว้างให้กะทัดรัดขึ้นด้วย max-width -->
-    <div style="max-width: 900px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <div style="background: #f8f9fa; padding: 10px 15px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 700; font-size: 14px; color: #4F634A;">รายการหลักฐานการโอน</span>
-            <button type="button" id="add-payment-row-btn" class="btn btn-sm btn-info" style="padding: 4px 10px; font-size: 12px;">+ เพิ่มรายการ</button>
-        </div>
-        <div style="max-height: 180px; overflow-y: auto;">
-            <table style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="text-align:left; background: #fff; border-bottom: 1px solid #eee;">
-                        <th style="padding: 10px 15px; font-size: 13px; color: #666; width: 30%;">ยอดเงิน</th>
-                        <th style="padding: 10px 15px; font-size: 13px; color: #666; width: 35%;">วันที่</th>
-                        <th style="padding: 10px 15px; font-size: 13px; color: #666; width: 25%;">เวลา</th>
-                        <th style="padding: 10px 15px; width: 10%;"></th>
-                    </tr>
-                </thead>
-                <tbody id="payment-records-tbody"></tbody>
-            </table>
-        </div>
-        <div style="padding: 12px 15px; background: #fdfdfd; border-top: 1px solid #eee; text-align: right; font-size: 14px;">
-            <span style="margin-right:20px;">ยอดโอนสะสม: <strong id="sum-paid-display" style="color:#28a745; font-size: 18px;">0.00</strong></span>
-            <span>คงเหลือ: <strong id="balance-due-display" style="color:#dc3545; font-size: 18px;">0.00</strong></span>
-        </div>
-    </div>
-</div>
+                                    <h3>ข้อมูลการชำระเงิน</h3>
+                                    <div class="form-grid" style="grid-template-columns: repeat(5, 1fr); gap: 15px;">
+                                        <div class="form-group"><label for="price">ราคา</label><input type="number" id="price" value="0" step="0.01"></div>
+                                        <div class="form-group"><label for="shipping_cost">ค่าส่ง</label><input type="number" id="shipping_cost" value="0" step="0.01"></div>
+                                        <div class="form-group"><label for="discount">ส่วนลด</label><input type="number" id="discount" value="0" step="0.01"></div>
+                                        <div class="form-group" id="vat-display-container" style="display: none;">
+                                            <label for="vat_amount">VAT (7%)</label>
+                                            <input type="number" id="vat_amount" readonly>
+                                        </div>
+                                        <div class="form-group"><label for="total_amount">ยอดสุทธิ</label><input type="number" id="total_amount" readonly></div>
+                                    </div>
+                                    <div class="form-grid" style="margin-top: 20px;">
+                                        <div class="form-group">
+                                            <label for="payment_method">วิธีการชำระ</label>
+                                            <select id="payment_method"><option value="โอน">โอน</option><option value="COD">COD</option></select>
+                                        </div>
+                                        <div class="form-group"><label for="promotion">ชื่อโปรโมชั่น</label><select id="promotion" style="width: 100%;"></select></div>
+                                        <div class="form-group"><label for="payment_date">วันที่ชำระ</label><input type="date" id="payment_date"></div>
+                                        <div class="form-group"><label for="payment_time">เวลาที่ชำระ</label><input type="time" id="payment_time"></div>
+                                    </div>
+                                    
+                                    <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                        <button type="button" id="upload-slip-btn" class="btn btn-info">อัพโหลดและตรวจสอบสลิป</button>
+                                        <span id="slip-status" style="font-weight: bold; font-size: 16px;"></span>
+                                        <div class="billing-checkbox-group" style="margin-left: auto;">
+                                            <label><input type="checkbox" id="request-tax-invoice-cb"> ขอใบกำกับภาษี</label>
+                                            <label><input type="checkbox" id="request-cash-bill-cb"> ขอบิลเงินสด</label>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div id="tax-invoice-details-section">
                                     <hr>
@@ -1142,24 +1098,6 @@
         })();
         // --- ORDER SYSTEM MODULE ---
          window.orderSystem = (() => {
-function addPaymentRecordRow(data = { amount: 0, date: '', time: '' }) {
-    const tbody = document.getElementById('payment-records-tbody');
-    if (!tbody) return;
-    const row = tbody.insertRow();
-    row.style.borderBottom = "1px solid #f1f1f1";
-    row.innerHTML = `
-        <td style="padding:5px 15px;"><input type="number" class="pay-amount" value="${data.amount || 0}" step="0.01" style="width:100%; padding: 6px; font-size: 14px; border: 1px solid #eee; border-radius: 4px;"></td>
-        <td style="padding:5px 15px;"><input type="date" class="pay-date" value="${data.date || ''}" style="width:100%; padding: 6px; font-size: 14px; border: 1px solid #eee; border-radius: 4px;"></td>
-        <td style="padding:5px 15px;"><input type="time" class="pay-time" value="${data.time || ''}" style="width:100%; padding: 6px; font-size: 14px; border: 1px solid #eee; border-radius: 4px;"></td>
-        <td style="padding:5px 15px; text-align:center;"><button type="button" class="btn btn-danger btn-sm remove-pay-row" style="padding: 2px 8px; font-size: 12px; border-radius: 4px;">✕</button></td>
-    `;
-    
-    row.querySelectorAll('input').forEach(input => input.addEventListener('input', calculateTotal));
-    row.querySelector('.remove-pay-row').addEventListener('click', function() {
-        row.remove();
-        calculateTotal();
-    });
-}
             const container = document.getElementById('order-system-container');
             const adminUserInput = container.querySelector('#admin_user');
             const itemsTbody = container.querySelector('#items-tbody');
@@ -1189,27 +1127,6 @@ function addPaymentRecordRow(data = { amount: 0, date: '', time: '' }) {
             const wyFonts = ['fontA', 'fontB', 'fontC', 'fontD', 'fontE', 'fontF', 'fontG', 'fontH'];
             const ecommerceChannels = ['SPTR', 'FSPTR', 'LZTR', 'TTTR', 'SHOP'];
 
-function addPaymentRecordRow(data = { amount: 0, date: '', time: '' }) {
-    const tbody = document.getElementById('payment-records-tbody');
-    const row = tbody.insertRow();
-    row.innerHTML = `
-        <td style="padding:5px;"><input type="number" class="pay-amount" value="${data.amount || 0}" step="0.01" style="width:100%"></td>
-        <td style="padding:5px;"><input type="date" class="pay-date" value="${data.date || ''}" style="width:100%"></td>
-        <td style="padding:5px;"><input type="time" class="pay-time" value="${data.time || ''}" style="width:100%"></td>
-        <td style="padding:5px; text-align:center;"><button type="button" class="btn btn-danger btn-sm remove-pay-row">X</button></td>
-    `;
-    
-    // ผูก Event ให้คำนวณยอดใหม่เมื่อมีการเปลี่ยนค่า
-    row.querySelectorAll('input').forEach(input => {
-        input.addEventListener('input', calculateTotal);
-    });
-    
-    row.querySelector('.remove-pay-row').addEventListener('click', function() {
-        row.remove();
-        calculateTotal();
-    });
-}
-
             async function performDatabaseSearch(searchTerm) {
                 try {
                     const { data, error } = await supabaseClient
@@ -1238,6 +1155,8 @@ function addPaymentRecordRow(data = { amount: 0, date: '', time: '' }) {
                 setFormMode('create'); 
                 initializeEventListeners();
                 setupRealtimeSubscriptions();
+                document.getElementById('upload-slip-btn').addEventListener('click', () => document.getElementById('slip-file-input').click());
+                document.getElementById('slip-file-input').addEventListener('change', (e) => slipProcessor.process(e.target.files[0]));
             }
 
             function setupRealtimeSubscriptions() {
@@ -1859,22 +1778,10 @@ cartoonPatternList = patternsRes.data || [];
                 itemsTbody.innerHTML = '';
                 currentEditingOrderId = null;
                 adminUserInput.value = loggedInUsername;
+                document.getElementById('slip-status').textContent = '';
                 container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า';
                 $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change');
                 $('#promotion').val(null).trigger('change');
-	document.getElementById('payment-records-tbody').innerHTML = ''; // ล้างตารางเดิม
-
-if (mode === 'edit' && order) {
-    if (order.payment_details && Array.isArray(order.payment_details) && order.payment_details.length > 0) {
-        order.payment_details.forEach(p => addPaymentRecordRow(p));
-    } else if (order.payment_date) {
-        addPaymentRecordRow({ amount: order.total_amount, date: order.payment_date, time: order.payment_time });
-    } else {
-        addPaymentRecordRow(); 
-    }
-} else {
-    addPaymentRecordRow(); // กรณีสร้างบิลใหม่ ให้มี 1 แถวรอไว้
-}
 
                 requestTaxInvoiceCb.checked = false;
                 requestCashBillCb.checked = false;
@@ -1888,6 +1795,7 @@ if (mode === 'edit' && order) {
                 allControls.forEach(el => el.disabled = false);
                 $(orderForm.querySelectorAll('.select2-hidden-accessible')).prop('disabled', false).trigger('change');
                 addItemBtn.style.display = 'block';
+                document.getElementById('upload-slip-btn').style.display = 'block';
                 document.getElementById('payment-info-section').style.display = 'block';
 
                 if (mode === 'create') {
@@ -1969,6 +1877,7 @@ if (mode === 'edit' && order) {
                         paymentFields.forEach(id => { container.querySelector(`#${id}`).disabled = false; });
                         $('#promotion').prop('disabled', false).trigger('change');
                         
+                        document.getElementById('upload-slip-btn').style.display = 'none';
                         formActions.innerHTML = `<button type="button" class="btn btn-primary" id="update-payment-only-btn">อัปเดตข้อมูลการชำระเงิน</button>`;
                     } else {
                         if (order.status === 'ใบงาน (กำลังผลิต)' && (currentUserRole !== 'superadmin' && currentUserRole !== 'manager')) {
@@ -2160,15 +2069,7 @@ if (mode === 'edit' && order) {
                     const paymentDate = container.querySelector('#payment_date').value;
                     const paymentTime = container.querySelector('#payment_time').value;
                     const totalAmount = parseFloat(container.querySelector('#total_amount').value) || 0;
-	const paymentRecords = [];
-	document.querySelectorAll('#payment-records-tbody tr').forEach(row => {
-	const amt = parseFloat(row.querySelector('.pay-amount').value) || 0;
-	const dt = row.querySelector('.pay-date').value;
-	const tm = row.querySelector('.pay-time').value;
-	if (amt > 0) {
-	paymentRecords.push({ amount: amt, date: dt, time: tm });
-    }
-});
+
                     if (!customerName) {
                         throw new Error("กรุณากรอก 'ชื่อลูกค้า' ก่อนทำการบันทึก");
                     }
@@ -2269,9 +2170,6 @@ if (mode === 'edit' && order) {
                         shipping_cost: parseFloat(container.querySelector('#shipping_cost').value) || 0,
                         discount: parseFloat(container.querySelector('#discount').value) || 0,
                         total_amount: totalAmount,
-	payment_date: paymentRecords.length > 0 ? paymentRecords[0].date : null,
-	payment_time: paymentRecords.length > 0 ? paymentRecords[0].time : null,
-	payment_details: paymentRecords, 
                         payment_method: paymentMethod,
                         promotion: ($('#promotion').val() || '').trim(),
                         payment_date: paymentDate || null,
@@ -2411,42 +2309,27 @@ if (mode === 'edit' && order) {
             async function generateNextBillNo(channelCode) { const today = new Date(); const year = String(today.getFullYear() + 543).slice(-2); const month = String(today.getMonth() + 1).padStart(2, '0'); const prefix = `${channelCode}${year}${month}`; const { data, error } = await supabaseClient.from('orders').select('bill_no').like('bill_no', `${prefix}%`).order('bill_no', { ascending: false }).limit(1); if (error) throw new Error(`ค้นหาบิลล่าสุดไม่ได้: ${error.message}`); let nextSequence = 1; if (data.length > 0) { const lastBillNo = data[0].bill_no; const lastSequence = parseInt(lastBillNo.slice(prefix.length), 10); if (!isNaN(lastSequence)) { nextSequence = lastSequence + 1; } } return `${prefix}${String(nextSequence).padStart(5, '0')}`; }
             
             function calculateTotal() {
-    const price = parseFloat(container.querySelector('#price').value) || 0;
-    const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0;
-    const discount = parseFloat(container.querySelector('#discount').value) || 0;
-    
-    const preTaxBase = price + shipping - discount;
-    let total = preTaxBase; 
-    let vat = 0;
+                const price = parseFloat(container.querySelector('#price').value) || 0;
+                const shipping = parseFloat(container.querySelector('#shipping_cost').value) || 0;
+                const discount = parseFloat(container.querySelector('#discount').value) || 0;
+                
+                const preTaxBase = price + shipping - discount;
+                let total = preTaxBase; 
+                let vat = 0;
 
-    if (requestTaxInvoiceCb.checked) {
-        vat = preTaxBase * 0.07;
-        total = preTaxBase + vat;
-        // ตรวจสอบว่ามี vatAmountInput ก่อนเซตค่า
-        if (typeof vatAmountInput !== 'undefined' && vatAmountInput) {
-            vatAmountInput.value = vat.toFixed(2);
-        }
-    }
-    container.querySelector('#total_amount').value = total.toFixed(2);
+                if (requestTaxInvoiceCb.checked) {
+                    vat = preTaxBase * 0.07;
+                    total = preTaxBase + vat;
+                    
+                    vatAmountInput.value = vat.toFixed(2);
+                    vatDisplayContainer.style.display = 'block';
+                } else {
+                    vatAmountInput.value = '0.00';
+                    vatDisplayContainer.style.display = 'none';
+                }
 
-    // --- ส่วนคำนวณยอดโอนสะสม ---
-    let sumPaid = 0;
-    document.querySelectorAll('.pay-amount').forEach(input => {
-        sumPaid += parseFloat(input.value) || 0;
-    });
-
-    const balance = total - sumPaid;
-    
-    // ป้องกัน Error ถ้าหา ID ไม่เจอ
-    const sumPaidEl = document.getElementById('sum-paid-display');
-    const balanceDueEl = document.getElementById('balance-due-display');
-    
-    if (sumPaidEl) sumPaidEl.textContent = sumPaid.toFixed(2);
-    if (balanceDueEl) {
-        balanceDueEl.textContent = balance.toFixed(2);
-        balanceDueEl.style.color = balance <= 0 ? 'green' : 'red';
-    }
-}
+                container.querySelector('#total_amount').value = total.toFixed(2);
+            }
 
             function exportForProduction(workOrderName) {
                 const ordersInWorkOrder = allOrdersData
@@ -3599,10 +3482,6 @@ if (mode === 'edit' && order) {
                 document.getElementById('select-all-cancelled-btn').addEventListener('click', () => selectAll('cancelled')); 
                 document.getElementById('restore-to-waiting-btn').addEventListener('click', () => restoreSelectedOrders('รอลงข้อมูล')); 
                 document.getElementById('restore-to-complete-btn').addEventListener('click', () => restoreSelectedOrders('ลงข้อมูลเสร็จสิ้น'));
-	const addPayRowBtn = document.getElementById('add-payment-row-btn');
-	if (addPayRowBtn) {
-	addPayRowBtn.addEventListener('click', () => addPaymentRecordRow());
-}
 	            eventListenersInitialized = true;
             }
 
