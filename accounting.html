@@ -370,12 +370,6 @@ currentReportData = allFetchedOrders.map(order => {
     };
 });
 
-                    // เก็บข้อมูลพร้อมสถานะการจับคู่
-                    currentReportData = allFetchedOrders.map(order => ({
-                        ...order,
-                        is_statement_matched: matchedBillsSet.has(order.bill_no)
-                    }));
-                    
                     renderReportResults(currentReportData);
                     
                     if (currentReportData.length > 0) {
