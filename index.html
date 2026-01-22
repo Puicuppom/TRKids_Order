@@ -71,7 +71,20 @@
         #order-system-container .form-group.full-width { grid-column: 1 / -1; }
         #order-system-container label{margin-bottom:5px;font-weight:600}#order-system-container input,#order-system-container select,#order-system-container textarea{width: 100%; padding:10px;border:1px solid #ccc;border-radius:4px;font-size:16px;box-sizing:border-box}#order-system-container hr{border:0;height:1px;background:#e0e0e0;margin:25px 0}#order-system-container .tabs{border-bottom:2px solid #dee2e6;display:flex;flex-wrap:wrap;margin-bottom:20px}#order-system-container .tab-link{padding:10px 15px;cursor:pointer;background:0 0;border:none;font-size:16px;border-bottom:3px solid transparent}#order-system-container .tab-link.active{border-bottom-color:#0071e3;font-weight:600;color:#0071e3}#order-system-container .tab-content{display:none}#order-system-container .tab-content.active{display:block}
         #order-system-container .items-table-container{overflow-x:auto}#order-system-container #items-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;}#order-system-container #items-table th,#order-system-container #items-table td{border:1px solid #ddd;padding:2px;text-align:left;vertical-align:top;word-wrap:break-word;}#order-system-container #items-table th{background-color:#f8f9fa;font-size:14px;padding:8px;white-space:nowrap}
-        #items-table th:nth-child(1) { width: 250px; } #items-table th:nth-child(2) { width: 120px; } #items-table th:nth-child(3) { width: 80px; } #items-table th:nth-child(4) { width: 120px; } #items-table th:nth-child(5) { width: 100px; } #items-table th:nth-child(6) { width: 120px; } #items-table th:nth-child(7) { width: 150px; } #items-table th:nth-child(8) { width: 150px; } #items-table th:nth-child(9) { width: 150px; } #items-table th:nth-child(10) { width: 70px; } #items-table th:nth-child(11) { width: 180px; } #items-table th:nth-child(12) { width: 120px; } #items-table th:nth-child(13) { width: 50px; }
+	#items-table th:nth-child(1) { width: 250px; } /* ชื่อสินค้า */
+	#items-table th:nth-child(2) { width: 130px; } /* สีหมึก */
+	#items-table th:nth-child(3) { width: 80px; }  /* ชั้นที่ */
+	#items-table th:nth-child(4) { width: 100px; } /* ลายการ์ตูน */
+	#items-table th:nth-child(5) { width: 100px; } /* ลายเส้น */
+	#items-table th:nth-child(6) { width: 80px; } /* ฟอนต์ */
+	#items-table th:nth-child(7) { width: 65px; }  /* ไม่รับชื่อ */
+	#items-table th:nth-child(8) { width: 150px; } /* บรรทัด 1 */
+	#items-table th:nth-child(9) { width: 150px; } /* บรรทัด 2 */
+	#items-table th:nth-child(10) { width: 150px; } /* บรรทัด 3 */
+	#items-table th:nth-child(11) { width: 60px; }  /* จำนวน */
+	#items-table th:nth-child(12) { width: 180px; } /* หมายเหตุ */
+	#items-table th:nth-child(13) { width: 180px; } /* ไฟล์แนบ */
+	#items-table th:nth-child(14) { width: 50px; }  /* ปุ่มลบ */
         #order-system-container #items-table input,#order-system-container #items-table select{width:100%;font-size:14px;padding:6px;border:none;background:0 0;box-sizing:border-box}#order-system-container #items-table input:focus,#order-system-container #items-table select:focus{outline:2px solid #0071e3;background:#fff}
         #order-system-container #items-table .select2-container{width:100%!important}
         #order-system-container #items-table .select2-selection--single{height:32px!important;border:none!important; display: flex; align-items: center;}
@@ -544,7 +557,7 @@
                                     <button type="button" id="download-wy-template-btn" class="btn btn-info">📥 Template (WY)</button>
                                     <button type="button" id="import-orders-btn" class="btn btn-success">📤 Import Orders from File</button>
                                 </div>
-                                <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
+                                <div class="items-table-container"><table id="items-table"><thead><tr><th>ชื่อสินค้า</th><th>สีหมึก</th><th>ชั้นที่</th><th>ลายการ์ตูน</th><th>ลายเส้น</th><th>ฟอนต์</th><th>ไม่รับชื่อ</th><th>บรรทัด 1</th><th>บรรทัด 2</th><th>บรรทัด 3</th><th>จำนวน</th><th>หมายเหตุ</th><th>ไฟล์แนบ</th><th></th></tr></thead><tbody id="items-tbody"></tbody></table></div><button type="button" id="add-item-btn" class="btn btn-secondary">+ เพิ่มแถว</button><hr>
                                 
                                 <div id="payment-info-section">
     <h3 style="margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 18px; color: #333;">ข้อมูลการชำระเงิน</h3>
@@ -1121,7 +1134,8 @@
                     const cropTopPct = parseInt(cropTopInput.value, 10) || 25; const batchSize = parseInt(batchSizeInput.value, 10) || 25;
                     log('⏳ เตรียมข้อมูลเลขพัสดุ...');
                     const targetsText = trackingNumbersRaw.map(normText); const targetsOCR  = trackingNumbersRaw.map(normOCR); const targetsTextSet=new Set(targetsText); const targetsOCRSet =new Set(targetsOCR); const ocr2textMap=new Map(); for(let i=0;i<trackingNumbersRaw.length;i++){ ocr2textMap.set(targetsOCR[i], targetsText[i]); }
-                    log('⏳ เริ่มต้นระบบ OCR...');
+                    // โค้ดที่แก้ไข
+log('⏳ เริ่มต้นระบบ OCR...');
 worker = await Tesseract.createWorker({
     logger: m => {
         if (m.status === 'recognizing text') {
@@ -1136,7 +1150,6 @@ await worker.initialize('eng');
 await worker.setParameters({
     tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
 });
-                    await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' });
                     log(`⏳ เริ่มสแกน ${pdfFiles.length} ไฟล์ PDF...`);
                     const mapping=new Map(); const fileBuffers=new Array(pdfFiles.length); let processed=0; updateProgress(0,pdfFiles.length);
                     for(let idx=0; idx<pdfFiles.length; idx++){
@@ -2063,9 +2076,37 @@ if (mode === 'edit' && order) {
                 const newUid = rowUid || 'row-' + Date.now() + Math.random(); const row = itemsTbody.insertRow(); row.dataset.rowUid = newUid;
                 const shelfOptions = ['1', '2', '3', '4', '5'].map(n => `<option value="${n}">${n}</option>`).join('');
                 const currentChannel = container.querySelector('#channel_code').value; const fontOptions = getFontOptionsForChannel(currentChannel);
-                row.innerHTML = `<td><select class="item-product"></select></td><td><select class="item-ink_color"><option value="">--เลือกสี--</option></select></td><td><select class="item-shelf_location"><option value="">--เลือก--</option>${shelfOptions}</select></td><td><input type="text" class="item-cartoon_pattern"></td><td><input type="text" class="item-line_pattern"></td><td><select class="item-font">${fontOptions}</select></td><td><input type="text" class="item-line_1"></td><td><input type="text" class="item-line_2"></td><td><input type="text" class="item-line_3"></td><td><input type="number" class="item-quantity quantity-input" value="1" min="1"></td><td><input type="text" class="item-notes"></td><td><input type="text" class="item-file_attachment"></td><td class="action-cell"><button type="button" class="btn btn-danger remove-item-btn">X</button></td>`;
+                row.innerHTML = `<td><select class="item-product"></select></td><td><select class="item-ink_color"><option value="">--เลือกสี--</option></select></td><td><select class="item-shelf_location"><option value="">--เลือก--</option>${shelfOptions}</select></td><td><input type="text" class="item-cartoon_pattern"></td><td><input type="text" class="item-line_pattern"></td><td><select class="item-font">${fontOptions}</select></td><td style="text-align:center;"><input type="checkbox" class="item-no-name-cb" style="width:18px;height:18px;cursor:pointer;"></td><td><input type="text" class="item-line_1"></td><td><input type="text" class="item-line_2"></td><td><input type="text" class="item-line_3"></td><td><input type="number" class="item-quantity quantity-input" value="1" min="1"></td><td><input type="text" class="item-notes"></td><td><input type="text" class="item-file_attachment"></td><td class="action-cell"><button type="button" class="btn btn-danger remove-item-btn">X</button></td>`;
+                
+                // --- ระบบล็อคบรรทัด 1, 2, 3 และเพิ่มหมายเหตุ ---
+                const noNameCb = row.querySelector('.item-no-name-cb');
+                const lineInputs = [row.querySelector('.item-line_1'), row.querySelector('.item-line_2'), row.querySelector('.item-line_3')];
+                const notesInput = row.querySelector('.item-notes');
+
+                noNameCb.addEventListener('change', function() {
+                    if (this.checked) {
+                        // ล็อคและไฮไลท์เทาทั้ง 3 ช่อง
+                        lineInputs.forEach(input => {
+                            input.value = ""; 
+                            input.disabled = true; 
+                            input.style.backgroundColor = "#e9ecef"; // สีเทาไฮไลท์
+                        });
+                        if (!notesInput.value.includes("[ไม่รับชื่อ]")) {
+                            notesInput.value = ("[ไม่รับชื่อ] " + notesInput.value).trim();
+                        }
+                    } else {
+                        // ปลดล็อคทั้ง 3 ช่อง
+                        lineInputs.forEach(input => {
+                            input.disabled = false; 
+                            input.style.backgroundColor = ""; 
+                        });
+                        notesInput.value = notesInput.value.replace("[ไม่รับชื่อ]", "").trim();
+                    }
+                });
+
                 const productSelect = $(row.querySelector('.item-product')); productSelect.select2({ data: productList, placeholder: 'เลือกสินค้า', width: '100%' });
                 const inkSelect = row.querySelector('.item-ink_color'); inkTypeList.forEach(ink => { const opt = document.createElement('option'); opt.value = ink.ink_name; opt.textContent = ink.ink_name; inkSelect.appendChild(opt); });
+                
                 if (item) { 
                     productSelect.val(item.product_id).trigger('change.select2'); 
                     inkSelect.value = item.ink_color || ''; 
@@ -2077,16 +2118,23 @@ if (mode === 'edit' && order) {
                     row.querySelector('.item-line_2').value = item.line_2 || ''; 
                     row.querySelector('.item-line_3').value = item.line_3 || ''; 
                     
+                    // เช็คสถานะตอนโหลดข้อมูลเก่ามาแก้ไข
                     const notesValue = item.notes || '';
+                    if (notesValue.includes("[ไม่รับชื่อ]")) {
+                        noNameCb.checked = true;
+                        lineInputs.forEach(input => {
+                            input.disabled = true; 
+                            input.style.backgroundColor = "#e9ecef";
+                        });
+                    }
                     const displayNotes = notesValue.replace(/\[SET-.*?\]/g, '').trim();
                     row.querySelector('.item-notes').value = displayNotes;
-                    
                     row.querySelector('.item-file_attachment').value = item.file_attachment || ''; 
                     row.querySelector('.item-quantity').value = item.quantity || 1; 
                 }
                 return row;
             }
-            
+
             function getSelectedOrderIds(listContainer) { return Array.from(listContainer.querySelectorAll('.order-checkbox:checked')).map(cb => cb.closest('.order-list-item').dataset.orderId); }
             
             async function createWorkOrder(orderIdsToProcess) {
@@ -2262,6 +2310,12 @@ if (mode === 'edit' && order) {
 
                             const validateField = (fieldClass, fieldName) => {
                                 const element = row.querySelector(`.${fieldClass}`);
+                                const isNoName = row.querySelector('.item-no-name-cb').checked;
+
+                                // ถ้าติ๊ก "ไม่รับชื่อ" จะข้ามการเช็คช่อง บรรทัด 1, 2, 3 ทั้งหมด
+                                const isLineField = ['item-line_1', 'item-line_2', 'item-line_3'].includes(fieldClass);
+                                if (isLineField && isNoName) return;
+
                                 if (!element || !element.value.trim()) {
                                     throw new Error(`ข้อมูลไม่ครบถ้วน แถวที่ ${rowIndex} (${productName}): กรุณากรอก '${fieldName}'`);
                                 }
