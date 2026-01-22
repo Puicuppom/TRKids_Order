@@ -15,6 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"/>
     
     <!-- Libraries for Waybill Sorter -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     
@@ -1121,7 +1122,20 @@
                     log('⏳ เตรียมข้อมูลเลขพัสดุ...');
                     const targetsText = trackingNumbersRaw.map(normText); const targetsOCR  = trackingNumbersRaw.map(normOCR); const targetsTextSet=new Set(targetsText); const targetsOCRSet =new Set(targetsOCR); const ocr2textMap=new Map(); for(let i=0;i<trackingNumbersRaw.length;i++){ ocr2textMap.set(targetsOCR[i], targetsText[i]); }
                     log('⏳ เริ่มต้นระบบ OCR...');
-                    worker = await Tesseract.createWorker('eng', 1, { logger: m => { if (m.status === 'recognizing text') { const progress = (m.progress * 100).toFixed(0); log(`(OCR กำลังสแกน... ${progress}%)`, true); } } });
+worker = await Tesseract.createWorker({
+    logger: m => {
+        if (m.status === 'recognizing text') {
+            const progress = (m.progress * 100).toFixed(0);
+            log(`(OCR กำลังสแกน... ${progress}%)`, true);
+        }
+    }
+});
+
+await worker.loadLanguage('eng');
+await worker.initialize('eng');
+await worker.setParameters({
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+});
                     await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' });
                     log(`⏳ เริ่มสแกน ${pdfFiles.length} ไฟล์ PDF...`);
                     const mapping=new Map(); const fileBuffers=new Array(pdfFiles.length); let processed=0; updateProgress(0,pdfFiles.length);
