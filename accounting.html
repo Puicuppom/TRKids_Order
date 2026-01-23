@@ -739,7 +739,7 @@ function parseCSVLine(line) {
                     // 2. ดึงข้อมูล Orders จาก Database (ตามช่องทางที่เลือก)
                     const { data: orders, error: orderError } = await supabaseClient
                         .from('orders')
-                        .select('bill_no, payment_date, payment_time, total_amount, channel_code')
+                        .select('bill_no, payment_date, payment_time, total_amount, channel_code, payment_details')
                         .gte('payment_date', minDate)
                         .lte('payment_date', maxDate)
                         .in('channel_code', selectedChannels)
