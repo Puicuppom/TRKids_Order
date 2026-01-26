@@ -3387,32 +3387,40 @@ if (mode === 'edit' && order) {
                 document.getElementById('export-master-status-btn').addEventListener('click', exportMasterStatusReport);
                 container.querySelector('#channel-summary-container').addEventListener('click', (e) => { if (e.target.matches('.channel-summary-item')) { const channel = e.target.dataset.channel; container.querySelector('#filter-complete').value = channel; renderAllTabs(); } });
                 
-                document.getElementById('create-wo-smart-btn').addEventListener('click', () => {
-                    const checkedItems = Array.from(container.querySelectorAll('#tab-complete .order-checkbox:checked'))
-                                              .map(cb => cb.closest('.order-list-item').dataset.orderId);
-                    const qtyInput = document.getElementById('create-wo-by-quantity-input');
-                    const quantity = parseInt(qtyInput.value, 10);
+                // ค้นหาส่วนนี้ในฟังก์ชัน initializeEventListeners() 
+document.getElementById('create-wo-smart-btn').addEventListener('click', () => {
+    const checkedItems = Array.from(container.querySelectorAll('#tab-complete .order-checkbox:checked'))
+                              .map(cb => cb.closest('.order-list-item').dataset.orderId);
+    const qtyInput = document.getElementById('create-wo-by-quantity-input');
+    const quantity = parseInt(qtyInput.value, 10);
 
-                    if (checkedItems.length > 0) {
-                        createWorkOrder(checkedItems);
-                    } else if (quantity > 0) {
-                        const visibleOrderIds = new Set(Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(li => li.dataset.orderId));
-                        const filteredOrders = allOrdersData.filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น' && visibleOrderIds.has(String(order.id)));
-                        if (quantity > filteredOrders.length) {
-                            if(!confirm(`ต้องการ ${quantity} บิล แต่มี ${filteredOrders.length} บิล\nต้องการสร้างใบงานจาก ${filteredOrders.length} บิล?`)) return;
-                        }
-                        const idsToProcess = filteredOrders.slice(0, quantity).map(order => String(order.id));
-                        createWorkOrder(idsToProcess);
-                        qtyInput.value = '';
-                    } else {
-                        const allFilteredIds = Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(item => item.dataset.orderId);
-                        if (allFilteredIds.length === 0) {
-                            alert('ไม่พบบิลตามเงื่อนไข');
-                            return;
-                        }
-                        createWorkOrder(allFilteredIds);
-                    }
-                });
+    if (checkedItems.length > 0) {
+        createWorkOrder(checkedItems);
+    } else if (quantity > 0) {
+        const visibleOrderIds = new Set(Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(li => li.dataset.orderId));
+        
+        // --- ส่วนที่แก้ไข: เพิ่มการ Sort บิลเก่าขึ้นมาก่อน (FIFO) ---
+        const filteredOrders = allOrdersData
+            .filter(order => order.status === 'ลงข้อมูลเสร็จสิ้น' && visibleOrderIds.has(String(order.id)))
+            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // เรียงจากวันที่เก่าไปใหม่
+        
+        if (quantity > filteredOrders.length) {
+            if(!confirm(`ต้องการ ${quantity} บิล แต่มี ${filteredOrders.length} บิล\nต้องการสร้างใบงานจาก ${filteredOrders.length} บิล?`)) return;
+        }
+        
+        const idsToProcess = filteredOrders.slice(0, quantity).map(order => String(order.id));
+        createWorkOrder(idsToProcess);
+        qtyInput.value = '';
+    } else {
+        // กรณีสร้างทั้งหมดที่กรอง (ปกติจะเรียงตามที่แสดงในหน้าจออยู่แล้ว)
+        const allFilteredIds = Array.from(container.querySelectorAll('#tab-complete .order-list-item')).map(item => item.dataset.orderId);
+        if (allFilteredIds.length === 0) {
+            alert('ไม่พบบิลตามเงื่อนไข');
+            return;
+        }
+        createWorkOrder(allFilteredIds);
+    }
+});
 
                 const completeTab = container.querySelector('#tab-complete');
                 if (completeTab) {
