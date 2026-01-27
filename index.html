@@ -3933,33 +3933,41 @@ window.packingSystem = (() => {
             
             if (order.order_items) {
                 order.order_items.forEach(item => {
-                    // 1. ค้นหาข้อมูลสินค้าเพื่อเอารูปสินค้าหลัก (กรณีไม่มีลายการ์ตูน)
+                    // 1. เริ่มต้นด้วยรูปสินค้าหลัก
                     const productInfo = allProducts.find(p => p.id === item.product_id);
                     let finalImageUrl = productInfo ? productInfo.image_url : null;
 
-                    // 2. ตรรกะการดึงรูปลายการ์ตูน:
-                    // ถ้าในรายการสินค้านี้มีการระบุ "ลายการ์ตูน" ไว้
+                    // 2. ตรวจสอบ "ลายการ์ตูน" ก่อน
                     if (item.cartoon_pattern && window.cartoonPatternList) {
                         const searchName = String(item.cartoon_pattern).trim().toLowerCase();
-                        
-                        // ค้นหาในรายการลายการ์ตูนที่โหลดมาจาก Database
                         const foundPattern = window.cartoonPatternList.find(p => 
                             String(p.pattern_name).trim().toLowerCase() === searchName
                         );
-
-                        // ถ้าเจอลายที่ชื่อตรงกัน ให้เปลี่ยนไปใช้รูปของลายนั้นแทน
                         if (foundPattern && foundPattern.image_url) {
                             finalImageUrl = foundPattern.image_url;
                         }
                     }
 
-                    // 3. รวมข้อมูลเข้าสู่ Flat Array สำหรับแสดงผลในตารางจัดของ
+                    // 3. ตรวจสอบ "ลายเส้น" (line_pattern) ตามที่ผู้ใช้ต้องการ
+                    // หากมีการระบุลายเส้น และพบรูปในฐานข้อมูลลาย จะใช้รูปนี้แทน (Override)
+                    if (item.line_pattern && window.cartoonPatternList) {
+                        const searchLineName = String(item.line_pattern).trim().toLowerCase();
+                        const foundLinePattern = window.cartoonPatternList.find(p => 
+                            String(p.pattern_name).trim().toLowerCase() === searchLineName
+                        );
+                        // ถ้าเจอรูปในชื่อที่ตรงกับช่องลายเส้น ให้ใช้รูปนั้นแทน
+                        if (foundLinePattern && foundLinePattern.image_url) {
+                            finalImageUrl = foundLinePattern.image_url;
+                        }
+                    }
+
+                    // 4. รวมข้อมูลเข้าสู่ Flat Array
                     flatData.push({
                         'tracking_number': order.tracking_number,
                         'customer_name': order.customer_name,
                         'order_id': order.id,
                         'product_name': item.product_name,
-                        'image_url': finalImageUrl, // ใช้รูปที่ตัดสินใจแล้วจากด้านบน
+                        'image_url': finalImageUrl, 
                         'details': [item.line_1, item.line_2, item.line_3].filter(Boolean).join(" // "),
                         'ink_color': item.ink_color,
                         'notes': item.notes,
@@ -3981,7 +3989,6 @@ window.packingSystem = (() => {
             }
         });
 
-        // จัดกลุ่มข้อมูลตามเลขพัสดุ (Grouping by Tracking Number)
         const grouped = {}; 
         const tOrder = [];
         flatData.forEach(item => {
@@ -3992,10 +3999,8 @@ window.packingSystem = (() => {
             grouped[item.tracking_number].push(item);
         });
 
-        // แปลงเป็น Array ของกลุ่มออร์เดอร์
         aggregatedData = tOrder.map(t => grouped[t]);
 
-        // ตรวจสอบสถานะว่าสแกนครบหรือยัง เพื่อทำเครื่องหมายในรายการด้านซ้าย
         aggregatedData.forEach((group, index) => {
             if (group.every(i => i.scanned)) {
                 completedIndices.add(index);
