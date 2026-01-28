@@ -1913,6 +1913,11 @@ window.cartoonPatternList = cartoonPatternList;
                 currentEditingOrderId = null;
                 adminUserInput.value = loggedInUsername;
                 container.querySelector('label[for="customer_address"]').textContent = 'ที่อยู่ลูกค้า';
+
+    // รีเซ็ตสถานะการ disabled ก่อนทุกครั้ง
+    container.querySelector('#channel_code').disabled = false;
+    $(container.querySelector('#channel_code')).prop('disabled', false).trigger('change');
+
                 $(container.querySelectorAll('select')).not('#promotion').val(null).trigger('change');
                 $('#promotion').val(null).trigger('change');
 	document.getElementById('payment-records-tbody').innerHTML = ''; // ล้างตารางเดิม
@@ -1945,11 +1950,20 @@ if (mode === 'edit' && order) {
 
                 if (mode === 'create') {
                     container.querySelector('#form-title').textContent = 'สร้างออร์เดอร์ใหม่';
+
+// มั่นใจว่าในโหมดสร้างใหม่เลือกช่องทางได้
+	container.querySelector('#channel_code').disabled = false;
+	$(container.querySelector('#channel_code')).prop('disabled', false).trigger('change');
+
                     addItemRow();
                     formActions.innerHTML = `<button type="button" class="btn btn-secondary" id="save-waiting-btn">บันทึก (รอลงข้อมูล)</button> <button type="button" class="btn btn-success" id="save-complete-btn">บันทึก (ข้อมูลครบ)</button>`;
                 } else if (mode === 'edit' && order) {
                     container.querySelector('#form-title').textContent = `แก้ไข: ${order.bill_no}`;
                     currentEditingOrderId = order.id;
+
+        // *** เพิ่มส่วนนี้: ล็อกช่องทางทันทีเมื่อกดแก้ไข ***
+        container.querySelector('#channel_code').disabled = true;
+        $(container.querySelector('#channel_code')).prop('disabled', true).trigger('change');
 
                     Object.keys(order).forEach(key => {
                         const input = container.querySelector(`#${key}`);
@@ -5220,4 +5234,3 @@ window.patternSystem = (() => {
     </div>
 </body>
 </html>
-
