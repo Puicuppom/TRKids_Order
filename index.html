@@ -1361,6 +1361,7 @@ function addPaymentRecordRow(data = { amount: 0, date: '', time: '' }) {
 
 if (patternsRes.error) throw patternsRes.error;
 cartoonPatternList = patternsRes.data || [];
+window.cartoonPatternList = cartoonPatternList;
                     const activeOrdersPromise = supabaseClient.from('orders')
                         .select('*, order_items(*)')
                         .in('status', ['รอลงข้อมูล', 'ลงข้อมูลเสร็จสิ้น', 'ใบงาน (กำลังผลิต)'])
@@ -5219,3 +5220,4 @@ window.patternSystem = (() => {
     </div>
 </body>
 </html>
+
