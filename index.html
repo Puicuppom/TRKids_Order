@@ -3106,11 +3106,19 @@ remainingBills.forEach(order => {
 
             const mainItemsMap = {};
             const excludedCategories = ['UV', 'STK', 'TUBE']; 
-            
-            itemsInWorkOrder.filter(item => {
-                const cat = (item.product_category || '').toUpperCase();
-                return !excludedCategories.some(ex => cat.includes(ex));
-            }).forEach(item => {
+
+itemsInWorkOrder.filter(item => {
+    const cat = (item.product_category || '').toUpperCase();
+    const productName = (item.product_name || '').trim();
+    
+    // เงื่อนไขข้อยกเว้น: ถ้าชื่อสินค้าคือ "RLC ไม้บรรทัดใส 18cm" ให้ผ่านเงื่อนไข (คืนค่า true)
+    if (productName === "RLC ไม้บรรทัดใส 18cm") {
+        return true;
+    }
+    
+    // ถ้าไม่ใช่สินค้าข้อยกเว้น ให้เช็คตามหมวดที่ถูกสั่งห้าม (Excluded) ปกติ
+    return !excludedCategories.some(ex => cat.includes(ex));
+}).forEach(item => {
                 const key = item.product_id;
                 if (!mainItemsMap[key]) {
                     mainItemsMap[key] = {
@@ -5211,5 +5219,3 @@ window.patternSystem = (() => {
     </div>
 </body>
 </html>
-
-
